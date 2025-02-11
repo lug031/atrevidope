@@ -72,6 +72,7 @@ import { useCartStore } from '@/stores/cart';
 import { useToast } from '../composables/useToast';
 import type { Product } from '@/types/product.types';
 import type { CartItem } from '@/types/cart.types';
+const heroBanner = new URL('../assets/hero-banner.jpeg', import.meta.url).href;
 
 const { products, loading, error, loadProductsWeb } = useProducts();
 const cartStore = useCartStore();
@@ -293,7 +294,7 @@ onMounted(() => {
   position: relative;
   width: 100%;
   height: 200px;
-  background-image: url('/hero-banner.jpeg');
+  background-image: v-bind('`url(${heroBanner})`');
   background-size: cover;
   background-position: center center;
   background-repeat: no-repeat;

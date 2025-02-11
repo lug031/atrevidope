@@ -3,7 +3,7 @@
     <div class="promotional-products">
       <!-- Header Banner -->
       <router-link to="/promotions" class="promo-header">
-        <div class="hero-banner">
+        <div class="hero-banner" :style="{ backgroundImage: `url(${heroBannerUrl})` }">
           <h1>PROMOCIONES DEL MES</h1>
         </div>
       </router-link>
@@ -72,8 +72,9 @@ import { useCartStore } from '@/stores/cart';
 import { useToast } from '../composables/useToast';
 import type { Product } from '@/types/product.types';
 import type { CartItem } from '@/types/cart.types';
-const heroBanner = new URL('../assets/hero-banner.jpeg', import.meta.url).href;
+import heroBannerImage from '../assets/hero-banner.jpeg';
 
+const heroBannerUrl = ref(heroBannerImage);
 const { products, loading, error, loadProductsWeb } = useProducts();
 const cartStore = useCartStore();
 const { showToast } = useToast();
@@ -132,7 +133,7 @@ onMounted(() => {
 }
 
 .promo-header {
-  background-color: #00000022;
+  background-color: #ffffff22;
   color: white;
   padding: 40px 0;
   text-align: center;
@@ -144,8 +145,35 @@ onMounted(() => {
 .promo-header h1 {
   font-size: 2.5rem;
   margin: 0;
+  position: relative;
+  z-index: 2;
 }
 
+.hero-banner {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.hero-banner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1;
+}
+
+/* Rest of the styles remain the same */
 .filter-section {
   display: flex;
   justify-content: flex-end;
@@ -185,7 +213,6 @@ onMounted(() => {
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
-/* New styles for the router-link wrapper */
 .product-content {
   display: block;
   text-decoration: none;
@@ -225,6 +252,26 @@ onMounted(() => {
   margin: 10px 0;
 }
 
+.stock-status {
+  text-align: center;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  margin: 10px 0;
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.stock-status.low-stock {
+  background-color: #fff3e0;
+  color: #ef6c00;
+}
+
+.stock-status.out-of-stock {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
 .add-to-cart {
   background-color: #000;
   color: white;
@@ -238,6 +285,15 @@ onMounted(() => {
 
 .add-to-cart:hover {
   background-color: #333;
+}
+
+.add-to-cart.disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.add-to-cart.disabled:hover {
+  background-color: #ccc;
 }
 
 .loading-state {
@@ -259,60 +315,6 @@ onMounted(() => {
   border-radius: 50%;
   display: inline-block;
   animation: rotation 1s linear infinite;
-}
-
-.stock-status {
-  text-align: center;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  margin: 10px 0;
-  background-color: #e8f5e9;
-  color: #2e7d32;
-}
-
-.stock-status.low-stock {
-  background-color: #fff3e0;
-  color: #ef6c00;
-}
-
-.stock-status.out-of-stock {
-  background-color: #ffebee;
-  color: #c62828;
-}
-
-.add-to-cart.disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-}
-
-.add-to-cart.disabled:hover {
-  background-color: #ccc;
-}
-
-.hero-banner {
-  position: relative;
-  width: 100%;
-  height: 200px;
-  background-image: v-bind('`url(${heroBanner})`');
-  background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-}
-
-.hero-banner::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.095);
-  z-index: 1;
 }
 
 @keyframes rotation {

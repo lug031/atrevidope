@@ -293,7 +293,7 @@ onMounted(() => {
   position: relative;
   width: 100%;
   height: 200px;
-  background-image: url('../assets/hero-banner.jpeg');
+  background-image: url('/hero-banner.jpeg');
   background-size: cover;
   background-position: center center;
   background-repeat: no-repeat;

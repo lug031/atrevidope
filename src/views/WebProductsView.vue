@@ -1,12 +1,16 @@
 <template>
   <MainLayout>
     <div class="promotional-products">
-      <!-- Header Banner -->
-      <router-link to="/promotions" class="promo-header">
-        <div class="hero-banner" :style="{ backgroundImage: `url(${heroBannerUrl})` }">
-          <h1>PROMOCIONES</h1>
-        </div>
-      </router-link>
+      <!-- Updated Header Banner -->
+      <div class="hero-banner-section">
+        <router-link to="/promotions" class="hero-banner">
+          <img src="/hero-banner.png" alt="Promociones" class="hero-image" />
+          <div class="hero-overlay">
+            <h1>PROMOCIONES</h1>
+            <button class="discover-btn">Descubrir</button>
+          </div>
+        </router-link>
+      </div>
 
       <!-- Filter Section -->
       <div class="filter-section">
@@ -91,12 +95,9 @@ import { useCartStore } from '@/stores/cart';
 import { useToast } from '../composables/useToast';
 import type { Product } from '@/types/product.types';
 import type { CartItem } from '@/types/cart.types';
-import heroBannerImage from '../assets/hero-banner.jpeg';
 import { uploadData, getUrl } from 'aws-amplify/storage';
 
 const imageUrls = ref<Record<string, string>>({});
-
-const heroBannerUrl = ref(heroBannerImage);
 const { products, loading, error, loadProducts } = useProducts();
 const cartStore = useCartStore();
 const { showToast } = useToast();
@@ -122,34 +123,28 @@ const hasUpcomingPromotion = (product: Product): boolean => {
 
   const currentDate = getCurrentPeruDate();
 
-  // Si la fecha actual está dentro del rango de promoción, retornamos false
   if (currentDate >= product.promotionStartDate && currentDate <= product.promotionEndDate) {
     return false;
   }
 
-  // Si la fecha de inicio es mayor que la fecha actual, es una promoción futura
   return product.promotionStartDate > currentDate;
 };
 
 const shouldShowProduct = (product: Product): boolean => {
-  // Si no está en promoción, siempre se muestra
   if (!product.isPromoted) {
     return true;
   }
 
-  // Si no tiene fechas de promoción, se muestra
   if (!product.promotionStartDate || !product.promotionEndDate) {
     return true;
   }
 
   const currentDate = getCurrentPeruDate();
 
-  // No mostrar si la fecha actual está dentro del rango de promoción
   if (currentDate >= product.promotionStartDate && currentDate <= product.promotionEndDate) {
     return false;
   }
 
-  // Mostrar en cualquier otro caso (fechas pasadas o futuras)
   return true;
 };
 
@@ -197,7 +192,6 @@ const sortedProducts = computed(() => {
       case 'name':
         return (a.name || '').localeCompare(b.name || '');
       default:
-        // Mostrar primero los productos con promoción futura
         if (hasUpcomingPromotion(a) && !hasUpcomingPromotion(b)) return -1;
         if (!hasUpcomingPromotion(a) && hasUpcomingPromotion(b)) return 1;
         return 0;
@@ -242,6 +236,10 @@ watch(() => products.value, () => {
 <style scoped>
 .promotional-products {
   padding: 0 20px;
+}
+
+.hero-banner-section {
+  margin-bottom: 30px;
 }
 
 .promotion-badge {
@@ -304,26 +302,74 @@ watch(() => products.value, () => {
 
 .hero-banner {
   position: relative;
+  display: block;
   width: 100%;
   height: 200px;
-  background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  overflow: hidden;
   text-decoration: none;
 }
 
-.hero-banner::before {
-  content: '';
+.hero-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.hero-banner:hover .hero-image {
+  transform: scale(1.05);
+}
+
+.hero-overlay {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.4);
-  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.hero-overlay h1 {
+  color: white;
+  font-size: 2.5rem;
+  margin: 0;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.discover-btn {
+  background: white;
+  color: black;
+  padding: 12px 30px;
+  border: none;
+  border-radius: 25px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.discover-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 8px rgba(0, 0, 0, 0.2);
+  background: #f0f0f0;
+}
+
+@media (max-width: 768px) {
+  .hero-overlay h1 {
+    font-size: 2rem;
+  }
+
+  .discover-btn {
+    padding: 10px 25px;
+    font-size: 1rem;
+  }
 }
 
 /* Rest of the styles remain the same */

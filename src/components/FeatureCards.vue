@@ -1,4 +1,3 @@
-<!-- FeatureCards.vue -->
 <template>
     <div class="features-section">
         <div class="features-grid">

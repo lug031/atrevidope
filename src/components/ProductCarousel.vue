@@ -11,7 +11,7 @@
                         <div class="slide-text">
                             <h2>{{ product.name }}</h2>
                             <button @click="router.push(`/product/${product.id}`)" class="discover-button">
-                                DESCUBRIR
+                                VER
                             </button>
                         </div>
                     </div>
@@ -48,7 +48,7 @@ const currentSlide = ref(0);
 const imageUrls = ref<Record<string, string>>({});
 const autoplayInterval = ref<number | null>(null);
 
-const { products, loadProductsWeb } = useProducts();
+const { products, loadProducts } = useProducts();
 
 const loadImageUrls = async () => {
     if (!products.value) return;
@@ -92,7 +92,7 @@ const stopAutoplay = () => {
 };
 
 onMounted(async () => {
-    await loadProductsWeb();
+    await loadProducts();
     await loadImageUrls();
     startAutoplay();
 });

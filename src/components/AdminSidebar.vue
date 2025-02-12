@@ -1,4 +1,3 @@
-<!-- AdminSidebar.vue -->
 <template>
     <Transition name="slide">
         <aside v-if="isOpen" class="admin-sidebar" @click.self="$emit('close')">

@@ -1,4 +1,3 @@
-<!-- ProfileView.vue -->
 <template>
     <MainLayout>
         <div class="profile-container">

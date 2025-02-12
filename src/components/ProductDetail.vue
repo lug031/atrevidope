@@ -1,4 +1,3 @@
-<!-- ProductDetail.vue -->
 <template>
     <MainLayout>
         <div class="product-detail-container">

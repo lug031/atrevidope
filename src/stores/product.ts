@@ -31,6 +31,28 @@ export const useProductStore = defineStore("product", () => {
     }
   };
 
+  const fetchProductsByCategory = async (categoryId: string) => {
+    loading.value = true;
+    error.value = null;
+    products.value = []; // Limpiar productos anteriores
+
+    try {
+      const { data: items } = await publicClient.models.Product.list({
+        filter: {
+          and: [{ categoryID: { eq: categoryId } }, { active: { eq: true } }],
+        },
+      });
+
+      products.value = items as unknown as Product[];
+    } catch (err) {
+      console.error("Error fetching products by category:", err);
+      error.value = "Error al cargar productos de la categoría";
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
   const fetchProductsWeb = async () => {
     loading.value = true;
     try {
@@ -111,6 +133,7 @@ export const useProductStore = defineStore("product", () => {
     loading,
     error,
     fetchProducts,
+    fetchProductsByCategory,
     fetchProductsWeb,
     createProduct,
     updateProduct,

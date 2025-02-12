@@ -13,6 +13,14 @@ export function useProducts() {
     await productStore.fetchProducts();
   };
 
+  const loadProductsByCategory = async (categoryId: string) => {
+    try {
+      await productStore.fetchProductsByCategory(categoryId);
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const loadProductsWeb = async () => {
     await productStore.fetchProductsWeb();
   };
@@ -31,10 +39,12 @@ export function useProducts() {
 
   return {
     products,
+    productsWeb,
     loading,
     error,
     totalProducts,
     loadProducts,
+    loadProductsByCategory,
     loadProductsWeb,
     createProduct,
     updateProduct,

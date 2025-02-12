@@ -10,7 +10,7 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
-      //allow.authenticated().to(["read"]),
+      allow.authenticated().to(["read"]),
       allow.publicApiKey().to(["read"]),
     ]),
 
@@ -34,6 +34,7 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
+      allow.authenticated().to(["read"]),
       allow.publicApiKey().to(["read"]),
     ]),
 });

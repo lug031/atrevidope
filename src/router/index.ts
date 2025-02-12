@@ -17,6 +17,7 @@ import AdminReports from "@/views/admin/ReportsView.vue";
 import AdminUsers from "@/views/admin/UsersView.vue";
 import PromotionsView from "@/views/PromotionsView.vue";
 import ProductDetailView from "../views/ProductDetailView.vue";
+import CategoryProductsView from "@/views/CategoryProductsView.vue";
 
 let authInitialized = false;
 
@@ -45,6 +46,12 @@ const router = createRouter({
       path: "/web-products",
       name: "web-products",
       component: WebProductsView,
+      meta: { requiresAuth: false },
+    },
+    {
+      path: '/category/:categoryId',
+      name: 'CategoryProducts',
+      component: CategoryProductsView,
       meta: { requiresAuth: false },
     },
     {

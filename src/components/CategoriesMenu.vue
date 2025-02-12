@@ -2,10 +2,18 @@
   <div class="categories-menu">
     <ul class="menu-list" v-if="!loading && !error">
       <li v-for="category in activeCategories" :key="category.id">
-        <a href="#" class="menu-link">
+        <router-link :to="{
+          name: 'CategoryProducts',
+          params: {
+            categoryId: category.id
+          },
+          query: {
+            name: category.name
+          }
+        }" class="menu-link" active-class="active">
           {{ category.name }}
           <span class="hover-line"></span>
-        </a>
+        </router-link>
       </li>
     </ul>
     <div v-else-if="loading" class="loading">
@@ -81,12 +89,12 @@ onMounted(async () => {
   left: 0;
   width: 0;
   height: 2px;
-  background-color: #5c9eff;
+  background-color: #ffffff;
   transition: width 0.3s ease;
 }
 
 .menu-link:hover {
-  color: #5c9eff;
+  color: #ffffff;
 }
 
 .menu-link:hover .hover-line {
@@ -111,7 +119,7 @@ onMounted(async () => {
 .loading-dot {
   width: 8px;
   height: 8px;
-  background-color: #5c9eff;
+  background-color: #ffffff;
   border-radius: 50%;
   display: inline-block;
   animation: pulse 1.4s infinite ease-in-out;
@@ -133,6 +141,14 @@ onMounted(async () => {
   background-color: rgba(255, 107, 107, 0.1);
   border-radius: 4px;
   margin: 0 1rem;
+}
+
+.menu-link.active {
+  color: #ffffff;
+}
+
+.menu-link.active .hover-line {
+  width: 100%;
 }
 
 @keyframes pulse {

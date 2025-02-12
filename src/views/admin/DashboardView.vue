@@ -6,8 +6,8 @@
                     <h3>Ventas Totales</h3>
                     <DollarSignIcon :size="24" />
                 </div>
-                <p class="stat-value">$45,678</p>
-                <p class="stat-change positive">+12.5% vs mes anterior</p>
+                <p class="stat-value">$0</p>
+                <p class="stat-change positive">+0% vs mes anterior</p>
             </div>
 
             <div class="stat-card">
@@ -15,17 +15,8 @@
                     <h3>Pedidos</h3>
                     <PackageIcon :size="24" />
                 </div>
-                <p class="stat-value">234</p>
-                <p class="stat-change positive">+8.3% vs mes anterior</p>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-header">
-                    <h3>Clientes Nuevos</h3>
-                    <UsersIcon :size="24" />
-                </div>
-                <p class="stat-value">56</p>
-                <p class="stat-change negative">-2.1% vs mes anterior</p>
+                <p class="stat-value">0</p>
+                <p class="stat-change positive">+0% vs mes anterior</p>
             </div>
 
             <div class="stat-card">
@@ -33,15 +24,98 @@
                     <h3>Productos Activos</h3>
                     <LayoutGridIcon :size="24" />
                 </div>
-                <p class="stat-value">1,245</p>
-                <p class="stat-change positive">+5.7% vs mes anterior</p>
+                <p class="stat-value">{{ activeProductsCount }}</p>
+                <p class="stat-change" :class="getChangeClass(activeProductsChange)">
+                    {{ formatChange(activeProductsChange) }} vs mes anterior
+                </p>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <h3>Productos en Promoción</h3>
+                    <TagIcon :size="24" />
+                </div>
+                <p class="stat-value">{{ promotionalProductsCount }}</p>
+                <div class="promotion-details">
+                    <span class="upcoming-promotions">
+                        {{ upcomingPromotionsCount }} próximas
+                    </span>
+                    <span class="active-promotions">
+                        {{ currentPromotionsCount }} activas
+                    </span>
+                </div>
             </div>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { DollarSignIcon, PackageIcon, UsersIcon, LayoutGridIcon } from 'lucide-vue-next'
+import { ref, computed, onMounted } from 'vue'
+import {
+    DollarSignIcon,
+    PackageIcon,
+    UsersIcon,
+    LayoutGridIcon,
+    TagIcon
+} from 'lucide-vue-next'
+import { useProducts } from '@/composables/useProducts'
+
+const { products, loadProducts } = useProducts()
+
+// Productos activos
+const activeProductsCount = computed(() => {
+    return products.value?.filter(product => product.active).length || 0
+})
+
+// Cambio en productos activos (simulado por ahora)
+const activeProductsChange = ref(5.7)
+
+// Productos en promoción
+const promotionalProductsCount = computed(() => {
+    return products.value?.filter(product => product.isPromoted).length || 0
+})
+
+// Promociones próximas
+const upcomingPromotionsCount = computed(() => {
+    const today = getCurrentPeruDate()
+    return products.value?.filter(product =>
+        product.isPromoted &&
+        product.promotionStartDate &&
+        product.promotionStartDate > today
+    ).length || 0
+})
+
+// Promociones activas
+const currentPromotionsCount = computed(() => {
+    const today = getCurrentPeruDate()
+    return products.value?.filter(product =>
+        product.isPromoted &&
+        product.promotionStartDate &&
+        product.promotionEndDate &&
+        product.promotionStartDate <= today &&
+        product.promotionEndDate >= today
+    ).length || 0
+})
+
+const getCurrentPeruDate = (): string => {
+    const date = new Date()
+    const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }))
+
+    return peruDate.toISOString().split('T')[0]
+}
+
+const getChangeClass = (change: number): string => {
+    return change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral'
+}
+
+const formatChange = (change: number): string => {
+    const prefix = change > 0 ? '+' : ''
+    return `${prefix}${change.toFixed(1)}%`
+}
+
+onMounted(async () => {
+    await loadProducts()
+})
 </script>
 
 <style scoped>
@@ -62,6 +136,12 @@ import { DollarSignIcon, PackageIcon, UsersIcon, LayoutGridIcon } from 'lucide-v
     padding: 1.5rem;
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .stat-header {
@@ -96,5 +176,25 @@ import { DollarSignIcon, PackageIcon, UsersIcon, LayoutGridIcon } from 'lucide-v
 
 .stat-change.negative {
     color: #ef4444;
+}
+
+.stat-change.neutral {
+    color: #9ca3af;
+}
+
+.promotion-details {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.875rem;
+    color: #666;
+    margin-top: 0.5rem;
+}
+
+.upcoming-promotions {
+    color: #f59e0b;
+}
+
+.active-promotions {
+    color: #10b981;
 }
 </style>

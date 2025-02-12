@@ -1,8 +1,25 @@
-// types/cart.types.ts
+import type { Product } from "./product.types";
+
+
 export interface CartItem {
   id: string;
-  name: string;
-  price: number;
+  cartID: string;
+  productID: string;
   quantity: number;
-  imageUrl?: string;
+  price: number;
+  originalPrice: number;
+  discountPercentage: number;
+  isPromoted: boolean;
+  product?: Product;
+}
+
+export interface Cart {
+  id: string;
+  userID: string;
+  items: CartItem[];
+  status: 'active' | 'checkout' | 'abandoned' | 'completed';
+  subtotal: number;
+  total: number;
+  createdAt: string;
+  updatedAt: string;
 }

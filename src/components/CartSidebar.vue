@@ -1,0 +1,432 @@
+<template>
+    <Transition name="slide">
+        <div v-if="isOpen" class="cart-sidebar-overlay">
+            <!-- Fondo oscuro -->
+            <div class="overlay-background" @click="$emit('close')"></div>
+
+            <!-- Panel lateral del carrito -->
+            <div class="cart-sidebar-panel">
+                <!-- Encabezado -->
+                <div class="cart-header">
+                    <h2 class="cart-title">Mi Carrito</h2>
+                    <button class="close-button" @click="$emit('close')">
+                        <XIcon :size="24" />
+                    </button>
+                </div>
+
+                <!-- Contenido del carrito -->
+                <div v-if="hasItems" class="cart-content">
+                    <!-- Lista de productos -->
+                    <div class="cart-items">
+                        <div v-for="item in items" :key="item.id" class="cart-item">
+                            <img :src="item.product?.imageUrl || '/api/placeholder/80/80'" :alt="item.product?.name"
+                                class="item-image" />
+
+                            <div class="item-details">
+                                <div class="item-info">
+                                    <span class="item-brand">{{ item.product?.brand }}</span>
+                                    <h3 class="item-name">{{ item.product?.name }}</h3>
+                                    <span class="item-price">S/. {{ item.price.toFixed(2) }}</span>
+                                </div>
+
+                                <div class="item-actions">
+                                    <div class="quantity-controls">
+                                        <button @click="handleDecreaseQuantity(item)" class="quantity-button"
+                                            :disabled="item.quantity <= 1">
+                                            <MinusIcon :size="16" />
+                                        </button>
+                                        <span class="quantity">{{ item.quantity }}</span>
+                                        <button @click="handleIncreaseQuantity(item)" class="quantity-button"
+                                            :disabled="!canIncrease(item)">
+                                            <PlusIcon :size="16" />
+                                        </button>
+                                    </div>
+                                    <button @click="handleRemoveItem(item.id)" class="remove-button">
+                                        <TrashIcon :size="16" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Resumen y totales -->
+                    <div class="cart-summary">
+                        <div class="summary-row">
+                            <span>Subtotal</span>
+                            <span>S/. {{ subtotal.toFixed(2) }}</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Envío</span>
+                            <span>{{ shippingCost > 0 ? `S/. ${shippingCost.toFixed(2)}` : 'Gratis' }}</span>
+                        </div>
+                        <div class="summary-row total">
+                            <span>Total</span>
+                            <span>S/. {{ total.toFixed(2) }}</span>
+                        </div>
+
+                        <button @click="handleCheckout" class="checkout-button" :disabled="loading">
+                            {{ loading ? 'Procesando...' : 'Proceder al pago' }}
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Carrito vacío -->
+                <div v-else class="empty-cart">
+                    <ShoppingBagIcon :size="64" class="empty-cart-icon" />
+                    <p>Tu carrito está vacío</p>
+                    <button @click="$emit('close')" class="continue-shopping">
+                        Continuar comprando
+                    </button>
+                </div>
+            </div>
+        </div>
+    </Transition>
+</template>
+
+<script setup lang="ts">
+import { onMounted } from 'vue';
+import { XIcon, MinusIcon, PlusIcon, TrashIcon, ShoppingBagIcon } from 'lucide-vue-next';
+import { useCart } from '@/composables/useCart';
+import { useRouter } from 'vue-router';
+import type { CartItem } from '@/types/cart.types';
+import type { Product } from '@/types/product.types';
+
+const props = defineProps<{
+    isOpen: boolean;
+}>();
+
+const emit = defineEmits<{
+    (e: 'close'): void;
+}>();
+
+const router = useRouter();
+
+const {
+    items,
+    loading,
+    error,
+    subtotal,
+    total,
+    shippingCost,
+    hasItems,
+    loadCartItems,
+    updateQuantity,
+    removeFromCart,
+    canIncreaseQuantity
+} = useCart();
+
+const canIncrease = (item: CartItem): boolean => {
+    if (!item.product) return false;
+    return canIncreaseQuantity(item.product);
+};
+
+// Handlers
+const handleIncreaseQuantity = async (item: CartItem) => {
+    if (item.product && canIncrease(item)) {
+        try {
+            await updateQuantity(item.id, item.quantity + 1);
+        } catch (err) {
+            console.error('Error al aumentar cantidad:', err);
+        }
+    }
+};
+
+const handleDecreaseQuantity = async (item: CartItem) => {
+    if (item.quantity > 1) {
+        try {
+            await updateQuantity(item.id, item.quantity - 1);
+        } catch (err) {
+            console.error('Error al disminuir cantidad:', err);
+        }
+    }
+};
+
+const handleRemoveItem = async (itemId: string) => {
+    try {
+        await removeFromCart(itemId);
+    } catch (err) {
+        console.error('Error al eliminar item:', err);
+    }
+};
+
+const handleCheckout = () => {
+    router.push('/checkout');
+    emit('close');
+};
+
+onMounted(async () => {
+    if (props.isOpen) {
+        await loadCartItems();
+    }
+});
+</script>
+
+<style scoped>
+.cart-sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 200;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.quantity-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.checkout-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    background-color: #666;
+}
+
+.overlay-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(159, 159, 159, 0.367);
+}
+
+.cart-sidebar-panel {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+    background-color: white;
+    display: flex;
+    flex-direction: column;
+    z-index: 201;
+}
+
+.cart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.cart-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1a202c;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    color: #4a5568;
+    cursor: pointer;
+    padding: 0.5rem;
+    transition: color 0.2s;
+}
+
+.close-button:hover {
+    color: #1a202c;
+}
+
+.cart-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.cart-items {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+}
+
+.cart-item {
+    display: flex;
+    padding: 1rem;
+    border-bottom: 1px solid #e2e8f0;
+    gap: 1rem;
+}
+
+.item-image {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.item-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.item-brand {
+    font-size: 0.875rem;
+    color: #4a5568;
+}
+
+.item-name {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #1a202c;
+}
+
+.item-price {
+    font-weight: 600;
+    color: #1a202c;
+}
+
+.item-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.5rem;
+}
+
+.quantity-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 0.25rem;
+}
+
+.quantity-button {
+    background: none;
+    border: none;
+    color: #4a5568;
+    cursor: pointer;
+    padding: 0.25rem;
+    transition: color 0.2s;
+}
+
+.quantity-button:hover {
+    color: #1a202c;
+}
+
+.quantity {
+    min-width: 1.5rem;
+    text-align: center;
+    font-weight: 500;
+}
+
+.remove-button {
+    background: none;
+    border: none;
+    color: #e53e3e;
+    cursor: pointer;
+    padding: 0.25rem;
+    transition: color 0.2s;
+}
+
+.remove-button:hover {
+    color: #c53030;
+}
+
+.cart-summary {
+    background-color: #f7fafc;
+    padding: 1.5rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+    color: #4a5568;
+}
+
+.summary-row.total {
+    font-weight: 600;
+    color: #1a202c;
+    font-size: 1.125rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.checkout-button {
+    width: 100%;
+    background-color: #000;
+    color: white;
+    padding: 1rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-top: 1rem;
+}
+
+.checkout-button:hover {
+    background-color: #1a202c;
+}
+
+.empty-cart {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+    color: #4a5568;
+}
+
+.empty-cart-icon {
+    color: #a0aec0;
+    margin-bottom: 1rem;
+}
+
+.continue-shopping {
+    margin-top: 1rem;
+    padding: 0.75rem 1.5rem;
+    background-color: #000;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.continue-shopping:hover {
+    background-color: #1a202c;
+}
+
+/* Animaciones */
+.slide-enter-active,
+.slide-leave-active {
+    transition: all 0.3s ease-out;
+}
+
+.slide-enter-from {
+    transform: translateX(100%);
+}
+
+.slide-leave-to {
+    transform: translateX(100%);
+}
+
+.slide-enter-from .overlay-background,
+.slide-leave-to .overlay-background {
+    opacity: 0;
+}
+
+@media (max-width: 640px) {
+    .cart-sidebar-panel {
+        max-width: 100%;
+    }
+}
+</style>

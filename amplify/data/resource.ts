@@ -31,6 +31,40 @@ const schema = a.schema({
       promotionStartDate: a.string(),
       promotionEndDate: a.string(),
       promotionType: a.string(),
+      cartItems: a.hasMany("CartItem", "productID"),
+    })
+    .authorization((allow) => [
+      allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
+      allow.authenticated().to(["read"]),
+      allow.publicApiKey().to(["read"]),
+    ]),
+  Cart: a
+    .model({
+      userID: a.string(),
+      items: a.hasMany("CartItem", "cartID"),
+      status: a.enum(["active", "checkout", "abandoned", "completed"]),
+      subtotal: a.float(),
+      total: a.float(),
+      createdAt: a.datetime(),
+      updatedAt: a.datetime(),
+    })
+    .authorization((allow) => [
+      allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
+      allow.authenticated().to(["read"]),
+      allow.publicApiKey().to(["read"]),
+    ]),
+
+  CartItem: a
+    .model({
+      cartID: a.string(),
+      cart: a.belongsTo("Cart", "cartID"),
+      productID: a.string(),
+      product: a.belongsTo("Product", "productID"),
+      quantity: a.integer(),
+      price: a.float(),
+      originalPrice: a.float(),
+      discountPercentage: a.integer(),
+      isPromoted: a.boolean(),
     })
     .authorization((allow) => [
       allow.groups(["admin"]).to(["read", "create", "update", "delete"]),

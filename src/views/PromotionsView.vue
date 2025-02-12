@@ -187,7 +187,7 @@ const addToCart = (product: Product) => {
         return;
     }
 
-    const cartItem: CartItem = {
+    /*const cartItem: CartItem = {
         id: product.id,
         name: product.name,
         price: calculateDiscountedPrice(product),
@@ -195,7 +195,7 @@ const addToCart = (product: Product) => {
         imageUrl: product.imageUrl
     };
 
-    cartStore.addItem(cartItem);
+    cartStore.addItem(cartItem);*/
     showToast({
         type: 'success',
         message: 'Producto añadido'

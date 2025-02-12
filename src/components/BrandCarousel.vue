@@ -30,12 +30,13 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-vue-next';
 
 const brands = [
-    { name: 'CAROLINA HERRERA', logo: '/brands/carolina-herrera.png' },
+    { name: 'CAROLINA HERRERA', logo: '/brands/carolina-herrera.jpg' },
     { name: 'RABANNE', logo: '/brands/rabanne.png' },
     { name: 'BOSS', logo: '/brands/boss.png' },
-    { name: 'DIOR', logo: '/brands/dior.png' },
+    { name: 'DIOR', logo: '/brands/dior.jpg' },
     { name: 'GUERLAIN', logo: '/brands/guerlain.png' },
     { name: 'GIVENCHY', logo: '/brands/givenchy.png' },
+    { name: 'DOLCE & GABBANA', logo: '/brands/dolce.png' },
 ];
 
 const currentSlide = ref(0);

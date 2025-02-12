@@ -81,12 +81,12 @@ onMounted(async () => {
   left: 0;
   width: 0;
   height: 2px;
-  background-color: #5c9eff;
+  background-color: #ffffff;
   transition: width 0.3s ease;
 }
 
 .menu-link:hover {
-  color: #5c9eff;
+  color: #ffffff;
 }
 
 .menu-link:hover .hover-line {
@@ -111,7 +111,7 @@ onMounted(async () => {
 .loading-dot {
   width: 8px;
   height: 8px;
-  background-color: #5c9eff;
+  background-color: #ffffff;
   border-radius: 50%;
   display: inline-block;
   animation: pulse 1.4s infinite ease-in-out;

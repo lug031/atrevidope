@@ -51,10 +51,12 @@
                             <td>
                                 <div class="product-info">
                                     <img :src="imageUrls[product.id] || '/api/placeholder/40/40'"
-                                        class="product-image" />
+                                        class="product-image cursor-pointer hover:opacity-80 transition-opacity"
+                                        @click="handleImageClick(product)" />
                                     <div class="product-details">
                                         <span class="product-name">{{ product.name }}</span>
-                                        <span class="product-description">{{ product.description }}</span>
+                                        <span class="product-description"
+                                            v-html="truncateDescription(product.description)"></span>
                                     </div>
                                 </div>
                             </td>
@@ -67,9 +69,21 @@
                             </td>
                             <td>S/{{ product.price.toFixed(2) }}</td>
                             <td>
-                                <span :class="['stock-badge', getStockClass(product.stock)]">
-                                    {{ product.stock }}
-                                </span>
+                                <div class="stock-control">
+                                    <span :class="['stock-badge', getStockClass(product.stock)]">
+                                        {{ product.stock }}
+                                    </span>
+                                    <div class="stock-buttons">
+                                        <button @click="decreaseStock(product)" class="stock-btn decrease"
+                                            :disabled="product.stock <= 0" title="Disminuir stock">
+                                            <MinusIcon :size="14" />
+                                        </button>
+                                        <button @click="increaseStock(product)" class="stock-btn increase"
+                                            title="Aumentar stock">
+                                            <PlusIcon :size="14" />
+                                        </button>
+                                    </div>
+                                </div>
                             </td>
                             <td>
                                 <span :class="['promotion-badge', isPromotionActive(product) ? 'active' : '']">
@@ -90,6 +104,16 @@
                                         title="Eliminar">
                                         <Trash2Icon :size="18" />
                                     </button>
+                                    <button class="icon-button notify" @click="handleNotify(product.id)"
+                                        title="Notificar">
+                                        <BellIcon :size="18" />
+                                    </button>
+                                    <!-- TODO: Implementar sistema de notificaciones para alertar a los clientes sobre:
+                                 - Nuevos productos
+                                 - Inicio de promociones
+                                 - Productos de vuelta en stock
+                                 - Últimas unidades disponibles
+                            -->
                                 </div>
                             </td>
                         </tr>
@@ -113,9 +137,41 @@
                     <input id="brand" v-model="formData.brand" type="text" class="form-input" required />
                 </div>
 
-                <div class="form-group">
+                <!--<div class="form-group">
                     <label for="description">Descripción</label>
                     <textarea id="description" v-model="formData.description" class="form-input" required />
+                </div> -->
+
+                <div class="form-group">
+                    <div class="description-header">
+                        <label for="description">Descripción</label>
+                        <button type="button" @click="togglePreview" class="preview-toggle"
+                            :class="{ 'active': showPreview }">
+                            <EyeIcon v-if="!showPreview" :size="16" />
+                            <EyeOffIcon v-else :size="16" />
+                            {{ showPreview ? 'Ocultar' : 'Mostrar' }}
+                        </button>
+                    </div>
+                    <div class="description-editor" :class="{ 'with-preview': showPreview }">
+                        <div class="editor-section">
+                            <div class="editor-toolbar">
+                                <button type="button" @click="insertMarkdown('**')" title="Negrita"
+                                    class="toolbar-button">
+                                    <BoldIcon :size="16" />
+                                </button>
+                                <button type="button" @click="insertMarkdown('*')" title="Cursiva"
+                                    class="toolbar-button">
+                                    <ItalicIcon :size="16" />
+                                </button>
+                            </div>
+                            <textarea id="description" v-model="formData.description" class="form-input markdown-editor"
+                                required :style="{ height: showPreview ? '200px' : '150px' }" />
+                        </div>
+                        <div v-show="showPreview" class="preview-section">
+                            <div class="preview-header">Vista previa</div>
+                            <div class="markdown-preview" v-html="markdownPreview"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Campos de precios y promoción -->
@@ -155,7 +211,7 @@
                 </div>
 
                 <div v-if="formData.isPromoted" class="form-row">
-                    <div class="form-group">
+                    <!--<div class="form-group">
                         <label for="promotionStartDate">Inicio de promoción</label>
                         <input type="date" id="promotionStartDate" v-model="formData.promotionStartDate"
                             class="form-input" />
@@ -165,16 +221,69 @@
                         <label for="promotionEndDate">Fin de promoción</label>
                         <input type="date" id="promotionEndDate" v-model="formData.promotionEndDate"
                             class="form-input" />
-                    </div>
+                    </div>-->
                 </div>
 
-                <div v-if="formData.isPromoted" class="form-group">
+                <!--<div v-if="formData.isPromoted" class="form-group">
                     <label for="promotionType">Tipo de promoción</label>
                     <select id="promotionType" v-model="formData.promotionType" class="form-input">
                         <option value="discount">Descuento porcentual</option>
                         <option value="special">Oferta especial</option>
                         <option value="clearance">Liquidación</option>
                     </select>
+                </div> -->
+
+                <div v-if="formData.isPromoted" class="form-group promotion-dates">
+                    <label class="promotion-dates-label">Periodo de promoción</label>
+                    <div class="promotion-types">
+                        <button type="button" class="promotion-type-btn"
+                            :class="{ active: promotionDuration === 'single' }" @click="setPromotionDuration('single')">
+                            <CalendarIcon :size="16" />
+                            Día específico
+                        </button>
+                        <button type="button" class="promotion-type-btn"
+                            :class="{ active: promotionDuration === 'range' }" @click="setPromotionDuration('range')">
+                            <CalendarRangeIcon :size="16" />
+                            Rango de fechas
+                        </button>
+                    </div>
+
+                    <div class="date-inputs">
+                        <template v-if="promotionDuration === 'single'">
+                            <div class="date-field">
+                                <label>Fecha de promoción</label>
+                                <div class="date-input-wrapper">
+                                    <CalendarIcon :size="16" class="date-icon" />
+                                    <input type="date" v-model="formData.promotionStartDate" class="form-input"
+                                        :min="getCurrentPeruDate()" @change="setSingleDate" />
+                                </div>
+                            </div>
+                        </template>
+
+                        <template v-else>
+                            <div class="date-field">
+                                <label>Inicio</label>
+                                <div class="date-input-wrapper">
+                                    <CalendarIcon :size="16" class="date-icon" />
+                                    <input type="date" v-model="formData.promotionStartDate" class="form-input"
+                                        :min="getCurrentPeruDate()" />
+                                </div>
+                            </div>
+                            <div class="date-field">
+                                <label>Fin</label>
+                                <div class="date-input-wrapper">
+                                    <CalendarIcon :size="16" class="date-icon" />
+                                    <input type="date" v-model="formData.promotionEndDate" class="form-input"
+                                        :min="formData.promotionStartDate" />
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div v-if="showDateError" class="date-error">
+                        <AlertCircleIcon :size="16" />
+                        La fecha de fin debe ser posterior a la fecha de inicio
+                    </div>
                 </div>
 
                 <!-- Campo de categoría -->
@@ -234,6 +343,9 @@
                 </div>
             </form>
         </Modal>
+
+        <ImageModal :show="showImageModal" :image-url="selectedImageUrl" :product-name="selectedProductName"
+            @close="showImageModal = false" />
     </div>
 </template>
 
@@ -248,27 +360,65 @@ import {
     AlertCircleIcon,
     RefreshCwIcon,
     UploadIcon,
-    XIcon
+    XIcon,
+    BellIcon,
+    EyeIcon,
+    EyeOffIcon,
+    BoldIcon,
+    ItalicIcon,
+    CalendarIcon,
+    CalendarRangeIcon,
+    MinusIcon,
 } from 'lucide-vue-next'
 import { useProducts } from '@/composables/useProducts'
 import { useCategories } from '@/composables/useCategories'
 import type { Product } from '@/types/product.types'
 import Modal from '@/components/Modal.vue'
 import { uploadData, getUrl } from 'aws-amplify/storage';
-const imageUrls = ref<Record<string, string>>({});
+import ImageModal from '@/components/ImageModal.vue'
+import { useToast } from '@/composables/useToast';
 
-const loadImageUrls = async () => {
-    for (const product of products.value) {
-        if (product.imageUrl) {
-            try {
-                const { url } = await getUrl({ path: product.imageUrl });
-                imageUrls.value[product.id] = url.toString();
-            } catch (error) {
-                console.error("Error cargando imagen:", error);
-            }
-        }
-    }
-};
+const imageUrls = ref<Record<string, string>>({});
+const promotionDuration = ref('single')
+const markdownPreview = computed(() => {
+    return simpleMarkdown(formData.value.description)
+})
+const simpleMarkdown = (text: string): string => {
+    return text
+        // Bold
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        // Italic
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        // Lists
+        .replace(/^- (.*)$/gm, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+        // Headers
+        .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+        .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+        // Convert newlines to <br>
+        .replace(/\n/g, '<br>')
+}
+const showImageModal = ref(false)
+const selectedImageUrl = ref('')
+const selectedProductName = ref('')
+
+const showPreview = ref(false)
+
+const showDateError = ref(false)
+
+const togglePreview = () => {
+    showPreview.value = !showPreview.value
+}
+
+const handleImageClick = (product: Product) => {
+    const imageUrl = imageUrls.value[product.id] || '/api/placeholder/400/400'
+    selectedImageUrl.value = imageUrl
+    selectedProductName.value = product.name
+    showImageModal.value = true
+}
+
+const { showToast } = useToast();
+
 const {
     products,
     loading,
@@ -287,6 +437,125 @@ const uploadProgress = ref(0)
 
 const showCreateModal = ref(false)
 const searchQuery = ref('')
+
+const handleNotify = (productId: string) => {
+    // TODO: Implement notification system
+    showToast({
+        type: 'success',
+        message: `Notificacion enviada del producto con ID:  ${productId}`
+    });
+    console.log('Notify about product:', productId)
+}
+
+const setPromotionDuration = (type: 'single' | 'range') => {
+    promotionDuration.value = type
+    if (type === 'single') {
+        setSingleDate()
+    }
+}
+
+const setSingleDate = () => {
+    formData.value.promotionEndDate = formData.value.promotionStartDate
+}
+
+const insertMarkdown = (syntax: string) => {
+    const textarea = document.getElementById('description') as HTMLTextAreaElement
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const text = formData.value.description
+
+    formData.value.description =
+        text.substring(0, start) +
+        syntax +
+        text.substring(start, end) +
+        syntax +
+        text.substring(end)
+
+    textarea.focus()
+}
+
+const decreaseStock = async (product: { stock: number; id: string; name: any }) => {
+    if (product.stock <= 0) return;
+
+    try {
+        const updatedProduct = {
+            ...product,
+            stock: product.stock - 1
+        };
+
+        await updateProduct(product.id, updatedProduct);
+
+        // Añadir clase de animación al badge
+        const badge = document.querySelector(`[data-product-id="${product.id}"] .stock-badge`);
+        if (badge) {
+            badge.classList.add('animate');
+            setTimeout(() => badge.classList.remove('animate'), 500);
+        }
+
+        // Si el stock es bajo, mostrar una notificación
+        if (updatedProduct.stock <= 5) {
+            // TODO: Implementar sistema de notificaciones
+            showToast({
+                type: 'warning',
+                message: `Stock bajo para ${product.name}: ${updatedProduct.stock} unidades`
+            });
+        }
+    } catch (error) {
+        showToast({
+            type: 'error',
+            message: `Error al actualizar el stock`
+        });
+        console.error('Error al actualizar el stock:', error);
+        // TODO: Mostrar mensaje de error al usuario
+    }
+};
+
+const increaseStock = async (product: { stock: number; id: string }) => {
+    try {
+        const updatedProduct = {
+            ...product,
+            stock: product.stock + 1
+        };
+
+        await updateProduct(product.id, updatedProduct);
+
+        // Añadir clase de animación al badge
+        const badge = document.querySelector(`[data-product-id="${product.id}"] .stock-badge`);
+        if (badge) {
+            badge.classList.add('animate');
+            setTimeout(() => badge.classList.remove('animate'), 500);
+        }
+    } catch (error) {
+        console.error('Error al actualizar el stock:', error);
+        // TODO: Mostrar mensaje de error al usuario
+    }
+};
+
+const loadImageUrls = async () => {
+    for (const product of products.value) {
+        if (product.imageUrl) {
+            try {
+                const { url } = await getUrl({ path: product.imageUrl });
+                imageUrls.value[product.id] = url.toString();
+            } catch (error) {
+                console.error("Error cargando imagen:", error);
+            }
+        }
+    }
+};
+
+const formatMarkdown = (text: string): string => {
+    return text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+}
+
+const truncateDescription = (text: string, maxLength: number = 100): string => {
+    if (!text) return '';
+    const formatted = formatMarkdown(text);
+    if (formatted.length <= maxLength) return formatted;
+    return formatted.substring(0, maxLength) + '...';
+}
 
 const initialFormData = {
     name: '',
@@ -343,14 +612,14 @@ const isPromotionActive = (product: Product): boolean => {
 };
 
 const getCurrentPeruDate = (): string => {
-  const date = new Date();
-  const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
-  
-  const year = peruDate.getFullYear();
-  const month = String(peruDate.getMonth() + 1).padStart(2, '0');
-  const day = String(peruDate.getDate()).padStart(2, '0');
-  
-  return `${year}-${month}-${day}`;
+    const date = new Date();
+    const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
+
+    const year = peruDate.getFullYear();
+    const month = String(peruDate.getMonth() + 1).padStart(2, '0');
+    const day = String(peruDate.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
 };
 
 const formatDateToSpanish = (dateStr: string): string => {
@@ -492,13 +761,25 @@ const handleDelete = async (id: string) => {
 }
 
 const getStockClass = (stock: number) => {
-    if (stock > 20) return 'high'
-    if (stock > 5) return 'medium'
-    return 'low'
+    if (stock > 20) return 'high';
+    if (stock > 10) return 'medium';
+    if (stock > 5) return 'low';
+    return 'critical';
 }
 
 onMounted(async () => {
     await Promise.all([loadProducts(), loadCategories()])
+})
+
+watch([
+    () => formData.value.promotionStartDate,
+    () => formData.value.promotionEndDate
+], ([startDate, endDate]) => {
+    if (promotionDuration.value === 'range' && startDate && endDate) {
+        showDateError.value = endDate < startDate
+    } else {
+        showDateError.value = false
+    }
 })
 
 watch(products, loadImageUrls, { immediate: true });
@@ -510,6 +791,208 @@ watch(products, loadImageUrls, { immediate: true });
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+}
+
+.description-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.preview-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    background-color: white;
+    color: #64748b;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.preview-toggle:hover {
+    background-color: #f8fafc;
+}
+
+.preview-toggle.active {
+    background-color: #e2e8f0;
+    color: #1e293b;
+}
+
+.notify {
+    color: #6366f1;
+}
+
+.notify:hover {
+    background-color: #e0e7ff;
+}
+
+.description-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    background-color: #f8fafc;
+}
+
+.editor-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.preview-section {
+    border-top: 1px solid #e2e8f0;
+    padding-top: 1rem;
+    margin-top: 0.5rem;
+}
+
+.preview-header {
+    font-size: 0.875rem;
+    color: #64748b;
+    margin-bottom: 0.5rem;
+}
+
+.editor-toolbar {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background-color: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+}
+
+.toolbar-button {
+    padding: 0.25rem 0.5rem;
+    border: none;
+    background: none;
+    color: #64748b;
+    cursor: pointer;
+    border-radius: 0.25rem;
+}
+
+.toolbar-button:hover {
+    background-color: #f1f5f9;
+    color: #1e293b;
+}
+
+.markdown-editor {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.markdown-preview {
+    background-color: white;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    min-height: 100px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.promotion-duration {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.duration-options {
+    display: flex;
+    gap: 1rem;
+}
+
+.duration-option {
+    flex: 1;
+    padding: 0.5rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.375rem;
+    background: white;
+}
+
+.duration-option.active {
+    background: #6366f1;
+    color: white;
+    border-color: #6366f1;
+}
+
+.date-range {
+    margin-top: 0.5rem;
+}
+
+.promotion-dates {
+    background-color: #f8fafc;
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+
+.promotion-types {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.promotion-type-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    background-color: white;
+    color: #64748b;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.promotion-type-btn:hover {
+    background-color: #f1f5f9;
+}
+
+.promotion-type-btn.active {
+    background-color: #e2e8f0;
+    color: #1e293b;
+    border-color: #cbd5e1;
+}
+
+.date-inputs {
+    display: flex;
+    gap: 1rem;
+}
+
+.date-field {
+    flex: 1;
+}
+
+.date-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.date-icon {
+    position: absolute;
+    left: 0.75rem;
+    color: #64748b;
+}
+
+.date-input-wrapper input {
+    padding-left: 2.5rem;
+}
+
+.date-error {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #ef4444;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
 }
 
 .image-upload-container {
@@ -654,8 +1137,13 @@ watch(products, loadImageUrls, { immediate: true });
 .product-image {
     width: 40px;
     height: 40px;
-    border-radius: 0.25rem;
     object-fit: cover;
+    border-radius: 4px;
+    transition: transform 0.2s;
+}
+
+.product-image:hover {
+    transform: scale(1.05);
 }
 
 .product-details {
@@ -670,7 +1158,20 @@ watch(products, loadImageUrls, { immediate: true });
 
 .product-description {
     font-size: 0.875rem;
-    color: #64748b;
+    color: #666;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    max-width: 300px;
+}
+
+.product-description :deep(strong) {
+    font-weight: 600;
+}
+
+.product-description :deep(em) {
+    font-style: italic;
 }
 
 @media (max-width: 768px) {
@@ -712,6 +1213,25 @@ watch(products, loadImageUrls, { immediate: true });
     border-radius: 9999px;
     font-size: 0.875rem;
     font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.stock-badge.animate {
+    animation: pulse 0.5s ease-in-out;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+
+    100% {
+        transform: scale(1);
+    }
 }
 
 .stock-badge.high {
@@ -899,5 +1419,64 @@ watch(products, loadImageUrls, { immediate: true });
 .promotion-badge:not(.active) {
     background-color: #f3f4f6;
     color: #6b7280;
+}
+
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+    transition: all 0.3s ease;
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+    transform: translateY(-10px);
+    opacity: 0;
+}
+
+.stock-control {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.stock-buttons {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.stock-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 0.375rem;
+    border: 1px solid #e2e8f0;
+    background-color: white;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.stock-btn:hover:not(:disabled) {
+    background-color: #f1f5f9;
+    color: #1e293b;
+}
+
+.stock-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #f1f5f9;
+}
+
+.stock-btn.decrease:hover:not(:disabled) {
+    background-color: #fee2e2;
+    border-color: #fecaca;
+    color: #dc2626;
+}
+
+.stock-btn.increase:hover:not(:disabled) {
+    background-color: #dcfce7;
+    border-color: #bbf7d0;
+    color: #16a34a;
 }
 </style>

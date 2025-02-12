@@ -50,7 +50,8 @@
                         <tr v-for="product in filteredProducts" :key="product.id">
                             <td>
                                 <div class="product-info">
-                                    <img :src="product.imageUrl || '/api/placeholder/40/40'" class="product-image" />
+                                    <img :src="imageUrls[product.id] || '/api/placeholder/40/40'"
+                                        class="product-image" />
                                     <div class="product-details">
                                         <span class="product-name">{{ product.name }}</span>
                                         <span class="product-description">{{ product.description }}</span>
@@ -71,8 +72,8 @@
                                 </span>
                             </td>
                             <td>
-                                <span :class="['promotion-badge', product.isPromoted ? 'active' : '']">
-                                    {{ product.isPromoted ? 'En promoción' : 'Sin promoción' }}
+                                <span :class="['promotion-badge', isPromotionActive(product) ? 'active' : '']">
+                                    {{ getPromotionStatus(product) }}
                                 </span>
                             </td>
                             <td>
@@ -254,7 +255,20 @@ import { useCategories } from '@/composables/useCategories'
 import type { Product } from '@/types/product.types'
 import Modal from '@/components/Modal.vue'
 import { uploadData, getUrl } from 'aws-amplify/storage';
+const imageUrls = ref<Record<string, string>>({});
 
+const loadImageUrls = async () => {
+    for (const product of products.value) {
+        if (product.imageUrl) {
+            try {
+                const { url } = await getUrl({ path: product.imageUrl });
+                imageUrls.value[product.id] = url.toString();
+            } catch (error) {
+                console.error("Error cargando imagen:", error);
+            }
+        }
+    }
+};
 const {
     products,
     loading,
@@ -319,17 +333,76 @@ const clearImage = () => {
     if (input) input.value = ''
 }
 
+const isPromotionActive = (product: Product): boolean => {
+    if (!product.isPromoted || !product.promotionStartDate || !product.promotionEndDate) {
+        return false;
+    }
+
+    const today = getCurrentPeruDate(); // YYYY-MM-DD del día actual
+
+    // Comparar directamente los strings de fecha
+    return product.promotionStartDate <= today && today <= product.promotionEndDate;
+};
+
+const getCurrentPeruDate = (): string => {
+  const date = new Date();
+  const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
+  
+  const year = peruDate.getFullYear();
+  const month = String(peruDate.getMonth() + 1).padStart(2, '0');
+  const day = String(peruDate.getDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}`;
+};
+
+const formatDateToSpanish = (dateStr: string): string => {
+    // Crear la fecha usando el string directamente sin conversión de zona horaria
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+
+    return new Intl.DateTimeFormat('es-PE', {
+        day: 'numeric',
+        month: 'long'
+    }).format(date);
+};
+
+const getPromotionStatus = (product: Product): string => {
+    if (!product.isPromoted) return 'Sin promoción';
+    if (!product.promotionStartDate || !product.promotionEndDate) return 'Sin fechas';
+
+    const today = getCurrentPeruDate();
+
+    if (product.promotionStartDate === product.promotionEndDate) {
+        if (today === product.promotionStartDate) {
+            return '¡Solo por hoy!';
+        }
+    }
+
+    console.log(product.promotionEndDate)
+    if (today < product.promotionStartDate) {
+        return `Inicia el ${formatDateToSpanish(product.promotionStartDate)}`;
+    }
+
+    if (today > product.promotionEndDate) {
+        return 'Promoción finalizada';
+    }
+
+    if (product.promotionStartDate === product.promotionEndDate) {
+        return `Solo por el ${formatDateToSpanish(product.promotionStartDate)}`;
+    }
+
+    return `Válido del ${formatDateToSpanish(product.promotionStartDate)} al ${formatDateToSpanish(product.promotionEndDate)}`;
+};
+
 const uploadImage = async (): Promise<string> => {
     if (!selectedFile.value) return formData.value.imageUrl;
 
     try {
-        // 1. Definir path como string
         const path = `products/${Date.now()}-${selectedFile.value.name.replace(/\s+/g, '-')}`;
 
-        // 2. Subir archivo con nueva sintaxis
         await uploadData({
             data: selectedFile.value,
-            path: path, // <-- Sintaxis correcta para Gen 2
+            path: path,
             options: {
                 contentType: selectedFile.value.type,
                 onProgress: ({ transferredBytes, totalBytes }) => {
@@ -340,15 +413,10 @@ const uploadImage = async (): Promise<string> => {
             }
         }).result;
 
-        // 3. Obtener URL usando el mismo path
-        const { url } = await getUrl({ path });
-
-        return url.toString();
+        return path; // Guardar solo el path, no la URL
     } catch (error) {
         console.error("Error subiendo imagen:", error);
         throw error;
-    } finally {
-        uploadProgress.value = 0;
     }
 };
 
@@ -437,6 +505,9 @@ const getStockClass = (stock: number) => {
 onMounted(async () => {
     await Promise.all([loadProducts(), loadCategories()])
 })
+
+watch(products, loadImageUrls, { immediate: true });
+
 </script>
 
 <style scoped>
@@ -802,18 +873,6 @@ onMounted(async () => {
     transition: background-color 0.2s;
 }
 
-.promotion-badge {
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.875rem;
-    font-weight: 500;
-}
-
-.promotion-badge.active {
-    background-color: #4CAF50;
-    color: white;
-}
-
 .discount-badge {
     padding: 4px 8px;
     border-radius: 4px;
@@ -825,5 +884,25 @@ onMounted(async () => {
 .discount-badge.active {
     background-color: #FF5722;
     color: white;
+}
+
+.promotion-badge {
+    display: inline-flex;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    background-color: #e5e7eb;
+    color: #374151;
+}
+
+.promotion-badge.active {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.promotion-badge:not(.active) {
+    background-color: #f3f4f6;
+    color: #6b7280;
 }
 </style>

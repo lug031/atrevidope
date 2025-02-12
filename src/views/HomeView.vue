@@ -1,25 +1,21 @@
 <template>
   <MainLayout>
-    <!-- Hero Banner -->
-    <div class="hero-banner">
-      <div class="banner-content">
-        <h1>Miss Dior</h1>
-        <button class="discover-button" @click="router.push('/web-products')">
-          DESCUBRIR
-        </button>
-      </div>
-      <div class="banner-dots">
-        <span class="dot active"></span>
-        <span class="dot"></span>
-        <span class="dot"></span>
-      </div>
-    </div>
+    <ProductCarousel />
+    <PromotionalBanner />
+    <!-- Brands Carousel -->
+    <BrandCarousel />
+    <!-- Feature Cards -->
+    <!-- <FeatureCards /> -->
   </MainLayout>
 </template>
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 import MainLayout from '@/layouts/MainLayout.vue';
+import BrandCarousel from '@/components/BrandCarousel.vue';
+import FeatureCards from '@/components/FeatureCards.vue';
+import ProductCarousel from '@/components/ProductCarousel.vue';
+import PromotionalBanner from '@/components/PromotionalBanner.vue';
 
 const router = useRouter();
 </script>
@@ -51,39 +47,11 @@ const router = useRouter();
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.banner-dots {
-  position: absolute;
-  bottom: 20px;
-  display: flex;
-  gap: 8px;
-}
-
-.dot {
-  width: 10px;
-  height: 10px;
-  background-color: #ddd;
-  border-radius: 50%;
-  cursor: pointer;
-}
-
-.dot.active {
-  background-color: #000;
-}
-
-.promo-banner {
-  height: 300px;
-  background-color: #f5f5f5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 2rem;
-}
-
-.promo-banner h2 {
-  font-size: 2.5rem;
-  color: white;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+.discover-button:hover {
+  background-color: #333;
+  transform: translateY(-2px);
 }
 </style>

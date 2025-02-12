@@ -7,9 +7,8 @@
                 { text: 'Promociones', to: '/promotions' }
             ]" />
 
-            <h1 class="page-title">PROMOCIONES DEL MES</h1>
+            <h1 class="page-title">PROMOCIONES</h1>
 
-            <!-- Products Grid -->
             <div v-if="loading" class="loading-state">
                 <div class="loader"></div>
             </div>
@@ -19,7 +18,7 @@
             </div>
 
             <div v-else class="products-grid">
-                <div v-for="product in displayProducts" :key="product.id" class="product-card">
+                <div v-for="product in activePromotionsWithDates" :key="product.id" class="product-card">
                     <router-link :to="{
                         name: 'ProductDetail',
                         params: { id: product.id },
@@ -29,8 +28,12 @@
                             -{{ product.discountPercentage }}%
                         </div>
 
+                        <div class="promotion-dates" :class="{ 'today-only': isSingleDayPromotion(product) }">
+                            {{ getPromotionDateText(product) }}
+                        </div>
+
                         <div class="product-image">
-                            <img :src="product.imageUrl || '/api/placeholder/300/300'" :alt="product.name">
+                            <img :src="imageUrls[product.id] || '/api/placeholder/40/40'" :alt="product.name">
                         </div>
 
                         <div class="product-info">
@@ -45,7 +48,6 @@
                                 </div>
                             </div>
 
-                            <!-- Stock status -->
                             <div class="stock-status" :class="{
                                 'out-of-stock': product.stock === 0,
                                 'low-stock': product.stock > 0 && product.stock <= 5
@@ -64,7 +66,7 @@
                 </div>
             </div>
 
-            <div v-if="!loading && !error && displayProducts.length === 0" class="empty-state">
+            <div v-if="!loading && !error && activePromotionsWithDates.length === 0" class="empty-state">
                 No hay productos en promoción disponibles.
             </div>
         </div>
@@ -72,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import MainLayout from '@/layouts/MainLayout.vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import { usePromotions } from '../composables/usePromotions';
@@ -80,8 +82,10 @@ import type { Product } from '@/types/product.types';
 import { useCartStore } from '@/stores/cart';
 import { useToast } from '../composables/useToast';
 import type { CartItem } from '@/types/cart.types';
+import { useProducts } from '@/composables/useProducts';
+import { uploadData, getUrl } from 'aws-amplify/storage';
 
-// Setup del store y toast
+const imageUrls = ref<Record<string, string>>({});
 const cartStore = useCartStore();
 const { showToast } = useToast();
 const {
@@ -93,7 +97,89 @@ const {
     formatPrice,
 } = usePromotions();
 
-const displayProducts = computed(() => activePromotions.value);
+const formatDateToSpanish = (dateStr: string): string => {
+    // Crear la fecha usando el string directamente sin conversión de zona horaria
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);  // month - 1 porque los meses en JS son 0-based
+
+    return new Intl.DateTimeFormat('es-PE', {
+        day: 'numeric',
+        month: 'long'
+    }).format(date);
+};
+
+const isPromotionActive = (product: Product): boolean => {
+    if (!product.isPromoted || !product.promotionStartDate || !product.promotionEndDate) {
+        return false;
+    }
+
+    //const today = getCurrentPeruDate();
+    const todayStr = getCurrentPeruDate(); // Obtiene YYYY-MM-DD
+
+    return product.promotionStartDate <= todayStr && todayStr <= product.promotionEndDate;
+};
+
+const getCurrentPeruDate = (): string => {
+  const date = new Date();
+  const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
+  
+  const year = peruDate.getFullYear();
+  const month = String(peruDate.getMonth() + 1).padStart(2, '0');
+  const day = String(peruDate.getDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}`;
+};
+
+const isSingleDayPromotion = (product: Product): boolean => {
+    return product.promotionStartDate === product.promotionEndDate;
+};
+
+const getPromotionDateText = (product: Product): string => {
+    if (!product.promotionStartDate || !product.promotionEndDate) return '';
+
+    const today = getCurrentPeruDate(); // YYYY-MM-DD del día actual
+
+    // Si es promoción de un solo día
+    if (product.promotionStartDate === product.promotionEndDate) {
+        if (product.promotionStartDate === today) {
+            return '¡Solo por hoy!';
+        }
+        return `Solo el ${formatDateToSpanish(product.promotionStartDate)}`;
+    }
+
+    return `Válido del ${formatDateToSpanish(product.promotionStartDate)} al ${formatDateToSpanish(product.promotionEndDate)}`;
+};
+
+const isInCurrentMonth = (dateStr: string): boolean => {
+    const [year, month] = dateStr.split('-').map(Number);
+    const now = new Date();
+    return month === (now.getMonth() + 1) && year === now.getFullYear();
+};
+
+const activePromotionsWithDates = computed(() => {
+    return activePromotions.value.filter(product => {
+        if (!product.isPromoted || !product.promotionStartDate || !product.promotionEndDate) {
+            return false;
+        }
+
+        return isPromotionActive(product) &&
+            (isInCurrentMonth(product.promotionStartDate) ||
+                isInCurrentMonth(product.promotionEndDate));
+    });
+});
+
+const loadImageUrls = async () => {
+    for (const product of activePromotionsWithDates.value) {
+        if (product.imageUrl) {
+            try {
+                const { url } = await getUrl({ path: product.imageUrl });
+                imageUrls.value[product.id] = url.toString();
+            } catch (error) {
+                console.error("Error cargando imagen:", error);
+            }
+        }
+    }
+};
 
 const addToCart = (product: Product) => {
     if (!product.stock) {
@@ -108,20 +194,11 @@ const addToCart = (product: Product) => {
         id: product.id,
         name: product.name,
         price: calculateDiscountedPrice(product),
-        quantity: 1, // Por defecto añadimos 1 unidad desde la vista de promociones
+        quantity: 1,
         imageUrl: product.imageUrl
     };
 
-    if (product.stock < 1) {
-        showToast({
-            type: 'error',
-            message: 'No hay stock disponible'
-        });
-        return;
-    }
-
     cartStore.addItem(cartItem);
-
     showToast({
         type: 'success',
         message: 'Producto añadido'
@@ -131,6 +208,10 @@ const addToCart = (product: Product) => {
 onMounted(() => {
     loadPromotions();
 });
+
+watch(() => activePromotionsWithDates.value, () => {
+    loadImageUrls();
+}, { immediate: true });
 </script>
 
 <style scoped>
@@ -139,6 +220,27 @@ onMounted(() => {
     margin: 0 auto;
     padding: 20px;
     background-color: #fff;
+}
+
+.promotion-dates {
+    position: absolute;
+    top: 40px;
+    left: 10px;
+    background-color: #fff;
+    color: #000;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    z-index: 1;
+    border: 1px solid #000;
+}
+
+.promotion-dates.today-only {
+    background-color: #ff0000;
+    color: #fff;
+    border: none;
+    font-weight: bold;
 }
 
 .page-title {

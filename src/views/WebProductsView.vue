@@ -4,7 +4,7 @@
       <!-- Header Banner -->
       <router-link to="/promotions" class="promo-header">
         <div class="hero-banner" :style="{ backgroundImage: `url(${heroBannerUrl})` }">
-          <h1>PROMOCIONES DEL MES</h1>
+          <h1>PROMOCIONES</h1>
         </div>
       </router-link>
 
@@ -33,14 +33,33 @@
       <div v-else class="products-grid">
         <div v-for="product in sortedProducts" :key="product.id" class="product-card">
           <router-link :to="{ name: 'ProductDetail', params: { id: product.id } }" class="product-content">
-            <div class="product-image">
-              <img :src="product.imageUrl || '/api/placeholder/200/200'" :alt="product.name" />
+            <!-- Badge de promoción futura con validación -->
+            <div v-if="hasUpcomingPromotion(product) && product.promotionStartDate" class="promotion-badge">
+              <span class="promotion-date">Próximamente en promoción</span>
+              <span class="promotion-discount">-{{ product.discountPercentage || 0 }}%</span>
+              <span class="promotion-start">{{ formatPromotionDate(product.promotionStartDate) }}</span>
             </div>
+
+            <div class="product-image">
+              <img :src="imageUrls[product.id] || '/api/placeholder/40/40'" :alt="product.name" />
+            </div>
+
             <div class="product-info">
               <h3 class="brand-name">{{ product.brand }}</h3>
               <p class="product-name">{{ product.name }}</p>
               <p class="product-description">{{ product.description }}</p>
-              <p class="product-price">S/{{ product.price.toFixed(2) }}</p>
+
+              <!-- Precios -->
+              <div class="price-info" :class="{ 'has-promotion': hasUpcomingPromotion(product) }">
+                <p class="product-price">
+                  <template v-if="hasUpcomingPromotion(product)">
+                    <span class="current-price">S/{{ product.originalPrice.toFixed(2) }}</span>
+                  </template>
+                  <template v-else>
+                    <span class="current-price">S/{{ product.price.toFixed(2) }}</span>
+                  </template>
+                </p>
+              </div>
 
               <!-- Stock Status -->
               <div class="stock-status" :class="{
@@ -65,7 +84,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import MainLayout from '@/layouts/MainLayout.vue';
 import { useProducts } from '@/composables/useProducts';
 import { useCartStore } from '@/stores/cart';
@@ -73,25 +92,114 @@ import { useToast } from '../composables/useToast';
 import type { Product } from '@/types/product.types';
 import type { CartItem } from '@/types/cart.types';
 import heroBannerImage from '../assets/hero-banner.jpeg';
+import { uploadData, getUrl } from 'aws-amplify/storage';
+
+const imageUrls = ref<Record<string, string>>({});
 
 const heroBannerUrl = ref(heroBannerImage);
-const { products, loading, error, loadProductsWeb } = useProducts();
+const { products, loading, error, loadProducts } = useProducts();
 const cartStore = useCartStore();
 const { showToast } = useToast();
 const sortBy = ref('position');
 
+const loadImageUrls = async () => {
+  for (const product of products.value) {
+    if (product.imageUrl) {
+      try {
+        const { url } = await getUrl({ path: product.imageUrl });
+        imageUrls.value[product.id] = url.toString();
+      } catch (error) {
+        console.error("Error cargando imagen:", error);
+      }
+    }
+  }
+};
+
+const hasUpcomingPromotion = (product: Product): boolean => {
+  if (!product.isPromoted || !product.promotionStartDate || !product.promotionEndDate) {
+    return false;
+  }
+
+  const currentDate = getCurrentPeruDate();
+
+  // Si la fecha actual está dentro del rango de promoción, retornamos false
+  if (currentDate >= product.promotionStartDate && currentDate <= product.promotionEndDate) {
+    return false;
+  }
+
+  // Si la fecha de inicio es mayor que la fecha actual, es una promoción futura
+  return product.promotionStartDate > currentDate;
+};
+
+const shouldShowProduct = (product: Product): boolean => {
+  // Si no está en promoción, siempre se muestra
+  if (!product.isPromoted) {
+    return true;
+  }
+
+  // Si no tiene fechas de promoción, se muestra
+  if (!product.promotionStartDate || !product.promotionEndDate) {
+    return true;
+  }
+
+  const currentDate = getCurrentPeruDate();
+
+  // No mostrar si la fecha actual está dentro del rango de promoción
+  if (currentDate >= product.promotionStartDate && currentDate <= product.promotionEndDate) {
+    return false;
+  }
+
+  // Mostrar en cualquier otro caso (fechas pasadas o futuras)
+  return true;
+};
+
+const getCurrentPeruDate = (): string => {
+  const date = new Date();
+  const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
+
+  const year = peruDate.getFullYear();
+  const month = String(peruDate.getMonth() + 1).padStart(2, '0');
+  const day = String(peruDate.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
+
+const formatPromotionDate = (dateStr: string | undefined): string => {
+  if (!dateStr) return '';
+
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+
+  return new Intl.DateTimeFormat('es-PE', {
+    day: 'numeric',
+    month: 'long'
+  }).format(date);
+};
+
+const calculateDiscountedPrice = (product: Product): number => {
+  if (!product.price || !product.discountPercentage) {
+    return product.price || 0;
+  }
+  return product.price * (1 - product.discountPercentage / 100);
+};
+
 const sortedProducts = computed(() => {
   if (!products.value) return [];
 
-  return [...products.value].sort((a, b) => {
+  const productsToShow = products.value.filter(product => shouldShowProduct(product));
+
+  return productsToShow.sort((a, b) => {
     switch (sortBy.value) {
       case 'price-asc':
-        return a.price - b.price;
+        return (a.price || 0) - (b.price || 0);
       case 'price-desc':
-        return b.price - a.price;
+        return (b.price || 0) - (a.price || 0);
       case 'name':
-        return a.name.localeCompare(b.name);
+        return (a.name || '').localeCompare(b.name || '');
       default:
+        // Mostrar primero los productos con promoción futura
+        if (hasUpcomingPromotion(a) && !hasUpcomingPromotion(b)) return -1;
+        if (!hasUpcomingPromotion(a) && hasUpcomingPromotion(b)) return 1;
         return 0;
     }
   });
@@ -123,13 +231,58 @@ const addToCart = (product: Product) => {
 };
 
 onMounted(() => {
-  loadProductsWeb();
+  loadProducts();
 });
+
+watch(() => products.value, () => {
+  loadImageUrls();
+}, { immediate: true });
 </script>
 
 <style scoped>
 .promotional-products {
   padding: 0 20px;
+}
+
+.promotion-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background-color: #000;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.promotion-date {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.promotion-discount {
+  font-size: 1rem;
+  font-weight: bold;
+}
+
+.promotion-start {
+  font-size: 0.75rem;
+  color: #ffd700;
+}
+
+.price-info.has-promotion {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.future-price {
+  font-size: 0.85rem;
+  color: #ff4444;
+  font-weight: 500;
 }
 
 .promo-header {

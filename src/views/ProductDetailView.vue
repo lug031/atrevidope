@@ -14,21 +14,26 @@
 
             <div v-else-if="currentProduct" class="product-detail">
                 <div class="product-gallery">
-                    <img :src="currentProduct.imageUrl || '/api/placeholder/400/400'" :alt="currentProduct.name"
+                    <img :src="imageUrls[currentProduct.id] || '/api/placeholder/40/40'" :alt="currentProduct.name"
                         class="main-image" />
                 </div>
 
                 <div class="product-info">
                     <h1 class="brand-name">{{ currentProduct.brand }}</h1>
                     <h2 class="product-name">{{ currentProduct.name }}</h2>
+
+                    <!-- Sección de precios y promoción -->
                     <div class="price-section">
-                        <template v-if="isPromotionalProduct">
+                        <template v-if="isValidPromotion">
                             <p class="product-price">
                                 <span class="current-price">S/{{ formatPrice(calculateDiscountedPrice(currentProduct))
                                     }}</span>
                                 <span class="original-price">S/{{ formatPrice(currentProduct.originalPrice) }}</span>
                             </p>
                             <div class="discount-badge">-{{ currentProduct.discountPercentage }}%</div>
+                            <div class="promotion-dates" :class="{ 'today-only': isSingleDayPromotion }">
+                                {{ getPromotionDateText(currentProduct) }}
+                            </div>
                         </template>
                         <template v-else>
                             <p class="product-price">S/{{ currentProduct.price.toFixed(2) }}</p>
@@ -81,7 +86,9 @@ import { useProducts } from '@/composables/useProducts';
 import { usePromotions } from '../composables/usePromotions';
 import type { Product } from '@/types/product.types';
 import { useToast } from '../composables/useToast';
+import { uploadData, getUrl } from 'aws-amplify/storage';
 
+const imageUrls = ref<Record<string, string>>({});
 const route = useRoute();
 const router = useRouter();
 const { products, loading: productsLoading, error: productsError, loadProductsWeb } = useProducts();
@@ -105,6 +112,76 @@ const cartStore = useCartStore()
 const isOutOfStock = computed(() =>
     currentProduct.value?.stock === 0
 );
+
+const loadImageUrls = async () => {
+    if (currentProduct.value?.imageUrl) {
+        try {
+            const { url } = await getUrl({ path: currentProduct.value.imageUrl });
+            imageUrls.value[currentProduct.value.id] = url.toString();
+        } catch (error) {
+            console.error("Error cargando imagen:", error);
+        }
+    }
+};
+
+const isSingleDayPromotion = computed(() => {
+    return currentProduct.value?.promotionStartDate === currentProduct.value?.promotionEndDate;
+});
+
+const isPromotionActive = (product: Product): boolean => {
+    if (!product.isPromoted || !product.promotionStartDate || !product.promotionEndDate) {
+        return false;
+    }
+
+    const today = getCurrentPeruDate();
+    return product.promotionStartDate <= today && today <= product.promotionEndDate;
+};
+
+const getCurrentPeruDate = (): string => {
+    const date = new Date();
+    const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
+
+    const year = peruDate.getFullYear();
+    const month = String(peruDate.getMonth() + 1).padStart(2, '0');
+    const day = String(peruDate.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+};
+
+const formatDateToSpanish = (dateStr: string): string => {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+
+    return new Intl.DateTimeFormat('es-PE', {
+        day: 'numeric',
+        month: 'long'
+    }).format(date);
+};
+
+const getPromotionDateText = (product: Product): string => {
+    if (!product.promotionStartDate || !product.promotionEndDate) return '';
+
+    const today = getCurrentPeruDate();
+
+    // Solo por hoy
+    if (product.promotionStartDate === product.promotionEndDate &&
+        product.promotionStartDate === today) {
+        return '¡Solo por hoy!';
+    }
+
+    // Rango de fechas
+    return `Válido del ${formatDateToSpanish(product.promotionStartDate)} al ${formatDateToSpanish(product.promotionEndDate)}`;
+};
+
+const isValidPromotion = computed(() => {
+    if (!currentProduct.value?.isPromoted ||
+        !currentProduct.value.promotionStartDate ||
+        !currentProduct.value.promotionEndDate) {
+        return false;
+    }
+
+    return isPromotionActive(currentProduct.value);
+});
 
 const isLowStock = computed(() =>
     currentProduct.value?.stock !== undefined &&
@@ -179,7 +256,7 @@ const currentProduct = computed(() => {
 });
 
 const isPromotionalProduct = computed(() => {
-    return isFromPromotions && currentProduct.value !== null;
+    return (isFromPromotions || isValidPromotion.value) && currentProduct.value !== null;
 });
 
 const breadcrumbItems = computed(() => {
@@ -232,6 +309,10 @@ onMounted(async () => {
         await loadProductsWeb();
     }
 });
+
+watch(() => currentProduct.value, () => {
+    loadImageUrls();
+}, { immediate: true });
 </script>
 
 <style scoped>
@@ -240,6 +321,25 @@ onMounted(async () => {
     padding: 20px;
     max-width: 1200px;
     margin: 0 auto;
+}
+
+.promotion-dates {
+    margin-top: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    background-color: #fff;
+    color: #000;
+    border: 1px solid #000;
+    display: inline-block;
+}
+
+.promotion-dates.today-only {
+    background-color: #ff0000;
+    color: #fff;
+    border: none;
+    font-weight: bold;
 }
 
 .product-detail {

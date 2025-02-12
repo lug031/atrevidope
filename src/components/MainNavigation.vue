@@ -2,7 +2,7 @@
     <nav class="main-nav">
         <div class="nav-content">
             <div class="nav-left">
-                <!-- Admin Menu Button - Solo esperamos por el estado de admin -->
+                <!-- Admin Menu Button -->
                 <Transition name="fade">
                     <button v-if="!authStore.loading && isAdmin" class="icon-button menu-button"
                         @click="toggleAdminSidebar" aria-label="Menú de administración">
@@ -15,17 +15,79 @@
                 </RouterLink>
             </div>
 
-            <div class="nav-center">
+            <!-- Search button for mobile -->
+            <button class="icon-button search-mobile-button" @click="toggleMobileSearch">
+                <SearchIcon class="search-icon" :size="24" />
+            </button>
+
+            <!-- Desktop search bar -->
+            <div class="nav-center desktop-search">
                 <div class="search-bar">
-                    <input type="text" placeholder="¿Qué estás buscando?" class="search-input" />
-                    <button class="search-button">
+                    <input type="text" placeholder="¿Qué estás buscando?" class="search-input" v-model="searchQuery"
+                        @focus="showResults = true" @input="handleSearch" />
+                    <button class="search-button" @click="handleSearch">
                         <SearchIcon class="search-icon" :size="20" />
                     </button>
+
+                    <!-- Lista de resultados -->
+                    <div v-if="showResults && searchQuery" class="search-results" v-click-outside="hideResults">
+                        <div v-if="loading" class="search-loading">
+                            <span class="loader"></span>
+                        </div>
+
+                        <div v-else-if="filteredProducts.length === 0" class="no-results">
+                            No encontramos productos que coincidan con tu búsqueda
+                        </div>
+
+                        <div v-else class="results-list">
+                            <RouterLink v-for="product in filteredProducts" :key="product.id"
+                                :to="{ name: 'ProductDetail', params: { id: product.id } }" class="product-result"
+                                @click="hideResults">
+                                <img :src="getProductImage(product)" :alt="product.name" class="product-thumbnail" />
+                                <div class="product-info">
+                                    <span class="product-brand">{{ product.brand }}</span>
+                                    <span class="product-name">{{ product.name }}</span>
+                                </div>
+                            </RouterLink>
+                        </div>
+                    </div>
                 </div>
             </div>
 
+            <Transition name="slide-down">
+                <div v-if="isMobileSearchOpen" class="mobile-search-overlay">
+                    <div class="mobile-search-container">
+                        <input type="text" placeholder="¿Qué estás buscando?" class="mobile-search-input"
+                            v-model="searchQuery" @input="handleSearch" />
+                        <button class="mobile-search-close" @click="toggleMobileSearch">
+                            <XIcon :size="24" />
+                        </button>
+                    </div>
+                    <!-- Mobile search results -->
+                    <div v-if="searchQuery" class="mobile-search-results">
+                        <div v-if="loading" class="search-loading">
+                            <span class="loader"></span>
+                        </div>
+                        <div v-else-if="filteredProducts.length === 0" class="no-results">
+                            No encontramos productos que coincidan con tu búsqueda
+                        </div>
+                        <div v-else class="results-list">
+                            <RouterLink v-for="product in filteredProducts" :key="product.id"
+                                :to="{ name: 'ProductDetail', params: { id: product.id } }" class="product-result"
+                                @click="closeMobileSearch">
+                                <img :src="getProductImage(product)" :alt="product.name" class="product-thumbnail" />
+                                <div class="product-info">
+                                    <span class="product-brand">{{ product.brand }}</span>
+                                    <span class="product-name">{{ product.name }}</span>
+                                </div>
+                            </RouterLink>
+                        </div>
+                    </div>
+                </div>
+            </Transition>
+
             <div class="nav-right">
-                <!-- User Menu - Controlamos la visibilidad de las opciones sin ocultar el contenedor -->
+                <!-- User Menu  -->
                 <div class="user-menu-container">
                     <Transition name="fade">
                         <button v-if="!authStore.loading && !isAuthenticated" class="icon-button"
@@ -97,16 +159,102 @@ import { useAuthStore } from '@/stores/auth'
 import LoginModal from '@/components/LoginModal.vue'
 import AdminSidebar from '@/components/AdminSidebar.vue'
 import { storeToRefs } from 'pinia'
+import { useProducts } from '@/composables/useProducts'
+import { getUrl } from 'aws-amplify/storage'
+import debounce from 'lodash/debounce'
+import { XIcon } from 'lucide-vue-next'
 
 const authStore = useAuthStore()
+
 const { isAuthenticated, isAdmin, userEmail, userName } = storeToRefs(authStore)
 const router = useRouter()
 const showLoginModal = ref(false)
 const isUserMenuOpen = ref(false)
 const isAdminSidebarOpen = ref(false)
 
+const searchQuery = ref('')
+const showResults = ref(false)
+const loading = ref(false)
+const imageUrls = ref<Record<string, string>>({})
+const { products, loadProductsWeb } = useProducts()
+const filteredProducts = ref<any[]>([])
+const isMobileSearchOpen = ref(false)
+
 import { useCartStore } from '@/stores/cart'
 const cartStore = useCartStore()
+
+const getProductImage = (product: any) => {
+    return imageUrls.value[product.id] || '/api/placeholder/40/40'
+}
+
+const loadProductImages = async (productsToLoad: any[]) => {
+    for (const product of productsToLoad) {
+        if (product.imageUrl && !imageUrls.value[product.id]) {
+            try {
+                const { url } = await getUrl({ path: product.imageUrl })
+                imageUrls.value[product.id] = url.toString()
+            } catch (error) {
+                console.error("Error cargando imagen:", error)
+            }
+        }
+    }
+}
+
+const filterProducts = () => {
+    if (!searchQuery.value.trim()) {
+        filteredProducts.value = []
+        return
+    }
+
+    const query = searchQuery.value.toLowerCase()
+    filteredProducts.value = products.value
+        .filter(product =>
+            product.name.toLowerCase().includes(query) ||
+            product.brand.toLowerCase().includes(query)
+        )
+        .slice(0, 5)
+}
+
+const handleSearch = debounce(async () => {
+    loading.value = true
+    filterProducts()
+    await loadProductImages(filteredProducts.value)
+    loading.value = false
+}, 300)
+
+const vClickOutside = {
+    mounted(el: any, binding: any) {
+        el.clickOutsideEvent = (event: Event) => {
+            if (!(el === event.target || el.contains(event.target))) {
+                binding.value()
+            }
+        }
+        document.addEventListener('click', el.clickOutsideEvent)
+    },
+    unmounted(el: any) {
+        document.removeEventListener('click', el.clickOutsideEvent)
+    },
+}
+
+const hideResults = () => {
+    showResults.value = false
+}
+
+const toggleMobileSearch = () => {
+    isMobileSearchOpen.value = !isMobileSearchOpen.value
+    if (isMobileSearchOpen.value) {
+        document.body.style.overflow = 'hidden'
+    } else {
+        document.body.style.overflow = ''
+    }
+}
+
+const closeMobileSearch = () => {
+    isMobileSearchOpen.value = false
+    document.body.style.overflow = ''
+    hideResults()
+}
+
 
 const toggleAdminSidebar = () => {
     isAdminSidebarOpen.value = !isAdminSidebarOpen.value
@@ -142,6 +290,10 @@ watch(isAuthenticated, (newValue) => {
     if (!newValue) {
         isUserMenuOpen.value = false
     }
+})
+
+onMounted(async () => {
+    await loadProductsWeb()
 })
 </script>
 
@@ -452,6 +604,238 @@ watch(isAuthenticated, (newValue) => {
 
     100% {
         transform: scale(1);
+    }
+}
+
+.nav-center {
+    justify-self: end;
+    /* Mueve la barra hacia la derecha */
+    width: 100%;
+    max-width: 600px;
+    /* Ajustado el ancho máximo */
+    margin-right: 2rem;
+    /* Espacio a la derecha */
+}
+
+.search-bar {
+    position: relative;
+    width: 100%;
+    max-width: 600px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 0.75rem 2.5rem 0.75rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    outline: none;
+    transition: all 0.3s ease;
+}
+
+.search-input:focus {
+    border-color: #000;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+}
+
+.search-button {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    color: #4a5568;
+    transition: color 0.3s ease;
+}
+
+.search-button:hover {
+    color: #000;
+}
+
+.search-results {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    max-height: 400px;
+    overflow-y: auto;
+    z-index: 50;
+}
+
+.search-loading {
+    padding: 2rem;
+    text-align: center;
+}
+
+.no-results {
+    padding: 1.5rem;
+    text-align: center;
+    color: #666;
+}
+
+.results-list {
+    padding: 0.5rem;
+}
+
+.product-result {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem;
+    text-decoration: none;
+    color: inherit;
+    transition: background-color 0.3s ease;
+    border-radius: 6px;
+}
+
+.product-result:hover {
+    background-color: #f7f7f7;
+}
+
+.product-thumbnail {
+    width: 60px;
+    /* Aumentado el tamaño */
+    height: 60px;
+    /* Aumentado el tamaño */
+    object-fit: cover;
+    border-radius: 8px;
+    margin-right: 1.5rem;
+}
+
+.product-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.product-brand {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: #1a202c;
+}
+
+.product-name {
+    font-size: 0.875rem;
+    color: #4a5568;
+}
+
+.loader {
+    width: 24px;
+    height: 24px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #000;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@media (max-width: 768px) {
+    .search-results {
+        position: fixed;
+        top: 60px;
+        left: 1rem;
+        right: 1rem;
+        max-height: calc(100vh - 80px);
+    }
+}
+
+.search-mobile-button {
+    display: none;
+}
+
+.mobile-search-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    z-index: 200;
+    padding: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.mobile-search-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.mobile-search-input {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    outline: none;
+}
+
+.mobile-search-close {
+    background: none;
+    border: none;
+    padding: 0.5rem;
+    color: #666;
+    cursor: pointer;
+}
+
+.mobile-search-results {
+    position: fixed;
+    top: 70px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: white;
+    overflow-y: auto;
+    padding: 1rem;
+}
+
+/* Animation classes */
+.slide-down-enter-active,
+.slide-down-leave-active {
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.slide-down-enter-from,
+.slide-down-leave-to {
+    transform: translateY(-100%);
+    opacity: 0;
+}
+
+@media (max-width: 768px) {
+    .desktop-search {
+        display: none;
+    }
+
+    .search-mobile-button {
+        display: block;
+        margin-left: auto;
+        margin-right: 1rem;
+    }
+
+    .nav-content {
+        padding: 0 1rem;
+    }
+
+    .mobile-search-results .product-result {
+        padding: 1rem;
+        border-bottom: 1px solid #eee;
+    }
+
+    .mobile-search-results .product-thumbnail {
+        width: 50px;
+        height: 50px;
     }
 }
 </style>

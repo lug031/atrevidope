@@ -12,6 +12,16 @@
                 Lo sentimos, ha ocurrido un error al cargar el producto.
             </div>
 
+            <div v-else-if="!currentProduct" class="error-state not-found">
+                <div class="error-content">
+                    <h2>No encontramos el producto</h2>
+                    <p>El producto que buscas no está disponible o no existe.</p>
+                    <router-link to="/web-products" class="back-button">
+                        Volver a productos
+                    </router-link>
+                </div>
+            </div>
+
             <div v-else-if="currentProduct" class="product-detail">
                 <div class="product-gallery">
                     <img :src="imageUrls[currentProduct.id] || '/api/placeholder/40/40'" :alt="currentProduct.name"
@@ -91,7 +101,7 @@ import { uploadData, getUrl } from 'aws-amplify/storage';
 const imageUrls = ref<Record<string, string>>({});
 const route = useRoute();
 const router = useRouter();
-const { products, loading: productsLoading, error: productsError, loadProductsWeb } = useProducts();
+const { products, loading: productsLoading, error: productsError, loadProducts } = useProducts();
 const {
     activePromotions,
     loading: promotionsLoading,
@@ -298,7 +308,7 @@ onMounted(async () => {
     if (isFromPromotions) {
         await loadPromotions();
     } else {
-        await loadProductsWeb();
+        await loadProducts();
     }
 });
 
@@ -513,6 +523,54 @@ watch(() => currentProduct.value, () => {
 .add-to-cart.disabled {
     background-color: #ccc;
     cursor: not-allowed;
+}
+
+.error-state.not-found {
+    padding: 3rem 1rem;
+    text-align: center;
+    background-color: #ffffff;
+    border-radius: 8px;
+    margin: 2rem auto;
+    max-width: 600px;
+}
+
+.error-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.error-content h2 {
+    font-size: 1.5rem;
+    color: #333;
+    margin-bottom: 0.5rem;
+}
+
+.error-content p {
+    color: #666;
+    margin-bottom: 1.5rem;
+}
+
+.back-button {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    background-color: #000;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background-color 0.3s ease;
+}
+
+.back-button:hover {
+    background-color: #333;
+}
+
+@media (max-width: 768px) {
+    .error-state.not-found {
+        margin: 1rem;
+        padding: 2rem 1rem;
+    }
 }
 
 @keyframes rotation {

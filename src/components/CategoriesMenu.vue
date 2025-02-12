@@ -2,8 +2,9 @@
   <div class="categories-menu">
     <ul class="menu-list" v-if="!loading && !error">
       <li v-for="category in activeCategories" :key="category.id">
-        <a href="#">
+        <a href="#" class="menu-link">
           {{ category.name }}
+          <span class="hover-line"></span>
         </a>
       </li>
     </ul>
@@ -40,32 +41,66 @@ onMounted(async () => {
 
 <style scoped>
 .categories-menu {
-  background-color: #000;
-  padding: 1rem 0;
+  background: linear-gradient(to right, #1a1a1a, #2d2d2d);
+  padding: 1.25rem 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  position: relative;
 }
 
 .menu-list {
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
   list-style: none;
-  gap: 2rem;
+  gap: 2.5rem;
   margin: 0;
-  padding: 0;
+  padding: 0 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-.menu-list a {
-  color: white;
+.menu-list li {
+  position: relative;
+}
+
+.menu-link {
+  color: #f8f8f8;
   text-decoration: none;
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  padding: 0.5rem 0;
+  transition: color 0.3s ease;
+  position: relative;
+  display: inline-block;
+}
+
+.hover-line {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background-color: #5c9eff;
+  transition: width 0.3s ease;
+}
+
+.menu-link:hover {
+  color: #5c9eff;
+}
+
+.menu-link:hover .hover-line {
+  width: 100%;
 }
 
 .loading {
-  color: white;
+  color: #f8f8f8;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  min-height: 2rem;
 }
 
 .loading-animation {
@@ -76,35 +111,52 @@ onMounted(async () => {
 .loading-dot {
   width: 8px;
   height: 8px;
-  background-color: #fff;
+  background-color: #5c9eff;
   border-radius: 50%;
   display: inline-block;
-  animation: fade 1.5s infinite ease-in-out;
+  animation: pulse 1.4s infinite ease-in-out;
 }
 
 .loading-dot:nth-child(2) {
-  animation-delay: 0.5s;
+  animation-delay: 0.2s;
 }
 
 .loading-dot:nth-child(3) {
-  animation-delay: 1s;
+  animation-delay: 0.4s;
 }
 
 .error {
-  color: #ff9999;
+  color: #ff6b6b;
   text-align: center;
   font-style: italic;
+  padding: 1rem;
+  background-color: rgba(255, 107, 107, 0.1);
+  border-radius: 4px;
+  margin: 0 1rem;
 }
 
-@keyframes fade {
+@keyframes pulse {
 
   0%,
   100% {
-    opacity: 0.3;
+    transform: scale(0.8);
+    opacity: 0.5;
   }
 
   50% {
+    transform: scale(1.2);
     opacity: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .menu-list {
+    gap: 1.5rem;
+    padding: 0 0.75rem;
+  }
+
+  .menu-link {
+    font-size: 14px;
   }
 }
 </style>

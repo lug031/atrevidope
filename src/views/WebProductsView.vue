@@ -51,7 +51,8 @@
             <div class="product-info">
               <h3 class="brand-name">{{ product.brand }}</h3>
               <p class="product-name">{{ product.name }}</p>
-              <p class="product-description">{{ product.description }}</p>
+              <!--<p class="product-description">{{ product.description }}</p>-->
+              <div class="formatted-description" v-html="parseMarkdown(truncateText(product.description, 100))" />
 
               <!-- Precios -->
               <div class="price-info" :class="{ 'has-promotion': hasUpcomingPromotion(product) }">
@@ -102,6 +103,65 @@ const { products, loading, error, loadProducts } = useProducts();
 const cartStore = useCartStore();
 const { showToast } = useToast();
 const sortBy = ref('position');
+
+const truncateText = (text: string, maxLength: number = 100): string => {
+  if (!text) return '';
+
+  // Si el texto es más corto que el máximo, retornarlo completo
+  if (text.length <= maxLength) return text;
+
+  // Cortar el texto hasta el máximo
+  let truncated = text.slice(0, maxLength);
+
+  // Asegurarse de no cortar a mitad de una palabra
+  const lastSpace = truncated.lastIndexOf(' ');
+  if (lastSpace > 0) {
+    truncated = truncated.slice(0, lastSpace);
+  }
+
+  // Asegurarse de no cortar a mitad de un formato markdown
+  const boldCount = (truncated.match(/\*\*/g) || []).length;
+  const italicCount = (truncated.match(/\*/g) || []).length;
+
+  // Si hay formatos markdown incompletos, ajustarlos
+  if (boldCount % 2 !== 0) {
+    truncated = truncated.replace(/\*\*[^*]*$/, '');
+  }
+  if ((italicCount - boldCount * 2) % 2 !== 0) {
+    truncated = truncated.replace(/\*[^*]*$/, '');
+  }
+
+  return truncated + '...';
+};
+
+const parseMarkdown = (text: string): string => {
+  if (!text) return '';
+
+  return text
+    // Headers
+    .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+    .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+    .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+    // Bold
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    // Italic
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    // Lists
+    .replace(/^\s*[-+*]\s+(.*)/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+    // Links
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    // Line breaks
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br>')
+    // Wrap in paragraphs if not already wrapped
+    .replace(/^(.+?)(?:<br>|$)/gm, (_, text) => {
+      if (!/^<[h|p|ul|ol|li]/.test(text)) {
+        return `<p>${text}</p>`;
+      }
+      return text;
+    });
+};
 
 const loadImageUrls = async () => {
   for (const product of products.value) {
@@ -236,6 +296,62 @@ watch(() => products.value, () => {
 <style scoped>
 .promotional-products {
   padding: 0 20px;
+}
+
+.formatted-description {
+  line-height: 1.6;
+  color: #374151;
+}
+
+.formatted-description h1,
+.formatted-description h2,
+.formatted-description h3 {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+}
+
+.formatted-description h1 {
+  font-size: 1.5em;
+}
+
+.formatted-description h2 {
+  font-size: 1.25em;
+}
+
+.formatted-description h3 {
+  font-size: 1.125em;
+}
+
+.formatted-description p {
+  margin-bottom: 1em;
+}
+
+.formatted-description ul {
+  margin: 1em 0;
+  padding-left: 1.5em;
+  list-style-type: disc;
+}
+
+.formatted-description li {
+  margin-bottom: 0.5em;
+}
+
+.formatted-description a {
+  color: #3b82f6;
+  text-decoration: underline;
+}
+
+.formatted-description a:hover {
+  color: #2563eb;
+}
+
+.formatted-description strong {
+  font-weight: 600;
+}
+
+.formatted-description em {
+  font-style: italic;
 }
 
 .hero-banner-section {

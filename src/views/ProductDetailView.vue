@@ -302,14 +302,40 @@ const isPromotionalProduct = computed(() => {
 
 const breadcrumbItems = computed(() => {
     const baseItems = [
-        { text: 'Inicio', to: '/' },
-        { text: 'Productos', to: '/web-products' }
+        { text: 'Inicio', to: '/' }
     ];
 
-    if (isFromPromotions) {
-        baseItems.push({ text: 'Promociones', to: '/promotions' });
+    // Get the previous route path and query
+    const previousRoute = router.options.history.state.back;
+
+    // Check if previous route is a category route
+    if (typeof previousRoute === 'string' && previousRoute.includes('/category/')) {
+        try {
+            // Parse the URL to get the category name from query params
+            const url = new URL(previousRoute, window.location.origin);
+            const categoryName = url.searchParams.get('name');
+
+            if (categoryName) {
+                // Format the category name by replacing '+' with spaces
+                const formattedCategoryName = decodeURIComponent(categoryName).replace(/\+/g, ' ');
+                baseItems.push({
+                    text: formattedCategoryName,
+                    to: previousRoute
+                });
+            }
+        } catch (error) {
+            console.error('Error parsing category URL:', error);
+        }
+    } else if (isFromPromotions) {
+        baseItems.push(
+            { text: 'Productos', to: '/web-products' },
+            { text: 'Promociones', to: '/promotions' }
+        );
+    } else {
+        baseItems.push({ text: 'Productos', to: '/web-products' });
     }
 
+    // Add current product as the last item
     baseItems.push({ text: currentProduct.value?.name || 'Producto', to: '' });
 
     return baseItems;

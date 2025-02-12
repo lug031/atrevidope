@@ -1,7 +1,6 @@
 <template>
     <MainLayout>
         <div class="profile-container">
-            <!-- Cabecera -->
             <div class="profile-header">
                 <h1 class="page-title">Mi Perfil</h1>
                 <button v-if="!isEditing" @click="startEditing" class="edit-button">
@@ -10,7 +9,6 @@
                 </button>
             </div>
 
-            <!-- Estados de carga y error -->
             <div v-if="loading" class="loading-state">
                 <Loader2Icon :size="40" class="animate-spin" />
                 <p>Cargando perfil...</p>
@@ -26,30 +24,33 @@
             </div>
 
             <div v-else>
-                <!-- Formulario de edición -->
                 <form v-if="isEditing" @submit.prevent="handleSubmit" class="profile-form">
                     <div class="form-section">
                         <h2>Información Personal</h2>
                         <div class="form-group">
                             <label for="firstName">Nombre</label>
-                            <input id="firstName" v-model="formData.firstName" type="text" class="form-input"
-                                required />
-                        </div>
-
-                        <div class="form-group">
-                            <label for="lastName">Apellido</label>
-                            <input id="lastName" v-model="formData.lastName" type="text" class="form-input" required />
+                            <input id="firstName" v-model="formData.name" type="text" class="form-input" required />
                         </div>
 
                         <div class="form-group">
                             <label for="email">Email</label>
-                            <input id="email" v-model="formData.email" type="email" class="form-input" required
-                                disabled />
+                            <input id="email" :value="userEmail" type="email" class="form-input" disabled />
+                            <span class="input-help">El email no se puede modificar</span>
                         </div>
 
                         <div class="form-group">
                             <label for="phone">Teléfono</label>
-                            <input id="phone" v-model="formData.phone" type="tel" class="form-input" />
+                            <input id="phone" v-model="formData.phone_number" type="tel" class="form-input" />
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <h2>Rol y Estado</h2>
+                        <div class="info-item">
+                            <span class="info-label">Rol de usuario</span>
+                            <span class="role-badge" :class="{ 'admin': isAdmin }">
+                                {{ isAdmin ? 'Administrador' : 'Usuario' }}
+                            </span>
                         </div>
                     </div>
 
@@ -57,28 +58,33 @@
                         <button type="button" class="cancel-button" @click="cancelEditing">
                             Cancelar
                         </button>
-                        <button type="submit" class="save-button">
-                            Guardar Cambios
+                        <button type="submit" class="save-button" :disabled="loading">
+                            {{ loading ? 'Guardando...' : 'Guardar Cambios' }}
                         </button>
                     </div>
                 </form>
 
-                <!-- Vista de información -->
                 <div v-else class="profile-info">
                     <div class="info-section">
                         <h2>Información Personal</h2>
                         <div class="info-grid">
                             <div class="info-item">
-                                <span class="info-label">Nombre completo</span>
-                                <span class="info-value">{{ formData.firstName }} {{ formData.lastName }}</span>
+                                <span class="info-label">Nombre de usuario</span>
+                                <span class="info-value">{{ userName }}</span>
                             </div>
                             <div class="info-item">
                                 <span class="info-label">Email</span>
-                                <span class="info-value">{{ formData.email }}</span>
+                                <span class="info-value">{{ userEmail }}</span>
                             </div>
                             <div class="info-item">
                                 <span class="info-label">Teléfono</span>
-                                <span class="info-value">{{ formData.phone || 'No especificado' }}</span>
+                                <span class="info-value">{{ userAttributes?.phone_number || 'No especificado' }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Rol</span>
+                                <span class="role-badge" :class="{ 'admin': isAdmin }">
+                                    {{ isAdmin ? 'Administrador' : 'Usuario' }}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -90,6 +96,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import MainLayout from '@/layouts/MainLayout.vue'
 import {
     PencilIcon,
@@ -98,24 +105,30 @@ import {
     RefreshCwIcon
 } from 'lucide-vue-next'
 
+const authStore = useAuthStore()
 const loading = ref(false)
 const error = ref<string | null>(null)
 const isEditing = ref(false)
 
 const formData = ref({
-    firstName: 'Juan',
-    lastName: 'Pérez',
-    email: 'juan.perez@example.com',
-    phone: '+52 123 456 7890'
+    name: authStore.userName || '',
+    phone_number: authStore.userAttributes?.phone_number || ''
 })
+
+const { userName, userEmail, isAdmin, userAttributes } = authStore
 
 const loadProfile = async () => {
     loading.value = true
     error.value = null
     try {
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        await authStore.checkAuth()
+        formData.value = {
+            name: authStore.userName || '',
+            phone_number: authStore.userAttributes?.phone_number || ''
+        }
     } catch (err) {
         error.value = 'Error al cargar el perfil'
+        console.error(err)
     } finally {
         loading.value = false
     }
@@ -126,15 +139,24 @@ const startEditing = () => {
 }
 
 const cancelEditing = () => {
+    formData.value = {
+        name: authStore.userName || '',
+        phone_number: authStore.userAttributes?.phone_number || ''
+    }
     isEditing.value = false
 }
 
 const handleSubmit = async () => {
+    loading.value = true
     try {
+        // TODO: Implementar actualización de atributos del usuario
         await new Promise(resolve => setTimeout(resolve, 1000))
+        await loadProfile()
         isEditing.value = false
     } catch (error) {
-        console.error('Error:', error)
+        console.error('Error al actualizar el perfil:', error)
+    } finally {
+        loading.value = false
     }
 }
 
@@ -297,5 +319,32 @@ h2 {
         width: 100%;
         justify-content: center;
     }
+}
+
+.input-help {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-top: 0.25rem;
+}
+
+.role-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    background-color: #e2e8f0;
+    color: #64748b;
+}
+
+.role-badge.admin {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.save-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
 }
 </style>

@@ -1,4 +1,3 @@
-<!-- Breadcrumbs.vue -->
 <template>
     <nav aria-label="Breadcrumb" class="breadcrumbs">
         <ol class="breadcrumb-list">

@@ -308,7 +308,6 @@ const initialFormData = {
 const formData = ref({ ...initialFormData })
 const editingId = ref<string | null>(null)
 
-// Watch para actualizar el precio final cuando cambia el descuento
 watch([() => formData.value.originalPrice, () => formData.value.discountPercentage],
     ([newOriginalPrice, newDiscountPercentage]) => {
         if (formData.value.isPromoted && newOriginalPrice && newDiscountPercentage) {
@@ -338,9 +337,8 @@ const isPromotionActive = (product: Product): boolean => {
         return false;
     }
 
-    const today = getCurrentPeruDate(); // YYYY-MM-DD del día actual
+    const today = getCurrentPeruDate();
 
-    // Comparar directamente los strings de fecha
     return product.promotionStartDate <= today && today <= product.promotionEndDate;
 };
 
@@ -356,7 +354,6 @@ const getCurrentPeruDate = (): string => {
 };
 
 const formatDateToSpanish = (dateStr: string): string => {
-    // Crear la fecha usando el string directamente sin conversión de zona horaria
     const [year, month, day] = dateStr.split('-').map(Number);
     const date = new Date(year, month - 1, day);
 
@@ -413,7 +410,7 @@ const uploadImage = async (): Promise<string> => {
             }
         }).result;
 
-        return path; // Guardar solo el path, no la URL
+        return path;
     } catch (error) {
         console.error("Error subiendo imagen:", error);
         throw error;
@@ -452,7 +449,6 @@ const handleEdit = (product: Product) => {
     showCreateModal.value = true
 }
 
-// Resto de los métodos sin cambios significativos
 const resetForm = () => {
     formData.value = { ...initialFormData }
     editingId.value = null
@@ -466,7 +462,6 @@ const handleCloseModal = () => {
 
 const handleSubmit = async () => {
     try {
-        // Subir imagen primero
         const imageUrl = await uploadImage()
 
         const productData = {

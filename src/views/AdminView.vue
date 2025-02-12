@@ -1,4 +1,3 @@
-<!-- AdminView.vue -->
 <template>
     <AdminLayout>
         <div class="admin-container">

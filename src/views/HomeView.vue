@@ -2,9 +2,7 @@
   <MainLayout>
     <ProductCarousel />
     <PromotionalBanner />
-    <!-- Brands Carousel -->
     <BrandCarousel />
-    <!-- Feature Cards -->
     <!-- <FeatureCards /> -->
   </MainLayout>
 </template>

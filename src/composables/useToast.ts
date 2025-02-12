@@ -1,4 +1,3 @@
-// composables/useToast.ts
 import { ref } from "vue";
 
 export interface ToastOptions {

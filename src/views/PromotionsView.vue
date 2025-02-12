@@ -98,9 +98,8 @@ const {
 } = usePromotions();
 
 const formatDateToSpanish = (dateStr: string): string => {
-    // Crear la fecha usando el string directamente sin conversión de zona horaria
     const [year, month, day] = dateStr.split('-').map(Number);
-    const date = new Date(year, month - 1, day);  // month - 1 porque los meses en JS son 0-based
+    const date = new Date(year, month - 1, day);
 
     return new Intl.DateTimeFormat('es-PE', {
         day: 'numeric',
@@ -113,8 +112,7 @@ const isPromotionActive = (product: Product): boolean => {
         return false;
     }
 
-    //const today = getCurrentPeruDate();
-    const todayStr = getCurrentPeruDate(); // Obtiene YYYY-MM-DD
+    const todayStr = getCurrentPeruDate();
 
     return product.promotionStartDate <= todayStr && todayStr <= product.promotionEndDate;
 };
@@ -137,9 +135,8 @@ const isSingleDayPromotion = (product: Product): boolean => {
 const getPromotionDateText = (product: Product): string => {
     if (!product.promotionStartDate || !product.promotionEndDate) return '';
 
-    const today = getCurrentPeruDate(); // YYYY-MM-DD del día actual
+    const today = getCurrentPeruDate();
 
-    // Si es promoción de un solo día
     if (product.promotionStartDate === product.promotionEndDate) {
         if (product.promotionStartDate === today) {
             return '¡Solo por hoy!';

@@ -108,7 +108,6 @@ import { useCartStore } from '@/stores/cart'
 import type { CartItem } from '@/types/cart.types';
 const cartStore = useCartStore()
 
-// Stock-related computed properties
 const isOutOfStock = computed(() =>
     currentProduct.value?.stock === 0
 );
@@ -163,13 +162,11 @@ const getPromotionDateText = (product: Product): string => {
 
     const today = getCurrentPeruDate();
 
-    // Solo por hoy
     if (product.promotionStartDate === product.promotionEndDate &&
         product.promotionStartDate === today) {
         return '¡Solo por hoy!';
     }
 
-    // Rango de fechas
     return `Válido del ${formatDateToSpanish(product.promotionStartDate)} al ${formatDateToSpanish(product.promotionEndDate)}`;
 };
 
@@ -206,7 +203,6 @@ const addToCartButtonText = computed(() => {
     return 'AÑADIR AL CARRITO';
 });
 
-// Quantity control methods
 const decrementQuantity = () => {
     if (quantity.value > 1) {
         quantity.value--;
@@ -233,20 +229,16 @@ const validateQuantity = () => {
     }
 };
 
-// Watch for changes in quantity
 watch(quantity, (newValue) => {
     validateQuantity();
 });
 
-// Previous route check
 const previousRoute = router.options.history.state.back;
 const isFromPromotions = typeof previousRoute === 'string' && previousRoute.includes('/promotions');
 
-// Loading and error states
 const loading = computed(() => isFromPromotions ? promotionsLoading.value : productsLoading.value);
 const error = computed(() => isFromPromotions ? promotionsError.value : productsError.value);
 
-// Current product computation
 const currentProduct = computed(() => {
     const productId = route.params.id;
     if (isFromPromotions) {
@@ -316,7 +308,6 @@ watch(() => currentProduct.value, () => {
 </script>
 
 <style scoped>
-/* Styles remain unchanged */
 .product-detail-container {
     padding: 20px;
     max-width: 1200px;

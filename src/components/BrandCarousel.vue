@@ -1,4 +1,3 @@
-<!-- BrandCarousel.vue -->
 <template>
     <div class="brands-section">
         <h2 class="brands-title">DESCUBRE LAS MEJORES MARCAS</h2>
@@ -37,12 +36,11 @@ const brands = [
     { name: 'DIOR', logo: '/brands/dior.png' },
     { name: 'GUERLAIN', logo: '/brands/guerlain.png' },
     { name: 'GIVENCHY', logo: '/brands/givenchy.png' },
-    // Añade más marcas según necesites
 ];
 
 const currentSlide = ref(0);
 const brandsPerSlide = 5;
-const slideWidth = 200; // Ancho de cada marca en px
+const slideWidth = 200;
 const autoplayInterval = ref<number | null>(null);
 
 const totalSlides = computed(() => Math.ceil(brands.length / brandsPerSlide));

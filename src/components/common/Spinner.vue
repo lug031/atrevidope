@@ -1,4 +1,3 @@
-<!-- components/common/Spinner.vue -->
 <template>
     <div class="spinner" :class="[size, { overlay }]" :style="{ '--spinner-color': color }">
         <div class="spinner-circle"></div>

@@ -1,4 +1,3 @@
-<!-- components/Toast.vue -->
 <template>
     <div class="toast-container" :class="position">
         <TransitionGroup name="toast">

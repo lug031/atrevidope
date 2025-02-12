@@ -14,6 +14,7 @@ const authClient = generateClient<Schema>({
 
 export const useProductStore = defineStore("product", () => {
   const products = ref<Product[]>([]);
+  const productsWeb = ref<Product[]>([]);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
@@ -45,7 +46,7 @@ export const useProductStore = defineStore("product", () => {
           ],
         },
       });
-      products.value = items as unknown as Product[];
+      productsWeb.value = items as unknown as Product[];
     } catch (err) {
       error.value = "Error al cargar productos web";
       console.error(err);
@@ -106,6 +107,7 @@ export const useProductStore = defineStore("product", () => {
 
   return {
     products,
+    productsWeb,
     loading,
     error,
     fetchProducts,

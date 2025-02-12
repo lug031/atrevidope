@@ -65,19 +65,23 @@
                     <div class="product-actions">
                         <div class="quantity-selector">
                             <button @click="decrementQuantity" class="quantity-btn"
-                                :disabled="quantity <= 1 || isOutOfStock">
+                                :disabled="quantity <= 1 || isOutOfStock || cartLoading">
                                 -
                             </button>
-                            <input type="number" v-model="quantity" min="1" :max="currentProduct.stock"
-                                class="quantity-input" :disabled="isOutOfStock" @change="validateQuantity" />
+                            <input type="number" v-model="quantity" min="1" :max="currentProduct?.stock"
+                                class="quantity-input" :disabled="isOutOfStock || cartLoading"
+                                @change="validateQuantity" />
                             <button @click="incrementQuantity" class="quantity-btn"
-                                :disabled="isMaxQuantityReached || isOutOfStock">
+                                :disabled="isMaxQuantityReached || isOutOfStock || cartLoading">
                                 +
                             </button>
                         </div>
 
-                        <button @click="addToCart" class="add-to-cart" :disabled="isOutOfStock || !isValidQuantity"
-                            :class="{ 'disabled': isOutOfStock || !isValidQuantity }">
+                        <button @click="addToCart" class="add-to-cart"
+                            :disabled="isOutOfStock || !isValidQuantity || isAddingToCart" :class="{
+                                'disabled': isOutOfStock || !isValidQuantity || isAddingToCart,
+                                'loading': isAddingToCart
+                            }">
                             {{ addToCartButtonText }}
                         </button>
                     </div>
@@ -97,6 +101,8 @@ import { usePromotions } from '../composables/usePromotions';
 import type { Product } from '@/types/product.types';
 import { useToast } from '../composables/useToast';
 import { uploadData, getUrl } from 'aws-amplify/storage';
+import { useCart } from '@/composables/useCart';
+import type { CartItem } from '@/types/cart.types';
 
 const imageUrls = ref<Record<string, string>>({});
 const route = useRoute();
@@ -110,13 +116,15 @@ const {
     calculateDiscountedPrice,
     formatPrice
 } = usePromotions();
+const {
+    addToCart: addItemToCart,
+    loading: cartLoading,
+    error: cartError,
+    canIncreaseQuantity
+} = useCart();
 const { showToast } = useToast();
 const quantity = ref(1);
-
-/*PRUEBA CART*/
-import { useCartStore } from '@/stores/cart'
-import type { CartItem } from '@/types/cart.types';
-const cartStore = useCartStore()
+const isAddingToCart = ref(false);
 
 const parseMarkdown = (text: string): string => {
     if (!text) return '';
@@ -235,10 +243,11 @@ const isLowStock = computed(() =>
     currentProduct.value.stock <= 5
 );
 
-const isMaxQuantityReached = computed(() =>
-    currentProduct.value?.stock !== undefined &&
-    quantity.value >= currentProduct.value.stock
-);
+const isMaxQuantityReached = computed(() => {
+    if (!currentProduct.value) return true;
+    return !canIncreaseQuantity(currentProduct.value) ||
+        quantity.value >= currentProduct.value.stock;
+});
 
 const isValidQuantity = computed(() =>
     currentProduct.value?.stock !== undefined &&
@@ -247,6 +256,7 @@ const isValidQuantity = computed(() =>
 );
 
 const addToCartButtonText = computed(() => {
+    if (isAddingToCart.value) return 'AGREGANDO...';
     if (isOutOfStock.value) return 'PRODUCTO AGOTADO';
     if (!isValidQuantity.value) return 'CANTIDAD NO VÁLIDA';
     return 'AÑADIR AL CARRITO';
@@ -341,31 +351,44 @@ const breadcrumbItems = computed(() => {
     return baseItems;
 });
 
-const addToCart = () => {
-    if (currentProduct.value && isValidQuantity.value) {
-        if (quantity.value <= currentProduct.value.stock) {
-            const cartItem: CartItem = {
-                id: currentProduct.value.id,
-                name: currentProduct.value.name,
-                price: isPromotionalProduct.value
-                    ? calculateDiscountedPrice(currentProduct.value)
-                    : currentProduct.value.price,
-                quantity: quantity.value,
-                imageUrl: currentProduct.value.imageUrl
-            };
+const addToCart = async () => {
+    if (!currentProduct.value || !isValidQuantity.value) return;
 
-            cartStore.addItem(cartItem);
+    try {
+        isAddingToCart.value = true;
+
+        if (quantity.value <= currentProduct.value.stock) {
+            await addItemToCart(
+                {
+                    ...currentProduct.value,
+                    price: isPromotionalProduct.value
+                        ? calculateDiscountedPrice(currentProduct.value)
+                        : currentProduct.value.price,
+                    originalPrice: currentProduct.value.originalPrice,
+                },
+                quantity.value
+            );
 
             showToast({
                 type: 'success',
-                message: 'Producto añadido'
+                message: 'Producto añadido al carrito'
             });
+
+            quantity.value = 1;
         } else {
             showToast({
                 type: 'error',
                 message: `No hay suficiente stock. Solo quedan ${currentProduct.value.stock} unidades`
             });
         }
+    } catch (err) {
+        console.error('Error al añadir al carrito:', err);
+        showToast({
+            type: 'error',
+            message: 'Error al añadir el producto al carrito'
+        });
+    } finally {
+        isAddingToCart.value = false;
     }
 };
 

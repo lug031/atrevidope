@@ -102,7 +102,7 @@
                             </button>
 
                             <div v-if="isUserMenuOpen" class="dropdown-menu">
-                                <div class="user-email">{{ userEmail }}</div>
+                                <!-- <div class="user-email">{{ userEmail }}</div> -->
                                 <RouterLink to="/profile" class="menu-item">
                                     <UserIcon :size="16" />
                                     Perfil
@@ -116,10 +116,11 @@
                     </Transition>
                 </div>
 
-                <!-- Carrito - Solo visible para no admins -->
+                <!-- Carrito - Visible para todos -->
                 <Transition name="fade">
-                    <div v-if="!authStore.loading && !isAdmin" class="cart-container">
-                        <button class="icon-button cart-button">
+                    <div v-if="!authStore.loading" class="cart-container">
+                        <!--<div v-if="!authStore.loading && !isAdmin" class="cart-container">-->
+                        <button class="icon-button cart-button" @click="isCartOpen = true">
                             <ShoppingBagIcon class="cart-icon" :size="24"
                                 :class="{ 'bounce': cartStore.showNotification }" />
                             <Transition name="bounce">
@@ -138,6 +139,8 @@
         <div v-if="authStore.loading" class="auth-loading-indicator"></div>
     </nav>
 
+    <CartSidebar :is-open="isCartOpen" @close="isCartOpen = false" />
+
     <!-- Admin Sidebar -->
     <AdminSidebar v-if="isAdmin" :is-open="isAdminSidebarOpen" @close="isAdminSidebarOpen = false" />
 
@@ -153,7 +156,8 @@ import {
     SearchIcon,
     ShoppingBagIcon,
     LogOutIcon,
-    MenuIcon
+    MenuIcon,
+    XIcon
 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import LoginModal from '@/components/LoginModal.vue'
@@ -162,9 +166,10 @@ import { storeToRefs } from 'pinia'
 import { useProducts } from '@/composables/useProducts'
 import { getUrl } from 'aws-amplify/storage'
 import debounce from 'lodash/debounce'
-import { XIcon } from 'lucide-vue-next'
+import CartSidebar from '@/components/CartSidebar.vue'
 
 const authStore = useAuthStore()
+const isCartOpen = ref(false)
 
 const { isAuthenticated, isAdmin, userEmail, userName } = storeToRefs(authStore)
 const router = useRouter()

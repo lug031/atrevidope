@@ -1,7 +1,7 @@
 <template>
     <div class="dashboard">
         <div class="stats-grid">
-            <div class="stat-card">
+            <div class="stat-card disabled">
                 <div class="stat-header">
                     <h3>Ventas Totales</h3>
                     <DollarSignIcon :size="24" />
@@ -10,7 +10,7 @@
                 <p class="stat-change positive">+0% vs mes anterior</p>
             </div>
 
-            <div class="stat-card">
+            <div class="stat-card disabled">
                 <div class="stat-header">
                     <h3>Pedidos</h3>
                     <PackageIcon :size="24" />
@@ -196,5 +196,23 @@ onMounted(async () => {
 
 .active-promotions {
     color: #10b981;
+}
+
+.stat-card.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: #f5f5f5;
+    pointer-events: none;
+}
+
+.stat-card.disabled .stat-header h3,
+.stat-card.disabled .stat-value,
+.stat-card.disabled .stat-change {
+    color: #999;
+}
+
+.stat-card.disabled:hover {
+    transform: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 </style>

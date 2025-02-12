@@ -3,10 +3,10 @@
         <div class="profile-container">
             <div class="profile-header">
                 <h1 class="page-title">Mi Perfil</h1>
-                <button v-if="!isEditing" @click="startEditing" class="edit-button">
+                <!--<button v-if="!isEditing" @click="startEditing" class="edit-button">
                     <PencilIcon :size="20" />
                     Editar Perfil
-                </button>
+                </button>-->
             </div>
 
             <div v-if="loading" class="loading-state">

@@ -185,7 +185,9 @@
                     <div class="form-group">
                         <label for="discountPercentage">Descuento (%)</label>
                         <input id="discountPercentage" v-model.number="formData.discountPercentage" type="number"
-                            min="0" max="100" class="form-input" :disabled="!formData.isPromoted" />
+                            min="0" max="100" class="form-input"
+                            :class="{ 'error': formData.isPromoted && (!formData.discountPercentage || formData.discountPercentage <= 0) }"
+                            :disabled="!formData.isPromoted" required />
                     </div>
                 </div>
 
@@ -197,8 +199,14 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="stock">Stock</label>
-                        <input id="stock" v-model.number="formData.stock" type="number" class="form-input" required />
+                        <div class="label-container">
+                            <label for="stock">Stock</label>
+                            <span v-if="formData.stock === 0" class="stock-tag">
+                                sin stock
+                            </span>
+                        </div>
+                        <input id="stock" v-model.number="formData.stock" type="number" min="0" class="form-input"
+                            required />
                     </div>
                 </div>
 
@@ -383,6 +391,21 @@ const promotionDuration = ref('single')
 const markdownPreview = computed(() => {
     return simpleMarkdown(formData.value.description)
 })
+const formError = ref('')
+
+const validateForm = (): boolean => {
+    // Limpiamos error previo
+    formError.value = ''
+
+    // Validamos que si hay promoción, el descuento debe ser mayor a 0
+    if (formData.value.isPromoted && (!formData.value.discountPercentage || formData.value.discountPercentage <= 0)) {
+        formError.value = 'Cuando se aplica una promoción, el descuento debe ser mayor a 0'
+        return false
+    }
+
+    return true
+}
+
 const simpleMarkdown = (text: string): string => {
     return text
         // Bold
@@ -580,8 +603,10 @@ const editingId = ref<string | null>(null)
 watch([() => formData.value.originalPrice, () => formData.value.discountPercentage],
     ([newOriginalPrice, newDiscountPercentage]) => {
         if (formData.value.isPromoted && newOriginalPrice && newDiscountPercentage) {
+            // Solo calculamos el precio con descuento si la promoción está activa
             formData.value.price = newOriginalPrice * (1 - newDiscountPercentage / 100)
         } else {
+            // Si no hay promoción, el precio final es igual al original
             formData.value.price = newOriginalPrice
         }
     })
@@ -730,6 +755,14 @@ const handleCloseModal = () => {
 }
 
 const handleSubmit = async () => {
+    if (!validateForm()) {
+        showToast({
+            type: 'error',
+            message: formError.value
+        })
+        return
+    }
+
     try {
         const imageUrl = await uploadImage()
 
@@ -747,8 +780,26 @@ const handleSubmit = async () => {
         handleCloseModal()
     } catch (error) {
         console.error('Error:', error)
+        showToast({
+            type: 'error',
+            message: 'Error al guardar el producto'
+        })
     }
 }
+
+watch(() => formData.value.isPromoted, (newValue) => {
+    if (!newValue) {
+        // Si se desactiva la promoción, reseteamos el descuento a 0
+        formData.value.discountPercentage = 0
+        // También actualizamos el precio final para que sea igual al precio original
+        formData.value.price = formData.value.originalPrice
+        // Limpiamos cualquier mensaje de error que pudiera estar visible
+        formError.value = ''
+    } else if (newValue && (!formData.value.discountPercentage || formData.value.discountPercentage <= 0)) {
+        // Si se activa la promoción, validamos que el descuento sea mayor a 0
+        formError.value = 'Cuando se aplica una promoción, el descuento debe ser mayor a 0'
+    }
+})
 
 const handleDelete = async (id: string) => {
     if (confirm('¿Estás seguro de que quieres eliminar este producto?')) {
@@ -791,6 +842,41 @@ watch(products, loadImageUrls, { immediate: true });
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+}
+
+.label-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.stock-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 12px;
+    border-radius: 50px;
+    font-size: 12px;
+    font-weight: 500;
+    background-color: #ef4444;
+    color: white;
+    text-transform: lowercase;
+}
+
+.form-input {
+    margin-top: 4px;
+    width: 100%;
+}
+
+.form-input.error {
+    border-color: #ef4444;
+}
+
+.error-message {
+    color: #ef4444;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: block;
 }
 
 .description-header {

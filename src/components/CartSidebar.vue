@@ -11,9 +11,16 @@
                     </button>
                 </div>
 
-                <div v-if="hasItems" class="cart-content">
+                <div v-if="cartInitializing" class="loading-state">
+                    <span class="loader"></span>
+                </div>
+
+                <div v-else-if="hasItems" class="cart-content">
                     <div class="cart-items">
-                        <div v-for="item in cartItemsWithProducts" :key="item.id" class="cart-item">
+                        <div v-if="cartOperationLoading" class="cart-loading-overlay">
+                            <span class="loader"></span>
+                        </div>
+                        <div v-for="item in items" :key="item.id" class="cart-item">
                             <img :src="imageUrls[item.productID] || '/api/placeholder/80/80'"
                                 :alt="productDetails[item.productID]?.name" class="item-image" />
 
@@ -37,16 +44,17 @@
                                 <div class="item-actions">
                                     <div class="quantity-controls">
                                         <button @click="handleDecreaseQuantity(item)" class="quantity-button"
-                                            :disabled="item.quantity <= 1">
+                                            :disabled="item.quantity <= 1 || cartOperationLoading">
                                             <MinusIcon :size="16" />
                                         </button>
                                         <span class="quantity">{{ item.quantity }}</span>
                                         <button @click="handleIncreaseQuantity(item)" class="quantity-button"
-                                            :disabled="!canIncrease(item)">
+                                            :disabled="!canIncrease(item) || cartOperationLoading">
                                             <PlusIcon :size="16" />
                                         </button>
                                     </div>
-                                    <button @click="handleRemoveItem(item.id)" class="remove-button">
+                                    <button @click="handleRemoveItem(item.id)" class="remove-button"
+                                        :disabled="cartOperationLoading">
                                         <TrashIcon :size="16" />
                                     </button>
                                 </div>
@@ -68,8 +76,8 @@
                             <span>S/. {{ total.toFixed(2) }}</span>
                         </div>
 
-                        <button @click="handleCheckout" class="checkout-button" :disabled="loading">
-                            {{ loading ? 'Procesando...' : 'Proceder al pago' }}
+                        <button @click="handleCheckout" class="checkout-button" :disabled="checkoutLoading">
+                            {{ checkoutLoading ? 'Procesando...' : 'Proceder al pago' }}
                         </button>
                     </div>
                 </div>
@@ -87,14 +95,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { XIcon, MinusIcon, PlusIcon, TrashIcon, ShoppingBagIcon } from 'lucide-vue-next';
 import { useCart } from '@/composables/useCart';
-import { useProducts } from '@/composables/useProducts';
 import { useRouter } from 'vue-router';
 import { getUrl } from 'aws-amplify/storage';
 import type { CartItem } from '@/types/cart.types';
 import type { Product } from '@/types/product.types';
+import { useProductStore } from '@/stores/product';
+import { storeToRefs } from 'pinia';
 
 const props = defineProps<{
     isOpen: boolean;
@@ -107,11 +116,14 @@ const emit = defineEmits<{
 const router = useRouter();
 const imageUrls = ref<Record<string, string>>({});
 const productDetails = ref<Record<string, Product>>({});
+const cartInitializing = ref(true);
+const cartOperationLoading = ref(false);
+const checkoutLoading = ref(false);
 
 const {
     items,
-    loading,
-    error,
+    loading: cartLoading,
+    error: cartError,
     subtotal,
     total,
     shippingCost,
@@ -122,17 +134,25 @@ const {
     canIncreaseQuantity
 } = useCart();
 
-const { products, loadProducts } = useProducts();
+const productStore = useProductStore();
+const { products } = storeToRefs(productStore);
 
-const cartItemsWithProducts = computed(() => {
-    return items.value.map(item => ({
-        ...item,
-        product: productDetails.value[item.productID]
-    }));
-});
+const initializeCart = async () => {
+    cartInitializing.value = true;
+    try {
+        if (!items.value.length) {
+            await loadCartItems();
+        }
+        updateProductDetails();
+        await loadImageUrls();
+    } catch (error) {
+        console.error('Error initializing cart:', error);
+    } finally {
+        cartInitializing.value = false;
+    }
+};
 
-const loadProductDetails = async () => {
-    await loadProducts();
+const updateProductDetails = () => {
     const productsMap: Record<string, Product> = {};
     products.value.forEach(product => {
         productsMap[product.id] = product;
@@ -162,61 +182,120 @@ const canIncrease = (item: CartItem): boolean => {
 
 const handleIncreaseQuantity = async (item: CartItem) => {
     if (canIncrease(item)) {
+        cartOperationLoading.value = true;
         try {
             await updateQuantity(item.id, item.quantity + 1);
         } catch (err) {
             console.error('Error al aumentar cantidad:', err);
+        } finally {
+            cartOperationLoading.value = false;
         }
     }
 };
 
 const handleDecreaseQuantity = async (item: CartItem) => {
     if (item.quantity > 1) {
+        cartOperationLoading.value = true;
         try {
             await updateQuantity(item.id, item.quantity - 1);
         } catch (err) {
             console.error('Error al disminuir cantidad:', err);
+        } finally {
+            cartOperationLoading.value = false;
         }
     }
 };
 
 const handleRemoveItem = async (itemId: string) => {
+    cartOperationLoading.value = true;
     try {
         await removeFromCart(itemId);
     } catch (err) {
         console.error('Error al eliminar item:', err);
+    } finally {
+        cartOperationLoading.value = false;
     }
 };
 
-const handleCheckout = () => {
-    router.push('/checkout');
-    emit('close');
+const handleCheckout = async () => {
+    checkoutLoading.value = true;
+    try {
+        await router.push('/checkout');
+        emit('close');
+    } catch (err) {
+        console.error('Error al proceder al pago:', err);
+    } finally {
+        checkoutLoading.value = false;
+    }
 };
 
-onMounted(async () => {
-    if (props.isOpen) {
-        await Promise.all([
-            loadCartItems(),
-            loadProductDetails()
-        ]);
+watch(() => props.isOpen, (newValue) => {
+    if (newValue) {
+        initializeCart();
     }
 });
 
-watch(() => items.value, () => {
-    loadImageUrls();
-}, { immediate: true });
-
-// Observar cambios en los productos para mantener actualizado productDetails
 watch(() => products.value, () => {
-    const productsMap: Record<string, Product> = {};
-    products.value.forEach(product => {
-        productsMap[product.id] = product;
-    });
-    productDetails.value = productsMap;
+    updateProductDetails();
+});
+
+watch(() => items.value, () => {
+    if (!cartInitializing.value) {
+        loadImageUrls();
+    }
+});
+
+onMounted(() => {
+    if (props.isOpen) {
+        initializeCart();
+    }
 });
 </script>
 
 <style scoped>
+.cart-items {
+    position: relative;
+}
+
+.cart-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+}
+
+.loading-state {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+}
+
+.loader {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
 .price-container {
     display: flex;
     align-items: center;

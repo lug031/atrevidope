@@ -18,6 +18,7 @@ import AdminUsers from "@/views/admin/UsersView.vue";
 import PromotionsView from "@/views/PromotionsView.vue";
 import ProductDetailView from "../views/ProductDetailView.vue";
 import CategoryProductsView from "@/views/CategoryProductsView.vue";
+import CheckoutView from "@/views/CheckoutView.vue";
 
 let authInitialized = false;
 
@@ -37,8 +38,8 @@ const router = createRouter({
       meta: { requiresAuth: false },
     },
     {
-      path: '/product/:id',
-      name: 'ProductDetail',
+      path: "/product/:id",
+      name: "ProductDetail",
       component: ProductDetailView,
       meta: { requiresAuth: false },
     },
@@ -49,9 +50,15 @@ const router = createRouter({
       meta: { requiresAuth: false },
     },
     {
-      path: '/category/:categoryId',
-      name: 'CategoryProducts',
+      path: "/category/:categoryId",
+      name: "CategoryProducts",
       component: CategoryProductsView,
+      meta: { requiresAuth: false },
+    },
+    {
+      path: "/checkout",
+      name: "checkout",
+      component: CheckoutView,
       meta: { requiresAuth: false },
     },
     {

@@ -19,6 +19,7 @@ import PromotionsView from "@/views/PromotionsView.vue";
 import ProductDetailView from "../views/ProductDetailView.vue";
 import CategoryProductsView from "@/views/CategoryProductsView.vue";
 import CheckoutView from "@/views/CheckoutView.vue";
+import MyOrdersView from "@/views/MyOrdersView.vue";
 
 let authInitialized = false;
 
@@ -59,6 +60,12 @@ const router = createRouter({
       path: "/checkout",
       name: "checkout",
       component: CheckoutView,
+      meta: { requiresAuth: false },
+    },
+    {
+      path: "/my-orders",
+      name: "my-orders",
+      component: MyOrdersView,
       meta: { requiresAuth: false },
     },
     {

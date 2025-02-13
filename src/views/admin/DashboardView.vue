@@ -98,11 +98,15 @@ const currentPromotionsCount = computed(() => {
 })
 
 const getCurrentPeruDate = (): string => {
-    const date = new Date()
-    const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }))
+    const date = new Date();
+    const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
 
-    return peruDate.toISOString().split('T')[0]
-}
+    const year = peruDate.getFullYear();
+    const month = String(peruDate.getMonth() + 1).padStart(2, '0');
+    const day = String(peruDate.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+};
 
 const getChangeClass = (change: number): string => {
     return change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral'

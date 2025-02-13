@@ -34,7 +34,7 @@
                         <tr>
                             <th>Categoría</th>
                             <th>Descripción</th>
-                            <th>Productos</th>
+                            <!-- <th>Productos</th>-->
                             <th>Estado</th>
                             <th>Acciones</th>
                         </tr>
@@ -47,7 +47,7 @@
                                 </div>
                             </td>
                             <td>{{ category.description }}</td>
-                            <td>{{ category.products?.length || 0 }}</td>
+                            <!-- <td>{{ category.products?.length || 0 }}</td>-->
                             <td>
                                 <span :class="['status-badge', category.active ? 'active' : 'inactive']">
                                     {{ category.active ? 'Activa' : 'Inactiva' }}

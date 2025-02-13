@@ -218,6 +218,7 @@ export const useAuthStore = defineStore("auth", {
       this.loading = true;
       try {
         await signOut();
+        localStorage.removeItem('shopping-cart');
         this.resetUserState();
       } catch (error) {
         this.error = (error as Error).message;

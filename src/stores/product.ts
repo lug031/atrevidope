@@ -15,6 +15,7 @@ const authClient = generateClient<Schema>({
 export const useProductStore = defineStore("product", () => {
   const products = ref<Product[]>([]);
   const productsWeb = ref<Product[]>([]);
+  const productsByCategory = ref<Product[]>([]);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
@@ -34,7 +35,6 @@ export const useProductStore = defineStore("product", () => {
   const fetchProductsByCategory = async (categoryId: string) => {
     loading.value = true;
     error.value = null;
-    products.value = []; // Limpiar productos anteriores
 
     try {
       const { data: items } = await publicClient.models.Product.list({
@@ -43,7 +43,7 @@ export const useProductStore = defineStore("product", () => {
         },
       });
 
-      products.value = items as unknown as Product[];
+      productsByCategory.value = items as unknown as Product[];
     } catch (err) {
       console.error("Error fetching products by category:", err);
       error.value = "Error al cargar productos de la categoría";
@@ -130,6 +130,7 @@ export const useProductStore = defineStore("product", () => {
   return {
     products,
     productsWeb,
+    productsByCategory,
     loading,
     error,
     fetchProducts,

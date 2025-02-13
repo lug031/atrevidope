@@ -12,14 +12,6 @@ export const useCartStore = defineStore("cart", () => {
   const error = ref<string | null>(null);
   const showNotification = ref(false);
 
-  // Initialize cart from localStorage
-  const initializeCart = () => {
-    const savedCart = localStorage.getItem(CART_STORAGE_KEY);
-    if (savedCart) {
-      items.value = JSON.parse(savedCart);
-    }
-  };
-
   // Watch for changes and update localStorage
   watch(
     items,
@@ -29,8 +21,13 @@ export const useCartStore = defineStore("cart", () => {
     { deep: true }
   );
 
-  // Initialize cart when store is created
-  initializeCart();
+  const resetCart = () => {
+    items.value = [];
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify([]));
+    loading.value = false;
+    error.value = null;
+    showNotification.value = false;
+  };
 
   // Getters
   const itemCount = computed(() => items.value.length);
@@ -50,12 +47,13 @@ export const useCartStore = defineStore("cart", () => {
 
     loading.value = true;
     try {
-      // Simulamos una carga asíncrona para mantener consistencia en la UI
       await new Promise((resolve) => setTimeout(resolve, 500));
-      initializeCart();
+      const savedCart = localStorage.getItem(CART_STORAGE_KEY);
+      items.value = savedCart ? JSON.parse(savedCart) : [];
     } catch (err) {
       console.error("Error al cargar items del carrito:", err);
       error.value = "Error al cargar items del carrito";
+      items.value = [];
     } finally {
       loading.value = false;
     }
@@ -70,7 +68,6 @@ export const useCartStore = defineStore("cart", () => {
     try {
       const existingItem = findItem(product.id);
 
-      // Simulamos una operación asíncrona
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       if (existingItem) {
@@ -108,7 +105,6 @@ export const useCartStore = defineStore("cart", () => {
   const updateItemQuantity = async (itemId: string, quantity: number) => {
     loading.value = true;
     try {
-      // Simulamos una operación asíncrona
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       if (quantity > 0) {
@@ -132,9 +128,7 @@ export const useCartStore = defineStore("cart", () => {
   const removeItem = async (itemId: string) => {
     loading.value = true;
     try {
-      // Simulamos una operación asíncrona
       await new Promise((resolve) => setTimeout(resolve, 500));
-
       items.value = items.value.filter((item) => item.id !== itemId);
     } catch (err) {
       error.value = "Error al eliminar item del carrito";
@@ -148,11 +142,8 @@ export const useCartStore = defineStore("cart", () => {
   const clearCart = async () => {
     loading.value = true;
     try {
-      // Simulamos una operación asíncrona
       await new Promise((resolve) => setTimeout(resolve, 500));
-
-      items.value = [];
-      localStorage.removeItem(CART_STORAGE_KEY);
+      resetCart();
     } catch (err) {
       error.value = "Error al limpiar el carrito";
       console.error(err);
@@ -185,5 +176,6 @@ export const useCartStore = defineStore("cart", () => {
     removeItem,
     clearCart,
     findItem,
+    resetCart,
   };
 });

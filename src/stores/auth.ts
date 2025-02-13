@@ -15,6 +15,7 @@ import type {
   LoginResponse,
   AuthState,
 } from "@/types/auth.types";
+import { useCartStore } from "./cart";
 
 export const useAuthStore = defineStore("auth", {
   state: (): AuthState => ({
@@ -218,7 +219,9 @@ export const useAuthStore = defineStore("auth", {
       this.loading = true;
       try {
         await signOut();
-        localStorage.removeItem('shopping-cart');
+        const cartStore = useCartStore();
+        cartStore.resetCart();
+        //localStorage.removeItem('shopping-cart');
         this.resetUserState();
       } catch (error) {
         this.error = (error as Error).message;

@@ -1,5 +1,5 @@
 <template>
-    <AdminLayout>
+    <MainLayout>
         <div class="checkout-container">
             <!-- Header con pasos -->
             <div class="checkout-header">
@@ -205,7 +205,7 @@
                 </div>
             </div>
         </div>
-    </AdminLayout>
+    </MainLayout>
 </template>
 
 <script setup lang="ts">
@@ -219,8 +219,13 @@ import AdminLayout from '@/layouts/AdminLayout.vue';
 import { useProducts } from '@/composables/useProducts';
 import { getUrl } from 'aws-amplify/storage';
 import type { Product } from '@/types/product.types';
+import { useAuthStore } from '@/stores/auth';
+import { useOrders } from '@/composables/useOrders';
+import type { CustomerInfo, Order } from '@/types/order.types';
 
 const router = useRouter();
+const auth = useAuthStore();
+const { createOrder } = useOrders();
 const { showToast } = useToast();
 const { items: cartItems, shippingCost, subtotal, total, validItems, clearCart, updateQuantity, removeFromCart } = useCart();
 const { products, loadProducts, updateProduct } = useProducts();
@@ -233,7 +238,7 @@ const imageUrls = ref<Record<string, string>>({});
 const productDetails = ref<Record<string, Product>>({});
 const stockValidationMessage = ref('');
 
-const form = ref({
+const form = ref<CustomerInfo>({
     firstName: '',
     lastName: '',
     email: '',
@@ -291,18 +296,6 @@ const initializeCheckout = async () => {
     } catch (error) {
         console.error('Error initializing checkout:', error);
     }
-};
-
-const updateProductStock = async () => {
-    const updates = validItems.value.map(async (item) => {
-        const product = productDetails.value[item.productID];
-        if (product) {
-            const newStock = product.stock - item.quantity;
-            return updateProduct(item.productID, { stock: newStock });
-        }
-    });
-
-    await Promise.all(updates);
 };
 
 /**
@@ -370,15 +363,31 @@ const generateOrder = async () => {
     try {
 
         await sleep(2000);
+
+        const userEmail = auth.userEmail ?? form.value.email;
+
         // Create order and update stock
-        const order = {
-            customerInfo: { ...form.value },
-            items: validItems.value,
+        console.log("items?????: ", validItems.value)
+        const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {
+            customerInfo: form.value,
+            userEmail,
+            items: validItems.value.map(item => ({
+                productID: item.productID,
+                quantity: item.quantity,
+                price: item.price,
+                subtotal: item.price * item.quantity
+            })),
             subtotal: subtotal.value,
             shipping: shippingCost.value,
             total: total.value,
             status: 'pending'
         };
+
+        const newOrder = await createOrder(orderData);
+
+        if (!newOrder) {
+            throw new Error('Error al crear el pedido');
+        }
 
         // Submit order to backend
         /*const orderResponse = await fetch('/api/orders', {
@@ -394,8 +403,8 @@ const generateOrder = async () => {
         }*/
 
         // Format WhatsApp message and create URL
-        const message = formatWhatsAppMessage(order);
-        const phoneNumber = '51962224044'; // Replace with your actual WhatsApp number
+        const message = formatWhatsAppMessage(orderData);
+        const phoneNumber = '51962224044';
         const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
 
         // Update product stock
@@ -405,12 +414,17 @@ const generateOrder = async () => {
         // Redirect to WhatsApp
         window.open(whatsappUrl, '_blank');
 
+        await clearCart();
         showToast({
             type: 'success',
             message: 'Pedido registrado correctamente'
         });
 
         //router.push('/order-confirmation');
+        router.push('/my-orders');
+    } catch (error) {
+        console.error('Error generando orden:', error);
+        throw error;
     } finally {
         loadingState.value = 'idle';
     }

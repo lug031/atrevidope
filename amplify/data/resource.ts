@@ -50,8 +50,8 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
-      allow.authenticated().to(["read", "create", "update", "delete"]),
-      allow.publicApiKey().to(["read", "create", "update", "delete"]),
+      allow.authenticated().to(["read"]),
+      allow.publicApiKey().to(["read"]),
     ]),
 
   CartItem: a
@@ -68,8 +68,41 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
-      allow.authenticated().to(["read", "create", "update", "delete"]),
-      allow.publicApiKey().to(["read", "create", "update", "delete"]),
+      allow.authenticated().to(["read"]),
+      allow.publicApiKey().to(["read"]),
+    ]),
+  Order: a
+    .model({
+      // Customer Info como campos individuales
+      firstName: a.string(),
+      lastName: a.string(),
+      email: a.string(),
+      documentType: a.string(),
+      documentNumber: a.string(),
+      phone: a.string(),
+      shippingMethod: a.string(),
+      invoiceType: a.string(),
+
+      // Order Items como JSON string
+      items: a.string(),
+
+      userEmail: a.string(),
+
+      // Order Totals
+      subtotal: a.float(),
+      shipping: a.float(),
+      total: a.float(),
+
+      // Status
+      status: a.enum(["pending", "processing", "completed", "cancelled"]),
+
+      createdAt: a.datetime(),
+      updatedAt: a.datetime(),
+    })
+    .authorization((allow) => [
+      allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
+      allow.authenticated().to(["read", "create"]),
+      allow.publicApiKey().to(["read", "create"]),
     ]),
 });
 

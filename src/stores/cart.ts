@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import type { CartItem } from "@/types/cart.types";
 import type { Product } from "@/types/product.types";
 
@@ -12,7 +12,31 @@ export const useCartStore = defineStore("cart", () => {
   const error = ref<string | null>(null);
   const showNotification = ref(false);
 
-  // Watch for changes and update localStorage
+  // Handler para eventos de storage
+  const handleStorageChange = (event: StorageEvent) => {
+    if (event.key === CART_STORAGE_KEY && event.newValue !== null) {
+      try {
+        const newItems = JSON.parse(event.newValue);
+        // Solo actualizamos si los items son diferentes
+        if (JSON.stringify(items.value) !== event.newValue) {
+          items.value = newItems;
+        }
+      } catch (err) {
+        console.error("Error al sincronizar carrito entre ventanas:", err);
+      }
+    }
+  };
+
+  // Montamos y desmontamos el listener de storage
+  onMounted(() => {
+    window.addEventListener("storage", handleStorageChange);
+  });
+
+  onUnmounted(() => {
+    window.removeEventListener("storage", handleStorageChange);
+  });
+
+  // Watch para cambios y actualizar localStorage
   watch(
     items,
     (newItems) => {

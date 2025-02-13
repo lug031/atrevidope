@@ -30,11 +30,16 @@ export function useCart() {
   );
 
   const total = computed(() => {
-    const shipping = subtotal.value >= 200 ? 0 : 15;
-    return subtotal.value + shipping;
+    return subtotal.value + shippingCost.value;
   });
 
-  const shippingCost = computed(() => (subtotal.value >= 200 ? 0 : 15));
+  const shippingCost = computed(() => {
+    // If subtotal is 0 or greater than/equal to 200, shipping is free
+    if (subtotal.value === 0 || subtotal.value >= 200) {
+      return 0;
+    }
+    return 15;
+  });
 
   const hasItems = computed(() => validItems.value.length > 0);
 

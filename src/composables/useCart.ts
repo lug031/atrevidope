@@ -8,11 +8,25 @@ export function useCart() {
   const cartStore = useCartStore();
   const { items, loading, error, showNotification } = storeToRefs(cartStore);
 
-  // Computed properties
-  const totalItems = computed(() => items.value.length);
+  const validItems = computed(() => {
+    return items.value.filter(
+      (item) =>
+        item &&
+        typeof item === "object" &&
+        item.id &&
+        item.productID &&
+        typeof item.quantity === "number" &&
+        typeof item.price === "number"
+    );
+  });
+
+  const totalItems = computed(() => validItems.value.length);
 
   const subtotal = computed(() =>
-    items.value.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    validItems.value.reduce(
+      (sum, item) => sum + (item.price || 0) * (item.quantity || 0),
+      0
+    )
   );
 
   const total = computed(() => {
@@ -22,9 +36,8 @@ export function useCart() {
 
   const shippingCost = computed(() => (subtotal.value >= 200 ? 0 : 15));
 
-  const hasItems = computed(() => items.value.length > 0);
+  const hasItems = computed(() => validItems.value.length > 0);
 
-  // Cargar items del carrito
   const loadCartItems = async () => {
     try {
       await cartStore.fetchCartItems();
@@ -33,7 +46,6 @@ export function useCart() {
     }
   };
 
-  // Añadir item al carrito
   const addToCart = async (product: Product, quantity: number = 1) => {
     try {
       await cartStore.addItem(product, quantity);
@@ -42,7 +54,6 @@ export function useCart() {
     }
   };
 
-  // Actualizar cantidad de un item
   const updateQuantity = async (itemId: string, quantity: number) => {
     try {
       await cartStore.updateItemQuantity(itemId, quantity);
@@ -51,7 +62,6 @@ export function useCart() {
     }
   };
 
-  // Remover item del carrito
   const removeFromCart = async (itemId: string) => {
     try {
       await cartStore.removeItem(itemId);
@@ -60,7 +70,6 @@ export function useCart() {
     }
   };
 
-  // Limpiar carrito
   const clearCart = async () => {
     try {
       await cartStore.clearCart();
@@ -69,31 +78,32 @@ export function useCart() {
     }
   };
 
-  // Encontrar item por productId
   const findCartItem = (productId: string) => {
+    if (!productId) return null;
     return cartStore.findItem(productId);
   };
 
-  // Verificar si un producto está en el carrito
   const isInCart = (productId: string) => {
-    return items.value.some((item) => item.productID === productId);
+    if (!productId) return false;
+    return !!findCartItem(productId);
   };
 
-  // Obtener cantidad de un producto en el carrito
   const getItemQuantity = (productId: string) => {
+    if (!productId) return 0;
     const item = findCartItem(productId);
-    return item ? item.quantity : 0;
+    return item ? item.quantity || 0 : 0;
   };
 
-  // Verificar si se puede añadir más cantidad de un producto
   const canIncreaseQuantity = (product: Product) => {
+    if (!product?.id || !product?.stock) return false;
     const currentQuantity = getItemQuantity(product.id);
     return currentQuantity < product.stock;
   };
 
   return {
     // Estado
-    items,
+    items, // Retornamos los items originales
+    validItems, // Exponemos validItems como una propiedad separada
     loading,
     error,
     showNotification,
@@ -105,14 +115,12 @@ export function useCart() {
     shippingCost,
     hasItems,
 
-    // Métodos principales
+    // Métodos
     loadCartItems,
     addToCart,
     updateQuantity,
     removeFromCart,
     clearCart,
-
-    // Métodos de utilidad
     findCartItem,
     isInCart,
     getItemQuantity,

@@ -9,6 +9,10 @@ const authClient = generateClient<Schema>({
   authMode: "userPool",
 });
 
+const publicClient = generateClient<Schema>({
+  authMode: "apiKey",
+});
+
 export const useCartStore = defineStore("cart", () => {
   // Estado
   const items = ref<CartItem[]>([]);
@@ -30,13 +34,15 @@ export const useCartStore = defineStore("cart", () => {
 
   // Acciones
   const fetchCartItems = async () => {
+    if (loading.value) return; // Prevenir múltiples llamadas simultáneas
+
     loading.value = true;
     try {
-      const { data: cartItems } = await authClient.models.CartItem.list();
+      const { data: cartItems } = await publicClient.models.CartItem.list();
       items.value = cartItems as unknown as CartItem[];
     } catch (err) {
+      console.error("Error al cargar items del carrito:", err);
       error.value = "Error al cargar items del carrito";
-      console.error(err);
     } finally {
       loading.value = false;
     }
@@ -45,9 +51,7 @@ export const useCartStore = defineStore("cart", () => {
   const addItem = async (product: Product, quantity: number = 1) => {
     loading.value = true;
     try {
-      const existingItem = items.value.find(
-        (item) => item.productID === product.id
-      );
+      const existingItem = findItem(product.id);
 
       if (existingItem) {
         await updateItemQuantity(
@@ -64,7 +68,7 @@ export const useCartStore = defineStore("cart", () => {
           isPromoted: product.isPromoted,
         };
 
-        const { data: cartItem } = await authClient.models.CartItem.create(
+        const { data: cartItem } = await publicClient.models.CartItem.create(
           newItem
         );
         items.value.push(cartItem as unknown as CartItem);
@@ -87,10 +91,12 @@ export const useCartStore = defineStore("cart", () => {
     loading.value = true;
     try {
       if (quantity > 0) {
-        const { data: updatedItem } = await authClient.models.CartItem.update({
-          id: itemId,
-          quantity,
-        });
+        const { data: updatedItem } = await publicClient.models.CartItem.update(
+          {
+            id: itemId,
+            quantity,
+          }
+        );
         const index = items.value.findIndex((item) => item.id === itemId);
         if (index !== -1) {
           items.value[index] = updatedItem as unknown as CartItem;
@@ -108,7 +114,7 @@ export const useCartStore = defineStore("cart", () => {
   const removeItem = async (itemId: string) => {
     loading.value = true;
     try {
-      await authClient.models.CartItem.delete({ id: itemId });
+      await publicClient.models.CartItem.delete({ id: itemId });
       items.value = items.value.filter((item) => item.id !== itemId);
     } catch (err) {
       error.value = "Error al eliminar item del carrito";
@@ -124,7 +130,7 @@ export const useCartStore = defineStore("cart", () => {
     try {
       await Promise.all(
         items.value.map((item) =>
-          authClient.models.CartItem.delete({ id: item.id })
+          publicClient.models.CartItem.delete({ id: item.id })
         )
       );
       items.value = [];
@@ -138,7 +144,7 @@ export const useCartStore = defineStore("cart", () => {
   };
 
   const findItem = (productId: string) => {
-    return items.value.find((item) => item.productID === productId);
+    return items.value?.find((item) => item?.productID === productId) || null;
   };
 
   return {

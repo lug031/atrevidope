@@ -1,12 +1,9 @@
 <template>
     <Transition name="slide">
         <div v-if="isOpen" class="cart-sidebar-overlay">
-            <!-- Fondo oscuro -->
             <div class="overlay-background" @click="$emit('close')"></div>
 
-            <!-- Panel lateral del carrito -->
             <div class="cart-sidebar-panel">
-                <!-- Encabezado -->
                 <div class="cart-header">
                     <h2 class="cart-title">Mi Carrito</h2>
                     <button class="close-button" @click="$emit('close')">
@@ -14,19 +11,27 @@
                     </button>
                 </div>
 
-                <!-- Contenido del carrito -->
                 <div v-if="hasItems" class="cart-content">
-                    <!-- Lista de productos -->
                     <div class="cart-items">
-                        <div v-for="item in items" :key="item.id" class="cart-item">
-                            <img :src="item.product?.imageUrl || '/api/placeholder/80/80'" :alt="item.product?.name"
-                                class="item-image" />
+                        <div v-for="item in cartItemsWithProducts" :key="item.id" class="cart-item">
+                            <img :src="imageUrls[item.productID] || '/api/placeholder/80/80'"
+                                :alt="productDetails[item.productID]?.name" class="item-image" />
 
                             <div class="item-details">
                                 <div class="item-info">
-                                    <span class="item-brand">{{ item.product?.brand }}</span>
-                                    <h3 class="item-name">{{ item.product?.name }}</h3>
-                                    <span class="item-price">S/. {{ item.price.toFixed(2) }}</span>
+                                    <span class="item-brand">{{ productDetails[item.productID]?.brand }}</span>
+                                    <h3 class="item-name">{{ productDetails[item.productID]?.name }}</h3>
+                                    <div class="price-container">
+                                        <span v-if="item.isPromoted" class="original-price">
+                                            S/. {{ item.originalPrice.toFixed(2) }}
+                                        </span>
+                                        <span class="item-price" :class="{ 'promotional': item.isPromoted }">
+                                            S/. {{ item.price.toFixed(2) }}
+                                        </span>
+                                        <span v-if="item.isPromoted" class="discount-badge">
+                                            -{{ item.discountPercentage }}%
+                                        </span>
+                                    </div>
                                 </div>
 
                                 <div class="item-actions">
@@ -49,7 +54,6 @@
                         </div>
                     </div>
 
-                    <!-- Resumen y totales -->
                     <div class="cart-summary">
                         <div class="summary-row">
                             <span>Subtotal</span>
@@ -70,7 +74,6 @@
                     </div>
                 </div>
 
-                <!-- Carrito vacío -->
                 <div v-else class="empty-cart">
                     <ShoppingBagIcon :size="64" class="empty-cart-icon" />
                     <p>Tu carrito está vacío</p>
@@ -84,10 +87,12 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { XIcon, MinusIcon, PlusIcon, TrashIcon, ShoppingBagIcon } from 'lucide-vue-next';
 import { useCart } from '@/composables/useCart';
+import { useProducts } from '@/composables/useProducts';
 import { useRouter } from 'vue-router';
+import { getUrl } from 'aws-amplify/storage';
 import type { CartItem } from '@/types/cart.types';
 import type { Product } from '@/types/product.types';
 
@@ -100,6 +105,8 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
+const imageUrls = ref<Record<string, string>>({});
+const productDetails = ref<Record<string, Product>>({});
 
 const {
     items,
@@ -115,14 +122,46 @@ const {
     canIncreaseQuantity
 } = useCart();
 
-const canIncrease = (item: CartItem): boolean => {
-    if (!item.product) return false;
-    return canIncreaseQuantity(item.product);
+const { products, loadProducts } = useProducts();
+
+const cartItemsWithProducts = computed(() => {
+    return items.value.map(item => ({
+        ...item,
+        product: productDetails.value[item.productID]
+    }));
+});
+
+const loadProductDetails = async () => {
+    await loadProducts();
+    const productsMap: Record<string, Product> = {};
+    products.value.forEach(product => {
+        productsMap[product.id] = product;
+    });
+    productDetails.value = productsMap;
 };
 
-// Handlers
+const loadImageUrls = async () => {
+    for (const item of items.value) {
+        const product = productDetails.value[item.productID];
+        if (product?.imageUrl) {
+            try {
+                const { url } = await getUrl({ path: product.imageUrl });
+                imageUrls.value[item.productID] = url.toString();
+            } catch (error) {
+                console.error("Error cargando imagen:", error);
+            }
+        }
+    }
+};
+
+const canIncrease = (item: CartItem): boolean => {
+    const product = productDetails.value[item.productID];
+    if (!product) return false;
+    return product.stock > item.quantity;
+};
+
 const handleIncreaseQuantity = async (item: CartItem) => {
-    if (item.product && canIncrease(item)) {
+    if (canIncrease(item)) {
         try {
             await updateQuantity(item.id, item.quantity + 1);
         } catch (err) {
@@ -156,12 +195,53 @@ const handleCheckout = () => {
 
 onMounted(async () => {
     if (props.isOpen) {
-        await loadCartItems();
+        await Promise.all([
+            loadCartItems(),
+            loadProductDetails()
+        ]);
     }
+});
+
+watch(() => items.value, () => {
+    loadImageUrls();
+}, { immediate: true });
+
+// Observar cambios en los productos para mantener actualizado productDetails
+watch(() => products.value, () => {
+    const productsMap: Record<string, Product> = {};
+    products.value.forEach(product => {
+        productsMap[product.id] = product;
+    });
+    productDetails.value = productsMap;
 });
 </script>
 
 <style scoped>
+.price-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.original-price {
+    text-decoration: line-through;
+    color: #666;
+    font-size: 0.9em;
+}
+
+.promotional {
+    color: #e53e3e;
+}
+
+.discount-badge {
+    background-color: #e53e3e;
+    color: white;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+
 .cart-sidebar-overlay {
     position: fixed;
     top: 0;

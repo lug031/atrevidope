@@ -1,3 +1,4 @@
+import type { CartItem } from "./cart.types";
 import type { Category } from "./category.types";
 
 export interface Product {
@@ -11,10 +12,11 @@ export interface Product {
   stock: number;
   active: boolean;
   isPromoted: boolean;
-  imageUrl?: string;
   categoryID: string;
   category?: Category;
-  promotionStartDate?: string;
-  promotionEndDate?: string;
-  promotionType?: string;
+  imageUrl: string;
+  promotionStartDate: string | null;
+  promotionEndDate: string | null;
+  promotionType: string | null;
+  cartItems?: CartItem[];
 }

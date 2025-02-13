@@ -163,12 +163,14 @@ import { useAuthStore } from '@/stores/auth'
 import LoginModal from '@/components/LoginModal.vue'
 import AdminSidebar from '@/components/AdminSidebar.vue'
 import { storeToRefs } from 'pinia'
+import { useCartStore } from '@/stores/cart'
 import { useProducts } from '@/composables/useProducts'
 import { getUrl } from 'aws-amplify/storage'
 import debounce from 'lodash/debounce'
 import CartSidebar from '@/components/CartSidebar.vue'
 
 const authStore = useAuthStore()
+const cartStore = useCartStore()
 const isCartOpen = ref(false)
 
 const { isAuthenticated, isAdmin, userEmail, userName } = storeToRefs(authStore)
@@ -181,12 +183,9 @@ const searchQuery = ref('')
 const showResults = ref(false)
 const loading = ref(false)
 const imageUrls = ref<Record<string, string>>({})
-const { products, loadProductsWeb } = useProducts()
+const { products, loadProducts } = useProducts()
 const filteredProducts = ref<any[]>([])
 const isMobileSearchOpen = ref(false)
-
-import { useCartStore } from '@/stores/cart'
-const cartStore = useCartStore()
 
 const getProductImage = (product: any) => {
     return imageUrls.value[product.id] || '/api/placeholder/40/40'
@@ -298,7 +297,12 @@ watch(isAuthenticated, (newValue) => {
 })
 
 onMounted(async () => {
-    await loadProductsWeb()
+    document.addEventListener('click', closeUserMenu)
+    await Promise.all([
+        authStore.checkAuth(),
+        cartStore.fetchCartItems(), // Cargar items del carrito al iniciar
+        loadProducts()
+    ])
 })
 </script>
 

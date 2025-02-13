@@ -50,8 +50,8 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
-      allow.authenticated().to(["read"]),
-      allow.publicApiKey().to(["read"]),
+      allow.authenticated().to(["read", "create", "update", "delete"]),
+      allow.publicApiKey().to(["read", "create", "update", "delete"]),
     ]),
 
   CartItem: a
@@ -68,8 +68,8 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
-      allow.authenticated().to(["read"]),
-      allow.publicApiKey().to(["read"]),
+      allow.authenticated().to(["read", "create", "update", "delete"]),
+      allow.publicApiKey().to(["read", "create", "update", "delete"]),
     ]),
 });
 

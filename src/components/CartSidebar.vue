@@ -32,7 +32,7 @@
                                         <span v-if="item.isPromoted" class="original-price">
                                             S/. {{ item.originalPrice.toFixed(2) }}
                                         </span>
-                                        <span class="item-price" :class="{ 'promotional': item.isPromoted }">
+                                        <span class="item-price" :class="{ promotional: item.isPromoted }">
                                             S/. {{ item.price.toFixed(2) }}
                                         </span>
                                         <span v-if="item.isPromoted" class="discount-badge">
@@ -96,7 +96,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
-import { XIcon, MinusIcon, PlusIcon, TrashIcon, ShoppingBagIcon } from 'lucide-vue-next';
+import {
+    XIcon,
+    MinusIcon,
+    PlusIcon,
+    TrashIcon,
+    ShoppingBagIcon
+} from 'lucide-vue-next';
 import { useCart } from '@/composables/useCart';
 import { useRouter } from 'vue-router';
 import { getUrl } from 'aws-amplify/storage';
@@ -104,6 +110,8 @@ import type { CartItem } from '@/types/cart.types';
 import type { Product } from '@/types/product.types';
 import { useProductStore } from '@/stores/product';
 import { storeToRefs } from 'pinia';
+import { useToast } from '@/composables/useToast';
+const { showToast } = useToast();
 
 const props = defineProps<{
     isOpen: boolean;
@@ -217,33 +225,81 @@ const handleRemoveItem = async (itemId: string) => {
     }
 };
 
+/**
+ * Valida el stock de cada item del carrito.
+ * Si la cantidad solicitada supera el stock actual:
+ *  - Si hay stock (pero menor), se actualiza la cantidad al stock disponible.
+ *  - Si no hay stock, se elimina el item.
+ * Devuelve `true` si todos los items están dentro del stock, o `false` si se realizó alguna actualización.
+ */
+const validateAndUpdateStock = async (): Promise<boolean> => {
+    let valid = true;
+    for (const item of items.value) {
+        const product = productDetails.value[item.productID];
+        if (product) {
+            if (item.quantity > product.stock) {
+                valid = false;
+                if (product.stock > 0) {
+                    // Actualizamos la cantidad al máximo disponible
+                    await updateQuantity(item.id, product.stock);
+                } else {
+                    // Si no hay stock, eliminamos el item del carrito
+                    await removeFromCart(item.id);
+                }
+            }
+        }
+    }
+    return valid;
+};
+
 const handleCheckout = async () => {
+    // Usamos ambos flags para que el botón de checkout y el spinner sean consistentes
     checkoutLoading.value = true;
+    cartOperationLoading.value = true;
     try {
+        const stockValid = await validateAndUpdateStock();
+        if (!stockValid) {
+            showToast({
+                type: 'warning',
+                message:
+                    'Algunos productos han sido actualizados por cambios en stock. Por favor, revisa tu carrito.'
+            });
+            return;
+        }
         await router.push('/checkout');
         emit('close');
     } catch (err) {
         console.error('Error al proceder al pago:', err);
     } finally {
+        cartOperationLoading.value = false;
         checkoutLoading.value = false;
     }
 };
 
-watch(() => props.isOpen, (newValue) => {
-    if (newValue) {
-        initializeCart();
+watch(
+    () => props.isOpen,
+    (newValue) => {
+        if (newValue) {
+            initializeCart();
+        }
     }
-});
+);
 
-watch(() => products.value, () => {
-    updateProductDetails();
-});
-
-watch(() => items.value, () => {
-    if (!cartInitializing.value) {
-        loadImageUrls();
+watch(
+    () => products.value,
+    () => {
+        updateProductDetails();
     }
-});
+);
+
+watch(
+    () => items.value,
+    () => {
+        if (!cartInitializing.value) {
+            loadImageUrls();
+        }
+    }
+);
 
 onMounted(() => {
     if (props.isOpen) {

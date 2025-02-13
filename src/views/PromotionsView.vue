@@ -59,10 +59,10 @@
                         </div>
                     </router-link>
 
-                    <button @click.stop="addToCart(product)" class="add-to-cart"
+                    <!-- <button @click.stop="addToCart(product)" class="add-to-cart"
                         :class="{ 'disabled': product.stock === 0 }" :disabled="product.stock === 0">
                         {{ product.stock === 0 ? 'AGOTADO' : 'AÑADIR AL CARRITO' }}
-                    </button>
+                    </button> -->
                 </div>
             </div>
 

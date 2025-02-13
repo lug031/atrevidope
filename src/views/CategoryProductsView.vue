@@ -100,7 +100,7 @@ import { getUrl } from 'aws-amplify/storage';
 const router = useRouter();
 const route = useRoute();
 const imageUrls = ref<Record<string, string>>({});
-const { products, loading, error, loadProductsByCategory } = useProducts();
+const { productsByCategory, loading, error, loadProductsByCategory } = useProducts();
 const cartStore = useCartStore();
 const { showToast } = useToast();
 const sortBy = ref('position');
@@ -165,7 +165,7 @@ const parseMarkdown = (text: string): string => {
 };
 
 const loadImageUrls = async () => {
-    for (const product of products.value) {
+    for (const product of productsByCategory.value) {
         if (product.imageUrl) {
             try {
                 const { url } = await getUrl({ path: product.imageUrl });
@@ -215,9 +215,9 @@ const formatPromotionDate = (dateStr: string | undefined): string => {
 };
 
 const sortedProducts = computed(() => {
-    if (!products.value) return [];
+    if (!productsByCategory.value) return [];
 
-    return [...products.value].sort((a, b) => {
+    return [...productsByCategory.value].sort((a, b) => {
         switch (sortBy.value) {
             case 'price-asc':
                 return (a.price || 0) - (b.price || 0);
@@ -283,7 +283,7 @@ watch(
     }
 );
 
-watch(() => products.value, () => {
+watch(() => productsByCategory.value, () => {
     loadImageUrls();
 }, { immediate: true });
 </script>

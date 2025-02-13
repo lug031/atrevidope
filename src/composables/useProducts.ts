@@ -5,7 +5,8 @@ import type { Product } from "@/types/product.types";
 
 export function useProducts() {
   const productStore = useProductStore();
-  const { products, productsWeb, loading, error } = storeToRefs(productStore);
+  const { products, productsWeb, productsByCategory, loading, error } =
+    storeToRefs(productStore);
 
   const totalProducts = computed(() => products.value.length);
 
@@ -40,6 +41,7 @@ export function useProducts() {
   return {
     products,
     productsWeb,
+    productsByCategory,
     loading,
     error,
     totalProducts,

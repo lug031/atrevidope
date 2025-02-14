@@ -36,3 +36,11 @@ export interface Order {
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }
+
+export interface GraphQLError {
+  errors?: Array<{
+    message: string;
+    path?: string[];
+    locations?: Array<{ line: number; column: number }>;
+  }>;
+}

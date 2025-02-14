@@ -366,8 +366,11 @@ const generateOrder = async () => {
 
         const userEmail = auth.userEmail ?? form.value.email;
 
+        if (!auth.userEmail && form.value.email) {
+            localStorage.setItem('userEmail', form.value.email);
+        }
+
         // Create order and update stock
-        console.log("items?????: ", validItems.value)
         const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {
             customerInfo: form.value,
             userEmail,
@@ -383,6 +386,8 @@ const generateOrder = async () => {
             status: 'pending'
         };
 
+
+        console.log("items?????: ", orderData)
         const newOrder = await createOrder(orderData);
 
         if (!newOrder) {
@@ -475,7 +480,8 @@ const handleSubmitOrder = async () => {
     } catch (error) {
         showToast({
             type: 'error',
-            message: error instanceof Error ? error.message : 'Error al procesar el pedido'
+            //message: error instanceof Error ? error.message : 'Error al procesar el pedido'
+            message: 'Error al procesar el pedido'
         });
     } finally {
         submitting.value = false;

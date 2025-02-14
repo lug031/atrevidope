@@ -132,6 +132,15 @@
                         </button>
                     </div>
                 </Transition>
+
+                <!-- Pedidos - Visible según condiciones -->
+                <Transition name="fade">
+                    <div v-if="!authStore.loading" class="orders-container">
+                        <RouterLink to="/my-orders" class="icon-button orders-button" :title="'Ver mis pedidos'">
+                            <PackageIcon class="orders-icon" :size="24" :class="{ 'active-orders': orderCount > 0 }" />
+                        </RouterLink>
+                    </div>
+                </Transition>
             </div>
         </div>
 
@@ -149,7 +158,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import {
     UserIcon,
@@ -157,7 +166,8 @@ import {
     ShoppingBagIcon,
     LogOutIcon,
     MenuIcon,
-    XIcon
+    XIcon,
+    PackageIcon
 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import LoginModal from '@/components/LoginModal.vue'
@@ -168,10 +178,14 @@ import { useProducts } from '@/composables/useProducts'
 import { getUrl } from 'aws-amplify/storage'
 import debounce from 'lodash/debounce'
 import CartSidebar from '@/components/CartSidebar.vue'
+import { useOrders } from '@/composables/useOrders'
 
+const { getUserOrders } = useOrders()
+const hasOrders = ref(false)
 const authStore = useAuthStore()
 const cartStore = useCartStore()
 const isCartOpen = ref(false)
+const orderCount = ref(0)
 
 const { isAuthenticated, isAdmin, userEmail, userName } = storeToRefs(authStore)
 const router = useRouter()
@@ -186,6 +200,27 @@ const imageUrls = ref<Record<string, string>>({})
 const { products, loadProducts } = useProducts()
 const filteredProducts = ref<any[]>([])
 const isMobileSearchOpen = ref(false)
+
+const currentUserEmail = computed(() => {
+    if (isAuthenticated.value) {
+        return userEmail.value
+    }
+    return localStorage.getItem('userEmail') || ''
+})
+
+const checkUserOrders = async () => {
+    try {
+        if (currentUserEmail.value) {
+            const orders = await getUserOrders(currentUserEmail.value)
+            orderCount.value = orders.length
+        } else {
+            orderCount.value = 0
+        }
+    } catch (error) {
+        console.error('Error checking orders:', error)
+        orderCount.value = 0
+    }
+}
 
 const getProductImage = (product: any) => {
     return imageUrls.value[product.id] || '/api/placeholder/40/40'
@@ -281,28 +316,44 @@ const closeUserMenu = (event: MouseEvent) => {
     }
 }
 
-onMounted(async () => {
-    document.addEventListener('click', closeUserMenu)
-    await authStore.checkAuth()
-})
-
 onUnmounted(() => {
     document.removeEventListener('click', closeUserMenu)
 })
 
-watch(isAuthenticated, (newValue) => {
-    if (!newValue) {
-        isUserMenuOpen.value = false
-    }
-})
+/*onMounted(async () => {
+    document.addEventListener('click', closeUserMenu)
+    await authStore.checkAuth()
+})*/
 
 onMounted(async () => {
     document.addEventListener('click', closeUserMenu)
     await Promise.all([
         authStore.checkAuth(),
-        cartStore.fetchCartItems(), // Cargar items del carrito al iniciar
-        loadProducts()
+        cartStore.fetchCartItems(),
+        loadProducts(),
+        checkUserOrders()
     ])
+})
+
+/*watch(isAuthenticated, (newValue) => {
+    if (!newValue) {
+        isUserMenuOpen.value = false
+    }
+})*/
+
+watch(currentUserEmail, async (newEmail) => {
+    if (!isAuthenticated.value && newEmail) {
+        await checkUserOrders()
+    }
+})
+
+watch(isAuthenticated, async (newValue) => {
+    if (!newValue) {
+        isUserMenuOpen.value = false
+        await checkUserOrders()
+    } else {
+        await checkUserOrders() // Check orders when authenticated
+    }
 })
 </script>
 
@@ -314,6 +365,10 @@ onMounted(async () => {
     position: sticky;
     top: 0;
     z-index: 100;
+}
+
+.orders-icon.active-orders {
+    color: #996a1e;
 }
 
 .nav-content {

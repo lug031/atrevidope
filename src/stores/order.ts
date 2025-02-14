@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import type { Schema } from "../../amplify/data/resource";
-import type { Order, OrderItem } from "@/types/order.types";
+import type { GraphQLError, Order, OrderItem } from "@/types/order.types";
 import { generateClient } from "aws-amplify/data";
 
 const publicClient = generateClient<Schema>({
@@ -12,26 +12,69 @@ const authClient = generateClient<Schema>({
   authMode: "userPool",
 });
 
+type CreateOrderInput = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  documentType: string;
+  documentNumber: string;
+  phone: string;
+  shippingMethod: string;
+  invoiceType: string;
+  items: string;
+  userEmail: string;
+  subtotal: number;
+  shipping: number;
+  total: number;
+  status: "pending" | "processing" | "completed" | "cancelled";
+};
+
 export const useOrderStore = defineStore("order", () => {
   const orders = ref<Order[]>([]);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
   // Función auxiliar para convertir los items a string
-  const prepareOrderData = (orderData: Omit<Order, "id">) => {
-    const now = new Date().toISOString();
+  const prepareOrderData = (orderData: Omit<Order, "id">): CreateOrderInput => {
+    // Extraer los campos de customerInfo
+    const {
+      firstName,
+      lastName,
+      email,
+      documentType,
+      documentNumber,
+      phone,
+      shippingMethod,
+      invoiceType,
+    } = orderData.customerInfo;
 
-    // Preparamos los datos según el schema
+    // Preparar los datos según el schema exacto
     return {
-      customerInfo: orderData.customerInfo,
-      items: JSON.stringify(orderData.items),
-      status: "pending" as const,
+      // Customer info fields
+      firstName,
+      lastName,
+      email,
+      documentType,
+      documentNumber,
+      phone,
+      shippingMethod,
+      invoiceType,
+
+      // Order items como string
+      items: Array.isArray(orderData.items)
+        ? JSON.stringify(orderData.items)
+        : orderData.items,
+
+      // User email
+      userEmail: orderData.userEmail,
+
+      // Order totals
       subtotal: orderData.subtotal,
       shipping: orderData.shipping,
       total: orderData.total,
-      userEmail: orderData.userEmail,
-      createdAt: now,
-      updatedAt: now,
+
+      // Status
+      status: "pending",
     };
   };
 
@@ -49,12 +92,47 @@ export const useOrderStore = defineStore("order", () => {
   };
 
   const parseOrderData = (order: any): Order => {
-    return {
-      ...order,
-      items: JSON.parse(order.items),
-      createdAt: new Date(order.createdAt),
-      updatedAt: new Date(order.updatedAt),
-    };
+    if (!order) {
+      throw new Error("No se recibieron datos de la orden");
+    }
+
+    try {
+      const parsedItems =
+        typeof order.items === "string" ? JSON.parse(order.items) : order.items;
+
+      // Reconstruir el objeto customerInfo
+      const customerInfo = {
+        firstName: order.firstName,
+        lastName: order.lastName,
+        email: order.email,
+        documentType: order.documentType,
+        documentNumber: order.documentNumber,
+        phone: order.phone,
+        shippingMethod: order.shippingMethod,
+        invoiceType: order.invoiceType,
+      };
+
+      return {
+        id: order.id,
+        customerInfo,
+        items: parsedItems,
+        userEmail: order.userEmail,
+        subtotal: order.subtotal,
+        shipping: order.shipping,
+        total: order.total,
+        status: order.status,
+        createdAt: new Date(order.createdAt),
+        updatedAt: new Date(order.updatedAt),
+      };
+    } catch (err) {
+      console.error("Error al parsear los datos de la orden:", err);
+      console.error("Datos recibidos:", order);
+      throw new Error("Error al procesar los datos de la orden");
+    }
+  };
+
+  const isGraphQLError = (error: unknown): error is GraphQLError => {
+    return typeof error === "object" && error !== null && "errors" in error;
   };
 
   const createOrder = async (
@@ -63,14 +141,34 @@ export const useOrderStore = defineStore("order", () => {
     loading.value = true;
     try {
       const preparedData = prepareOrderData(orderData);
+      console.log("Prepared order data:", preparedData);
+
       const { data: newOrder } = await publicClient.models.Order.create(
         preparedData
       );
-      await fetchOrders();
-      return parseOrderData(newOrder);
-    } catch (err) {
-      error.value = "Error al crear orden";
-      console.error(err);
+
+      if (!newOrder) {
+        throw new Error(
+          "No se recibió respuesta del servidor al crear la orden"
+        );
+      }
+
+      const parsedOrder = parseOrderData(newOrder);
+      //await fetchOrders();
+      return parsedOrder;
+    } catch (err: unknown) {
+      if (isGraphQLError(err)) {
+        const errorMessage = err.errors?.[0]?.message;
+        error.value = errorMessage
+          ? `Error al crear orden: ${errorMessage}`
+          : "Error al crear orden";
+      } else if (err instanceof Error) {
+        error.value = err.message;
+      } else {
+        error.value = "Error desconocido al crear orden";
+      }
+
+      console.error("Error detallado:", err);
       throw err;
     } finally {
       loading.value = false;
@@ -127,7 +225,7 @@ export const useOrderStore = defineStore("order", () => {
   const fetchUserOrders = async (userEmail: string) => {
     loading.value = true;
     try {
-      const { data: items } = await authClient.models.Order.list({
+      const { data: items } = await publicClient.models.Order.list({
         filter: {
           userEmail: { eq: userEmail },
         },

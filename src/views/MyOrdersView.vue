@@ -75,6 +75,11 @@
                             <span>S/. {{ order.total.toFixed(2) }}</span>
                         </div>
                     </div>
+                    <div class="whatsapp-button-container">
+                        <button @click="openWhatsapp(order)" class="button primary whatsapp-button">
+                            <MessageCircle class="icon" /> Enviar pedido por WhatsApp
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -82,13 +87,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useOrders } from '@/composables/useOrders';
 import { useAuthStore } from '@/stores/auth';
 import { useProducts } from '@/composables/useProducts';
 import { storeToRefs } from 'pinia';
 import type { Order, OrderStatus } from '@/types/order.types';
 import MainLayout from '@/layouts/MainLayout.vue';
+import { MessageCircle } from 'lucide-vue-next';
 
 const auth = useAuthStore();
 const { isAuthenticated, userEmail } = storeToRefs(auth);
@@ -99,9 +105,9 @@ const orders = ref<Order[]>([]);
 
 const currentUserEmail = computed(() => {
     if (isAuthenticated.value) {
-        return userEmail.value
+        return userEmail.value;
     }
-    return localStorage.getItem('userEmail') || ''
+    return localStorage.getItem('userEmail') || '';
 });
 
 const getOrderCardClass = (status: OrderStatus) => {
@@ -113,7 +119,7 @@ const getStatusClass = (status: OrderStatus) => {
 };
 
 const getStatusText = (status: OrderStatus) => {
-    const statusText = {
+    const statusText: Record<OrderStatus, string> = {
         pending: 'Pendiente',
         processing: 'En proceso',
         completed: 'Completado',
@@ -125,6 +131,41 @@ const getStatusText = (status: OrderStatus) => {
 const getProductName = (productId: string) => {
     const product = products.value.find(p => p.id === productId);
     return product?.name || 'Producto no encontrado';
+};
+
+// Formatea el mensaje de WhatsApp para un pedido
+const formatOrderWhatsAppMessage = (order: Order) => {
+    const { customerInfo, items, subtotal, shipping, total } = order;
+    const customerDetails =
+        `*INFORMACIÓN DEL CLIENTE*\n` +
+        `Nombre: ${customerInfo.firstName} ${customerInfo.lastName}\n` +
+        `Email: ${customerInfo.email}\n` +
+        `${customerInfo.documentType}: ${customerInfo.documentNumber}\n` +
+        `Teléfono: ${customerInfo.phone}\n\n`;
+
+    const itemsDetails = items.map((item: any) => {
+        const productName = getProductName(item.productID);
+        return `- ${productName} (${item.quantity}x) : S/. ${item.price.toFixed(2)}`;
+    }).join('\n');
+
+    const totalsDetails =
+        `\n*TOTALES*\n` +
+        `Subtotal: S/. ${subtotal.toFixed(2)}\n` +
+        `Envío: ${shipping > 0 ? `S/. ${shipping.toFixed(2)}` : 'Gratis'}\n` +
+        `Total: S/. ${total.toFixed(2)}`;
+
+    return encodeURIComponent(
+        `${customerDetails}` +
+        `*PRODUCTOS*\n${itemsDetails}\n` +
+        `${totalsDetails}`
+    );
+};
+
+const openWhatsapp = (order: Order) => {
+    const message = formatOrderWhatsAppMessage(order);
+    const phoneNumber = '51962224044';
+    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
+    window.open(whatsappUrl, '_blank');
 };
 
 onMounted(async () => {
@@ -146,6 +187,31 @@ onMounted(async () => {
     max-width: 1200px;
     margin: 0 auto;
     padding: 32px;
+}
+
+
+
+.whatsapp-button {
+    background-color: #23ad56;
+    border: none;
+    color: #fff;
+    padding: 10px 20px;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.whatsapp-button:hover {
+    background-color: #1c8844;
+}
+
+.whatsapp-button .icon {
+    width: 20px;
+    height: 20px;
 }
 
 .orders-header h1 {

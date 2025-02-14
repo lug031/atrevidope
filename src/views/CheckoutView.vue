@@ -4,11 +4,7 @@
             <!-- Header con pasos -->
             <div class="checkout-header">
                 <div class="header-top">
-                    <!-- <h1>Proceso de orden</h1>
-                    <button class="back-button" @click="$router.push('/cart')">
-                        <ArrowLeftIcon class="icon" />
-                        Volver al carrito
-                    </button>-->
+                    <!-- Código del header (opcional) -->
                 </div>
 
                 <div class="steps-container">
@@ -65,7 +61,12 @@
                                 <input v-model="form.phone" type="tel" required>
                             </div>
 
-                            <button type="submit" class="button primary">Siguiente</button>
+                            <button type="submit" class="button primary" :disabled="noProducts">
+                                Siguiente
+                            </button>
+                            <p v-if="noProducts" class="warning-message">
+                                No hay productos para continuar.
+                            </p>
                         </form>
                     </div>
 
@@ -142,6 +143,7 @@
                                 <button type="button" @click="currentStep--" class="button secondary">
                                     Anterior
                                 </button>
+                                <!-- Se muestra el botón de "Realizar pedido" solo si aún no se generó la URL de WhatsApp -->
                                 <button @click="handleSubmitOrder" class="button primary" :disabled="submitting">
                                     {{ submitting ? 'Procesando...' : 'Realizar pedido' }}
                                 </button>
@@ -160,7 +162,6 @@
                         </div>
 
                         <div class="cart-items-container">
-                            <!-- Loading overlay -->
                             <div v-if="loadingState !== 'idle'" class="cart-loading-overlay">
                                 <div class="loading-spinner"></div>
                                 <span>{{ loadingMessage }}</span>
@@ -237,6 +238,8 @@ const loadingState = ref<'idle' | 'validating' | 'generating'>('idle');
 const imageUrls = ref<Record<string, string>>({});
 const productDetails = ref<Record<string, Product>>({});
 const stockValidationMessage = ref('');
+const whatsappLink = ref('');
+const noProducts = computed(() => total.value <= 0);
 
 const form = ref<CustomerInfo>({
     firstName: '',
@@ -412,12 +415,13 @@ const generateOrder = async () => {
         const phoneNumber = '51962224044';
         const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
 
+        whatsappLink.value = whatsappUrl;
         // Update product stock
         //await updateProductStock();
         //await clearCart();
 
         // Redirect to WhatsApp
-        window.open(whatsappUrl, '_blank');
+        //window.open(whatsappUrl, '_blank');
 
         await clearCart();
         showToast({
@@ -468,6 +472,14 @@ const formatWhatsAppMessage = (order: any) => {
 
 const handleSubmitOrder = async () => {
     try {
+        if (noProducts.value) {
+            showToast({
+                type: 'warning',
+                message: 'No hay productos en la orden. Por favor, agrega productos antes de continuar.'
+            });
+            return;
+        }
+
         submitting.value = true;
         // Validate stock before proceeding
         const stockValid = await validateAndUpdateStock();
@@ -485,6 +497,12 @@ const handleSubmitOrder = async () => {
         });
     } finally {
         submitting.value = false;
+    }
+};
+
+const openWhatsapp = () => {
+    if (whatsappLink.value) {
+        window.open(whatsappLink.value, '_blank');
     }
 };
 

@@ -141,7 +141,7 @@ export const useOrderStore = defineStore("order", () => {
     loading.value = true;
     try {
       const preparedData = prepareOrderData(orderData);
-      console.log("Prepared order data:", preparedData);
+      //console.log("Prepared order data:", preparedData);
 
       const { data: newOrder } = await publicClient.models.Order.create(
         preparedData

@@ -467,7 +467,7 @@ const handleNotify = (productId: string) => {
         type: 'success',
         message: `Notificacion enviada del producto con ID:  ${productId}`
     });
-    console.log('Notify about product:', productId)
+    //console.log('Notify about product:', productId)
 }
 
 const setPromotionDuration = (type: 'single' | 'range') => {
@@ -669,7 +669,7 @@ const getPromotionStatus = (product: Product): string => {
         }
     }
 
-    console.log(product.promotionEndDate)
+    //console.log(product.promotionEndDate)
     if (today < product.promotionStartDate) {
         return `Inicia el ${formatDateToSpanish(product.promotionStartDate)}`;
     }

@@ -498,7 +498,7 @@ const generateOrder = async () => {
         };
 
 
-        console.log("items?????: ", orderData)
+        //console.log("items?????: ", orderData)
         const newOrder = await createOrder(orderData);
 
         if (!newOrder) {

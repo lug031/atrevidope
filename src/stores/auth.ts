@@ -87,10 +87,10 @@ export const useAuthStore = defineStore("auth", {
           try {
             const user = await getCurrentUser();
             this.user = user;
-            console.log("USUARIO: ", this.user);
+            //console.log("USUARIO: ", this.user);
             const attributes = await fetchUserAttributes();
             this.userAttributes = attributes;
-            console.log("USUARIO ATRIBUTOS: ", this.userAttributes);
+            //console.log("USUARIO ATRIBUTOS: ", this.userAttributes);
             await this.updateAdminStatus();
           } catch (error) {
             throw new Error(
@@ -170,9 +170,9 @@ export const useAuthStore = defineStore("auth", {
             },
           },
         });
-        console.log("USUARIO REGISTRADO 1: ", isSignUpComplete);
-        console.log("USUARIO REGISTRADO 2: ", userId, nextStep);
-        console.log("USUARIO REGISTRADO 3: ", nextStep);
+        //console.log("USUARIO REGISTRADO 1: ", isSignUpComplete);
+        //console.log("USUARIO REGISTRADO 2: ", userId, nextStep);
+        //console.log("USUARIO REGISTRADO 3: ", nextStep);
         return { isSignUpComplete, userId, nextStep };
       } catch (error) {
         this.error = (error as Error).message;

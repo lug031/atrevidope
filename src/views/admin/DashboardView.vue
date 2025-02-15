@@ -1,22 +1,26 @@
 <template>
     <div class="dashboard">
         <div class="stats-grid">
-            <div class="stat-card disabled">
+            <div class="stat-card">
                 <div class="stat-header">
                     <h3>Ventas Totales</h3>
                     <DollarSignIcon :size="24" />
                 </div>
-                <p class="stat-value">$0</p>
-                <p class="stat-change positive">+0% vs mes anterior</p>
+                <p class="stat-value">S/{{ formatMoney(currentMonthSales) }}</p>
+                <p class="stat-change" :class="getChangeClass(salesChange)">
+                    {{ formatChange(salesChange) }} vs mes anterior
+                </p>
             </div>
 
-            <div class="stat-card disabled">
+            <div class="stat-card">
                 <div class="stat-header">
                     <h3>Pedidos</h3>
                     <PackageIcon :size="24" />
                 </div>
-                <p class="stat-value">0</p>
-                <p class="stat-change positive">+0% vs mes anterior</p>
+                <p class="stat-value">{{ currentMonthOrders }}</p>
+                <p class="stat-change" :class="getChangeClass(ordersChange)">
+                    {{ formatChange(ordersChange) }} vs mes anterior
+                </p>
             </div>
 
             <div class="stat-card">
@@ -25,9 +29,9 @@
                     <LayoutGridIcon :size="24" />
                 </div>
                 <p class="stat-value">{{ activeProductsCount }}</p>
-                <p class="stat-change" :class="getChangeClass(activeProductsChange)">
+                <!-- <p class="stat-change" :class="getChangeClass(activeProductsChange)">
                     {{ formatChange(activeProductsChange) }} vs mes anterior
-                </p>
+                </p>-->
             </div>
 
             <div class="stat-card">
@@ -59,8 +63,81 @@ import {
     TagIcon
 } from 'lucide-vue-next'
 import { useProducts } from '@/composables/useProducts'
+import { useOrders } from '@/composables/useOrders'
+import type { Order } from '@/types/order.types'
 
 const { products, loadProducts } = useProducts()
+const { orders, loadOrders } = useOrders()
+
+const currentMonthSales = computed(() => {
+    const currentDate = new Date()
+    const currentMonth = currentDate.getMonth()
+    const currentYear = currentDate.getFullYear()
+
+    return orders.value
+        .filter(order => {
+            const orderDate = new Date(order.createdAt!)
+            return orderDate.getMonth() === currentMonth &&
+                orderDate.getFullYear() === currentYear &&
+                order.status === 'completed'
+        })
+        .reduce((total, order) => total + order.total, 0)
+})
+
+const currentMonthOrders = computed(() => {
+    const currentDate = new Date()
+    const currentMonth = currentDate.getMonth()
+    const currentYear = currentDate.getFullYear()
+
+    return orders.value.filter(order => {
+        const orderDate = new Date(order.createdAt!)
+        return orderDate.getMonth() === currentMonth &&
+            orderDate.getFullYear() === currentYear &&
+            order.status !== 'cancelled'
+    }).length
+})
+
+// Ventas y pedidos del mes anterior
+const previousMonthSales = computed(() => {
+    const currentDate = new Date()
+    const previousMonth = currentDate.getMonth() - 1
+    const year = previousMonth === -1 ? currentDate.getFullYear() - 1 : currentDate.getFullYear()
+    const month = previousMonth === -1 ? 11 : previousMonth
+
+    return orders.value
+        .filter(order => {
+            const orderDate = new Date(order.createdAt!)
+            return orderDate.getMonth() === month &&
+                orderDate.getFullYear() === year &&
+                order.status === 'completed'
+        })
+        .reduce((total, order) => total + order.total, 0)
+})
+
+const previousMonthOrders = computed(() => {
+    const currentDate = new Date()
+    const previousMonth = currentDate.getMonth() - 1
+    const year = previousMonth === -1 ? currentDate.getFullYear() - 1 : currentDate.getFullYear()
+    const month = previousMonth === -1 ? 11 : previousMonth
+
+    return orders.value.filter(order => {
+        const orderDate = new Date(order.createdAt!)
+        return orderDate.getMonth() === month &&
+            orderDate.getFullYear() === year &&
+            order.status !== 'cancelled'
+    }).length
+})
+
+// Cálculo de cambios porcentuales
+const salesChange = computed(() => {
+    if (previousMonthSales.value === 0) return 0
+    return ((currentMonthSales.value - previousMonthSales.value) / previousMonthSales.value) * 100
+})
+
+const ordersChange = computed(() => {
+    if (previousMonthOrders.value === 0) return 0
+    return ((currentMonthOrders.value - previousMonthOrders.value) / previousMonthOrders.value) * 100
+})
 
 // Productos activos
 const activeProductsCount = computed(() => {
@@ -68,7 +145,7 @@ const activeProductsCount = computed(() => {
 })
 
 // Cambio en productos activos (simulado por ahora)
-const activeProductsChange = ref(5.7)
+const activeProductsChange = ref(0.0)
 
 // Productos en promoción
 const promotionalProductsCount = computed(() => {
@@ -108,6 +185,10 @@ const getCurrentPeruDate = (): string => {
     return `${year}-${month}-${day}`;
 };
 
+const formatMoney = (amount: number): string => {
+    return amount.toFixed(2)
+}
+
 const getChangeClass = (change: number): string => {
     return change > 0 ? 'positive' : change < 0 ? 'negative' : 'neutral'
 }
@@ -118,7 +199,10 @@ const formatChange = (change: number): string => {
 }
 
 onMounted(async () => {
-    await loadProducts()
+    await Promise.all([
+        loadProducts(),
+        loadOrders()
+    ])
 })
 </script>
 

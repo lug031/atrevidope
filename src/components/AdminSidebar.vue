@@ -5,37 +5,11 @@
                 <div class="sidebar-header">
                 </div>
                 <nav class="sidebar-nav">
-                    <router-link to="/admin/dashboard" class="nav-item" @click="$emit('close')">
-                        <LayoutDashboardIcon :size="20" />
-                        Dashboard
-                    </router-link>
-                    <router-link to="/admin/products" class="nav-item" @click="$emit('close')">
-                        <PackageIcon :size="20" />
-                        Productos
-                    </router-link>
-                    <router-link to="/admin/brands" class="nav-item" @click="$emit('close')">
-                        <TagIcon :size="20" />
-                        Marcas
-                    </router-link>
-                    <router-link to="/admin/categories" class="nav-item" @click="$emit('close')">
-                        <ListIcon :size="20" />
-                        Categorías
-                    </router-link>
-                    <router-link to="/admin/customers" class="nav-item" @click="$emit('close')">
-                        <UsersIcon :size="20" />
-                        Clientes
-                    </router-link>
-                    <router-link to="/admin/orders" class="nav-item" @click="$emit('close')">
-                        <ShoppingCartIcon :size="20" />
-                        Pedidos
-                    </router-link>
-                    <router-link to="/admin/reports" class="nav-item" @click="$emit('close')">
-                        <BarChartIcon :size="20" />
-                        Reportes
-                    </router-link>
-                    <router-link to="/admin/users" class="nav-item" @click="$emit('close')">
-                        <ShieldIcon :size="20" />
-                        Usuarios
+                    <router-link v-for="item in navigationItems" :key="item.path" :to="item.disabled ? '' : item.path"
+                        class="nav-item" :class="{ 'disabled': item.disabled }" @click="handleItemClick(item)">
+                        <component :is="item.icon" :size="20" />
+                        {{ item.label }}
+                        <span v-if="item.disabled" class="disabled-badge">Próximamente</span>
                     </router-link>
                 </nav>
             </div>
@@ -44,15 +18,86 @@
 </template>
 
 <script setup lang="ts">
-import { XIcon, LayoutDashboardIcon, PackageIcon, TagIcon, ListIcon, UsersIcon, ShoppingCartIcon, BarChartIcon, ShieldIcon } from 'lucide-vue-next'
+import {
+    XIcon,
+    LayoutDashboardIcon,
+    PackageIcon,
+    TagIcon,
+    ListIcon,
+    UsersIcon,
+    ShoppingCartIcon,
+    BarChartIcon,
+    ShieldIcon
+} from 'lucide-vue-next'
+
+interface NavigationItem {
+    path: string;
+    icon: any;
+    label: string;
+    disabled?: boolean;
+}
+
+const navigationItems: NavigationItem[] = [
+    {
+        path: '/admin/dashboard',
+        icon: LayoutDashboardIcon,
+        label: 'Dashboard'
+    },
+    {
+        path: '/admin/products',
+        icon: PackageIcon,
+        label: 'Productos'
+    },
+    {
+        path: '/admin/orders',
+        icon: ShoppingCartIcon,
+        label: 'Pedidos'
+    },
+    {
+        path: '/admin/categories',
+        icon: ListIcon,
+        label: 'Categorías'
+    },
+    {
+        path: '/admin/customers',
+        icon: UsersIcon,
+        label: 'Clientes',
+        disabled: true
+    },
+    {
+        path: '/admin/reports',
+        icon: BarChartIcon,
+        label: 'Reportes',
+        disabled: true
+    },
+    {
+        path: '/admin/users',
+        icon: ShieldIcon,
+        label: 'Usuarios',
+        disabled: true
+    },
+    {
+        path: '/admin/brands',
+        icon: TagIcon,
+        label: 'Marcas',
+        disabled: true
+    }
+]
 
 defineProps<{
     isOpen: boolean
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
     (e: 'close'): void
 }>()
+
+const handleItemClick = (item: NavigationItem) => {
+    if (item.disabled) {
+        return
+    }
+    emit('close')
+}
 </script>
 
 <style scoped>
@@ -106,15 +151,34 @@ defineEmits<{
     text-decoration: none;
     border-radius: 6px;
     transition: 0.2s;
+    position: relative;
 }
 
-.nav-item:hover {
+.nav-item:not(.disabled):hover {
     background: #333;
 }
 
-.nav-item.router-link-active {
+.nav-item.router-link-active:not(.disabled) {
     background: #2563eb;
     color: white;
+}
+
+/* Estilos para ítems deshabilitados */
+.nav-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+    color: #666;
+}
+
+.disabled-badge {
+    position: absolute;
+    right: 1rem;
+    font-size: 0.75rem;
+    background: #333;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    color: #999;
 }
 
 /* Transition animations */

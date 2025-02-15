@@ -136,7 +136,7 @@
         </div>
 
         <!-- Modal de detalles -->
-        <Modal v-if="showDetailsModal" title="Detalles de la Orden" @close="showDetailsModal = false">
+        <ModalOrder v-if="showDetailsModal" title="Detalles de la Orden" @close="showDetailsModal = false">
             <div class="order-details">
                 <div class="section customer-details">
                     <h3>Información del Cliente</h3>
@@ -220,7 +220,7 @@
                     </div>
                 </div>
             </div>
-        </Modal>
+        </ModalOrder>
     </div>
 </template>
 
@@ -244,7 +244,7 @@ import {
     XIcon
 } from 'lucide-vue-next'
 import type { Order } from '@/types/order.types'
-import Modal from '@/components/Modal.vue'
+import ModalOrder from '@/components/ModalOrder.vue'
 import { useToast } from '@/composables/useToast'
 
 const {

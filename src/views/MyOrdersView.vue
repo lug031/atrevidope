@@ -91,7 +91,47 @@
                             <span>S/. {{ order.total.toFixed(2) }}</span>
                         </div>
                     </div>
-                    <div class="whatsapp-button-container">
+
+                    <div v-if="order.status === 'completed'" class="completion-message">
+                        <div class="completion-main">
+                            <span class="completion-icon">✨</span>
+                            <p>¡Gracias por tu compra! Esperamos que disfrutes tus productos</p>
+                        </div>
+                        <div class="social-message">
+                            <p>No olvides seguirnos en nuestras redes sociales</p>
+                            <div class="social-links">
+                                <a href="#" class="social-link" target="_blank">
+                                    <InstagramIcon :size="20" />
+                                </a>
+                                <a href="#" class="social-link" target="_blank">
+                                    <FacebookIcon :size="20" />
+                                </a>
+                                <a href="#" class="social-link" target="_blank">
+                                    <YoutubeIcon :size="20" />
+                                </a>
+                                <a href="#" class="social-link" target="_blank">
+                                    <TwitterIcon :size="20" />
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-else-if="order.status === 'processing'" class="processing-message">
+                        <div class="processing-content">
+                            <Loader2Icon :size="24" class="processing-icon" />
+                            <div class="message-content">
+                                <h4>¡Hemos recibido tu orden!</h4>
+                                <p>Estamos preparando tu orden, nos comunicaremos contigo al numero/correo que
+                                    ingresaste.</p>
+                            </div>
+                        </div>
+                        <div class="estimated-time">
+                            <ClockIcon :size="16" />
+                            <span>Tiempo estimado de respuesta: 30min - 1hora</span>
+                        </div>
+                    </div>
+
+                    <div class="whatsapp-button-container" v-if="order.status === 'pending'">
                         <button @click="openWhatsapp(order)" class="button primary whatsapp-button">
                             <MessageCircle class="icon" /> Enviar pedido por WhatsApp
                         </button>
@@ -111,7 +151,14 @@ import { storeToRefs } from 'pinia';
 import type { Order, OrderStatus } from '@/types/order.types';
 import type { Product } from '@/types/product.types';
 import MainLayout from '@/layouts/MainLayout.vue';
-import { MessageCircle } from 'lucide-vue-next';
+import {
+    MessageCircle,
+    Instagram as InstagramIcon,
+    Facebook as FacebookIcon,
+    Youtube as YoutubeIcon,
+    Twitter as TwitterIcon,
+    Loader2Icon, ClockIcon
+} from 'lucide-vue-next';
 import { getUrl } from 'aws-amplify/storage';
 
 const auth = useAuthStore();
@@ -594,13 +641,179 @@ onMounted(async () => {
     background-color: #1f2937;
 }
 
-@keyframes spin {
+.completion-message {
+    margin-top: 1rem;
+    padding: 1.5rem;
+    background: linear-gradient(to right, #f0fdf4, #dcfce7);
+    border-radius: 0.5rem;
+    text-align: center;
+    animation: fadeIn 0.5s ease-in-out;
+    border: 1px solid #bbf7d0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.completion-main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.completion-icon {
+    font-size: 1.5rem;
+    animation: sparkle 1.5s infinite;
+}
+
+.social-message {
+    padding-top: 1rem;
+    border-top: 1px dashed #86efac;
+}
+
+.social-message p {
+    color: #059669;
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+}
+
+.social-links {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.social-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 9999px;
+    background: white;
+    color: #059669;
+    transition: all 0.2s ease;
+}
+
+.social-link:hover {
+    transform: translateY(-2px);
+    background: #059669;
+    color: white;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes sparkle {
     0% {
-        transform: rotate(0deg);
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
     }
 
     100% {
+        opacity: 1;
+    }
+}
+
+@media (max-width: 640px) {
+    .completion-message {
+        padding: 1rem;
+    }
+
+    .social-links {
+        gap: 0.75rem;
+    }
+
+    .social-link {
+        width: 32px;
+        height: 32px;
+    }
+}
+
+.processing-message {
+    margin-top: 1rem;
+    padding: 1.5rem;
+    background: linear-gradient(to right, #eff6ff, #dbeafe);
+    border-radius: 0.5rem;
+    animation: fadeIn 0.5s ease-in-out;
+    border: 1px solid #bfdbfe;
+}
+
+.processing-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.processing-icon {
+    color: #3b82f6;
+    animation: spin 2s linear infinite;
+}
+
+.message-content {
+    flex: 1;
+}
+
+.message-content h4 {
+    color: #1e40af;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
+.message-content p {
+    color: #3b82f6;
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+.estimated-time {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed #bfdbfe;
+    color: #6b7280;
+    font-size: 0.9rem;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
         transform: rotate(360deg);
+    }
+}
+
+@media (max-width: 640px) {
+    .processing-message {
+        padding: 1rem;
+    }
+
+    .processing-content {
+        gap: 0.75rem;
+    }
+
+    .message-content h4 {
+        font-size: 1rem;
+    }
+
+    .message-content p {
+        font-size: 0.9rem;
     }
 }
 </style>

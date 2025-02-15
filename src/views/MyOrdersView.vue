@@ -49,12 +49,28 @@
                     <div class="order-items">
                         <div v-for="item in order.items" :key="item.productID" class="order-item">
                             <div class="item-container">
+                                <div class="item-image">
+                                    <img :src="productImages[item.productID] || '/api/placeholder/60/60'"
+                                        :alt="getProductName(item.productID)" class="product-img" />
+                                </div>
                                 <div class="quantity-badge">
                                     {{ item.quantity }}
                                 </div>
                                 <div class="item-details">
-                                    <span class="item-name">{{ getProductName(item.productID) }}</span>
-                                    <span class="item-price">S/. {{ item.price.toFixed(2) }}</span>
+                                    <span class="item-name"
+                                        v-html="truncateProductName(getProductName(item.productID))"></span>
+                                    <span class="item-brand">{{ getProductBrand(item.productID) }}</span>
+                                    <div class="price-info">
+                                        <div class="price-group">
+                                            <span class="original-price" v-if="hasDiscount(item.productID)">
+                                                S/. {{ getOriginalPrice(item.productID)?.toFixed(2) }}
+                                            </span>
+                                            <span class="current-price">S/. {{ item.price.toFixed(2) }}</span>
+                                        </div>
+                                        <span class="discount-badge" v-if="hasDiscount(item.productID)">
+                                            -{{ getDiscountPercentage(item.productID) }}%
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -93,8 +109,10 @@ import { useAuthStore } from '@/stores/auth';
 import { useProducts } from '@/composables/useProducts';
 import { storeToRefs } from 'pinia';
 import type { Order, OrderStatus } from '@/types/order.types';
+import type { Product } from '@/types/product.types';
 import MainLayout from '@/layouts/MainLayout.vue';
 import { MessageCircle } from 'lucide-vue-next';
+import { getUrl } from 'aws-amplify/storage';
 
 const auth = useAuthStore();
 const { isAuthenticated, userEmail } = storeToRefs(auth);
@@ -102,6 +120,8 @@ const { products, loadProducts } = useProducts();
 const { loading, error, getUserOrders } = useOrders();
 
 const orders = ref<Order[]>([]);
+const productImages = ref<Record<string, string>>({});
+const orderProducts = ref<Record<string, Product>>({});
 
 const currentUserEmail = computed(() => {
     if (isAuthenticated.value) {
@@ -112,6 +132,48 @@ const currentUserEmail = computed(() => {
 
 const getOrderCardClass = (status: OrderStatus) => {
     return `order-card-${status}`;
+};
+
+const loadProductImages = async () => {
+    for (const order of orders.value) {
+        for (const item of order.items) {
+            const product = products.value.find(p => p.id === item.productID);
+            if (product?.imageUrl) {
+                try {
+                    const { url } = await getUrl({ path: product.imageUrl });
+                    productImages.value[item.productID] = url.toString();
+                } catch (error) {
+                    console.error("Error loading product image:", error);
+                }
+            }
+        }
+    }
+};
+
+const truncateProductName = (name: string, maxLength: number = 45): string => {
+    if (!name) return '';
+
+    const boldMatch = name.match(/\*\*(.*?)\*\*/);
+    if (!boldMatch) {
+        return name.length > maxLength ? name.slice(0, maxLength) + '...' : name;
+    }
+
+    const boldContent = boldMatch[1];
+    const boldStart = name.indexOf('**');
+    const boldEnd = boldStart + boldMatch[0].length;
+
+    if (boldEnd > maxLength) {
+        const truncatedBold = boldContent.slice(0, maxLength - 5) + '...';
+        return `**${truncatedBold}**`;
+    } else {
+        const remainingSpace = maxLength - boldEnd;
+        if (remainingSpace > 3) {
+            const remaining = name.slice(boldEnd, boldEnd + remainingSpace - 3) + '...';
+            return `**${boldContent}**${remaining}`;
+        } else {
+            return `**${boldContent}**`;
+        }
+    }
 };
 
 const getStatusClass = (status: OrderStatus) => {
@@ -131,6 +193,26 @@ const getStatusText = (status: OrderStatus) => {
 const getProductName = (productId: string) => {
     const product = products.value.find(p => p.id === productId);
     return product?.name || 'Producto no encontrado';
+};
+
+const getProductBrand = (productId: string) => {
+    const product = products.value.find(p => p.id === productId);
+    return product?.brand || '';
+};
+
+const hasDiscount = (productId: string) => {
+    const product = products.value.find(p => p.id === productId);
+    return product?.discountPercentage !== undefined && product.discountPercentage > 0;
+};
+
+const getOriginalPrice = (productId: string) => {
+    const product = products.value.find(p => p.id === productId);
+    return product?.originalPrice;
+};
+
+const getDiscountPercentage = (productId: string) => {
+    const product = products.value.find(p => p.id === productId);
+    return product?.discountPercentage || 0;
 };
 
 // Formatea el mensaje de WhatsApp para un pedido
@@ -171,25 +253,24 @@ const openWhatsapp = (order: Order) => {
 onMounted(async () => {
     if (currentUserEmail.value) {
         try {
+            await loadProducts();
             const userOrders = await getUserOrders(currentUserEmail.value);
             orders.value = userOrders;
+            await loadProductImages();
         } catch (err) {
             console.error('Error cargando órdenes:', err);
             orders.value = [];
         }
     }
-    await loadProducts();
 });
 </script>
 
 <style scoped>
 .orders-container {
+    padding: 1.5rem;
     max-width: 1200px;
     margin: 0 auto;
-    padding: 32px;
 }
-
-
 
 .whatsapp-button {
     background-color: #23ad56;
@@ -372,7 +453,18 @@ onMounted(async () => {
 .item-container {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 1rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 0.5rem;
+}
+
+.item-image {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    border-radius: 0.375rem;
+    overflow: hidden;
 }
 
 .quantity-badge {
@@ -387,23 +479,83 @@ onMounted(async () => {
     color: #4b5563;
 }
 
+.product-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
 .item-details {
-    flex: 1;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1;
 }
 
 .item-name {
     font-weight: 500;
-    color: #1f2937;
-    font-size: 16px;
+    color: #0f172a;
+    font-size: 1rem;
+}
+
+.item-name :deep(strong) {
+    font-weight: 600;
+}
+
+.item-brand {
+    color: #64748b;
+    font-size: 0.875rem;
 }
 
 .item-price {
     font-weight: 600;
     color: #1f2937;
     font-size: 16px;
+}
+
+.price-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.price-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.original-price {
+    font-size: 0.875rem;
+    color: #94a3b8;
+    text-decoration: line-through;
+}
+
+.current-price {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.discount-badge {
+    padding: 0.25rem 0.5rem;
+    background: #fee2e2;
+    color: #991b1b;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.quantity-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    background: #e0e7ff;
+    color: #4f46e5;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
 }
 
 .order-summary {

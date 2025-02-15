@@ -64,7 +64,7 @@
                                         @input="validateDocumentNumber" :class="{ 'error': errors.documentNumber }"
                                         :maxlength="getDocumentMaxLength">
                                     <span class="error-message" v-if="errors.documentNumber">{{ errors.documentNumber
-                                        }}</span>
+                                    }}</span>
                                 </div>
                             </div>
 
@@ -148,7 +148,7 @@
                                     <div class="info-item">
                                         <span class="info-label">Documento</span>
                                         <span class="info-value">{{ form.documentType }}: {{ form.documentNumber
-                                            }}</span>
+                                        }}</span>
                                     </div>
                                 </div>
                             </div>

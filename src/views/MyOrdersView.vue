@@ -2,11 +2,25 @@
     <MainLayout>
         <div class="orders-container">
             <div class="orders-header">
-                <h1>Mis Pedidos</h1>
+                <div class="header-content">
+                    <h1>Mis Pedidos</h1>
+                    <p v-if="!isAuthenticated" class="auth-message">
+                        Para filtrar y ver tu historial completo de pedidos, inicia sesión o regístrate
+                    </p>
+                </div>
+                <div v-if="isAuthenticated" class="filter-container">
+                    <select v-model="selectedStatus" class="status-filter" @change="filterOrders">
+                        <option value="all">Todos los pedidos</option>
+                        <option value="pending">Pendientes</option>
+                        <option value="processing">En proceso</option>
+                        <option value="completed">Completados</option>
+                        <option value="cancelled">Cancelados</option>
+                    </select>
+                </div>
             </div>
 
             <!-- Loading State -->
-            <div v-if="loading && !orders.length" class="loading-state">
+            <div v-if="loading && !filteredOrders.length" class="loading-state">
                 <div class="loading-spinner"></div>
                 <span>Cargando pedidos...</span>
             </div>
@@ -17,16 +31,17 @@
             </div>
 
             <!-- Empty State -->
-            <div v-else-if="!loading && !orders.length" class="empty-state">
-                <p>No tienes pedidos registrados</p>
-                <router-link to="/web-products" class="button-primary">
+            <div v-else-if="!loading && !filteredOrders.length" class="empty-state">
+                <p>No tienes pedidos {{ getEmptyStateMessage }}</p>
+                <router-link v-if="selectedStatus === 'pending' || selectedStatus === 'all'" to="/web-products"
+                    class="button-primary">
                     Ir a comprar
                 </router-link>
             </div>
 
             <!-- Orders List -->
             <div v-else class="orders-list">
-                <div v-for="order in orders" :key="order.id" class="order-card"
+                <div v-for="order in filteredOrders" :key="order.id" class="order-card"
                     :class="getOrderCardClass(order.status)">
                     <!-- Order Header -->
                     <div class="order-header">
@@ -166,9 +181,30 @@ const { isAuthenticated, userEmail } = storeToRefs(auth);
 const { products, loadProducts } = useProducts();
 const { loading, error, getUserOrders } = useOrders();
 
+const selectedStatus = ref<string>('all');
 const orders = ref<Order[]>([]);
 const productImages = ref<Record<string, string>>({});
 const orderProducts = ref<Record<string, Product>>({});
+
+const filteredOrders = computed(() => {
+    if (selectedStatus.value === 'all') {
+        return orders.value;
+    }
+    return orders.value.filter(order => order.status === selectedStatus.value);
+});
+
+const getEmptyStateMessage = computed(() => {
+    if (selectedStatus.value === 'all') {
+        return 'registrados';
+    }
+    const statusMessages = {
+        pending: 'pendientes',
+        processing: 'en proceso',
+        completed: 'completados',
+        cancelled: 'cancelados'
+    };
+    return statusMessages[selectedStatus.value as OrderStatus] || 'registrados';
+});
 
 const currentUserEmail = computed(() => {
     if (isAuthenticated.value) {
@@ -297,6 +333,9 @@ const openWhatsapp = (order: Order) => {
     window.open(whatsappUrl, '_blank');
 };
 
+const filterOrders = () => {
+};
+
 onMounted(async () => {
     if (currentUserEmail.value) {
         try {
@@ -317,6 +356,12 @@ onMounted(async () => {
     padding: 1.5rem;
     max-width: 1200px;
     margin: 0 auto;
+}
+
+.auth-message {
+    color: #6B7280;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
 }
 
 .whatsapp-button {
@@ -342,11 +387,37 @@ onMounted(async () => {
     height: 20px;
 }
 
-.orders-header h1 {
-    font-size: 28px;
-    font-weight: 600;
-    color: #1a1a1a;
-    margin-bottom: 32px;
+.orders-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.filter-container {
+    display: flex;
+    align-items: center;
+}
+
+.status-filter {
+    padding: 0.5rem 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    background-color: white;
+    font-size: 0.875rem;
+    color: #4a5568;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.status-filter:hover {
+    border-color: #cbd5e0;
+}
+
+.status-filter:focus {
+    border-color: #4299e1;
+    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
 }
 
 .loading-state {

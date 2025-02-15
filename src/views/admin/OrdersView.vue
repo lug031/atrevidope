@@ -173,7 +173,7 @@
                                     <div class="item-header">
                                         <span class="item-name"
                                             v-html="truncateProductName(orderProducts[item.productID]?.name)"></span>
-                                        <span class="item-brand">{{ orderProducts[item.productID]?.brand }}</span>
+                                        <!-- <span class="item-brand">{{ orderProducts[item.productID]?.brand }}</span>-->
                                     </div>
                                     <div class="item-pricing">
                                         <div class="quantity-info">
@@ -349,7 +349,7 @@ const showOrderDetails = async (order: Order) => {
     await loadProductImages()
 }
 
-const truncateProductName = (name: string, maxLength: number = 15): string => {
+const truncateProductName = (name: string, maxLength: number = 100): string => {
     if (!name) return '';
 
     // Si el nombre es más corto que el máximo, devolverlo tal cual

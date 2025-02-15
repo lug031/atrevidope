@@ -24,27 +24,35 @@
                     <!-- Información del Cliente -->
                     <div v-if="currentStep === 0" class="checkout-card">
                         <h2>Información del cliente</h2>
+                        <p class="customer-subtitle">Por favor asegúrese de ingresar datos verídicos y correctos, ya que
+                            esta información será esencial para la entrega de su pedido.</p>
                         <form @submit.prevent="nextStep" class="customer-form">
                             <div class="form-row">
                                 <div class="form-group">
                                     <label>Nombre *</label>
-                                    <input v-model="form.firstName" type="text" required>
+                                    <input v-model="form.firstName" type="text" required @input="validateFirstName"
+                                        :class="{ 'error': errors.firstName }">
+                                    <span class="error-message" v-if="errors.firstName">{{ errors.firstName }}</span>
                                 </div>
                                 <div class="form-group">
                                     <label>Apellido *</label>
-                                    <input v-model="form.lastName" type="text" required>
+                                    <input v-model="form.lastName" type="text" required @input="validateLastName"
+                                        :class="{ 'error': errors.lastName }">
+                                    <span class="error-message" v-if="errors.lastName">{{ errors.lastName }}</span>
                                 </div>
                             </div>
 
                             <div class="form-group">
                                 <label>Email *</label>
-                                <input v-model="form.email" type="email" required>
+                                <input v-model="form.email" type="email" required @input="validateEmail"
+                                    :class="{ 'error': errors.email }">
+                                <span class="error-message" v-if="errors.email">{{ errors.email }}</span>
                             </div>
 
                             <div class="form-row">
                                 <div class="form-group">
                                     <label>Tipo de documento *</label>
-                                    <select v-model="form.documentType" required>
+                                    <select v-model="form.documentType" required @change="validateDocumentNumber">
                                         <option value="DNI">DNI</option>
                                         <option value="CE">CE</option>
                                         <option value="Pasaporte">Pasaporte</option>
@@ -52,16 +60,22 @@
                                 </div>
                                 <div class="form-group">
                                     <label>Número de documento *</label>
-                                    <input v-model="form.documentNumber" type="text" required>
+                                    <input v-model="form.documentNumber" type="text" required
+                                        @input="validateDocumentNumber" :class="{ 'error': errors.documentNumber }"
+                                        :maxlength="getDocumentMaxLength">
+                                    <span class="error-message" v-if="errors.documentNumber">{{ errors.documentNumber
+                                        }}</span>
                                 </div>
                             </div>
 
                             <div class="form-group">
                                 <label>Número de celular *</label>
-                                <input v-model="form.phone" type="tel" required>
+                                <input v-model="form.phone" type="tel" required @input="validatePhone"
+                                    :class="{ 'error': errors.phone }" maxlength="9">
+                                <span class="error-message" v-if="errors.phone">{{ errors.phone }}</span>
                             </div>
 
-                            <button type="submit" class="button primary" :disabled="noProducts">
+                            <button type="submit" class="button primary" :disabled="!isFormValid || noProducts">
                                 Siguiente
                             </button>
                             <p v-if="noProducts" class="warning-message">
@@ -241,6 +255,14 @@ const stockValidationMessage = ref('');
 const whatsappLink = ref('');
 const noProducts = computed(() => total.value <= 0);
 
+const errors = ref({
+    firstName: '',
+    lastName: '',
+    email: '',
+    documentNumber: '',
+    phone: ''
+});
+
 const form = ref<CustomerInfo>({
     firstName: '',
     lastName: '',
@@ -253,8 +275,94 @@ const form = ref<CustomerInfo>({
 });
 
 const nextStep = () => {
+    if (currentStep.value === 0) {
+        validateFirstName();
+        validateLastName();
+        validateEmail();
+        validateDocumentNumber();
+        validatePhone();
+
+        if (!isFormValid.value) {
+            return;
+        }
+    }
+
     if (currentStep.value < steps.length - 1) {
         currentStep.value++;
+    }
+};
+
+const isFormValid = computed(() => {
+    return !Object.values(errors.value).some(error => error !== '') &&
+        Object.values(form.value).every(value => value !== '');
+});
+
+const getDocumentMaxLength = computed(() => {
+    const maxLengths = {
+        'DNI': 8,
+        'CE': 12,
+        'Pasaporte': 12
+    };
+    return maxLengths[form.value.documentType];
+});
+
+const validateFirstName = () => {
+    const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]{2,50}$/;
+    if (!nameRegex.test(form.value.firstName)) {
+        errors.value.firstName = 'Ingrese un nombre válido (solo letras)';
+    } else {
+        errors.value.firstName = '';
+    }
+};
+
+const validateLastName = () => {
+    const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]{2,50}$/;
+    if (!nameRegex.test(form.value.lastName)) {
+        errors.value.lastName = 'Ingrese un apellido válido (solo letras)';
+    } else {
+        errors.value.lastName = '';
+    }
+};
+
+const validateEmail = () => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(form.value.email)) {
+        errors.value.email = 'Ingrese un email válido';
+    } else {
+        errors.value.email = '';
+    }
+};
+
+const validateDocumentNumber = () => {
+    const documentValidations = {
+        'DNI': {
+            regex: /^\d{8}$/,
+            message: 'El DNI debe tener exactamente 8 dígitos numéricos'
+        },
+        'CE': {
+            regex: /^[a-zA-Z0-9]{9,12}$/,
+            message: 'El CE debe tener entre 9 y 12 caracteres alfanuméricos'
+        },
+        'Pasaporte': {
+            regex: /^[a-zA-Z0-9]{6,12}$/,
+            message: 'El pasaporte debe tener entre 6 y 12 caracteres alfanuméricos'
+        }
+    };
+
+    const validation = documentValidations[form.value.documentType];
+    if (!validation.regex.test(form.value.documentNumber)) {
+        errors.value.documentNumber = validation.message;
+    } else {
+        errors.value.documentNumber = '';
+    }
+};
+
+const validatePhone = () => {
+    const phoneRegex = /^9\d{8}$/;
+    if (!phoneRegex.test(form.value.phone)) {
+        errors.value.phone = 'Ingrese un número de celular válido';
+    } else {
+        errors.value.phone = '';
     }
 };
 
@@ -540,6 +648,29 @@ onMounted(() => {
     min-height: 100px;
 }
 
+.customer-subtitle {
+    font-size: 0.875rem;
+    color: #adadad;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.warning-message {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    color: #adadad;
+}
+
+.error {
+    border-color: #dc3545 !important;
+}
+
+.error-message {
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
 .cart-loading-overlay {
     position: absolute;
     top: 0;
@@ -707,7 +838,7 @@ onMounted(() => {
         h2 {
             font-size: 1.25rem;
             font-weight: 600;
-            margin-bottom: 1.5rem;
+            margin-bottom: 0.5rem;
             color: #1a1a1a;
         }
 

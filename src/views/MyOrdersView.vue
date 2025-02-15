@@ -49,12 +49,28 @@
                     <div class="order-items">
                         <div v-for="item in order.items" :key="item.productID" class="order-item">
                             <div class="item-container">
+                                <div class="item-image">
+                                    <img :src="productImages[item.productID] || '/api/placeholder/60/60'"
+                                        :alt="getProductName(item.productID)" class="product-img" />
+                                </div>
                                 <div class="quantity-badge">
                                     {{ item.quantity }}
                                 </div>
                                 <div class="item-details">
-                                    <span class="item-name">{{ getProductName(item.productID) }}</span>
-                                    <span class="item-price">S/. {{ item.price.toFixed(2) }}</span>
+                                    <span class="item-name"
+                                        v-html="truncateProductName(getProductName(item.productID))"></span>
+                                    <span class="item-brand">{{ getProductBrand(item.productID) }}</span>
+                                    <div class="price-info">
+                                        <div class="price-group">
+                                            <span class="original-price" v-if="hasDiscount(item.productID)">
+                                                S/. {{ getOriginalPrice(item.productID)?.toFixed(2) }}
+                                            </span>
+                                            <span class="current-price">S/. {{ item.price.toFixed(2) }}</span>
+                                        </div>
+                                        <span class="discount-badge" v-if="hasDiscount(item.productID)">
+                                            -{{ getDiscountPercentage(item.productID) }}%
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -75,7 +91,47 @@
                             <span>S/. {{ order.total.toFixed(2) }}</span>
                         </div>
                     </div>
-                    <div class="whatsapp-button-container">
+
+                    <div v-if="order.status === 'completed'" class="completion-message">
+                        <div class="completion-main">
+                            <span class="completion-icon">✨</span>
+                            <p>¡Gracias por tu compra! Esperamos que disfrutes tus productos</p>
+                        </div>
+                        <div class="social-message">
+                            <p>No olvides seguirnos en nuestras redes sociales</p>
+                            <div class="social-links">
+                                <a href="#" class="social-link" target="_blank">
+                                    <InstagramIcon :size="20" />
+                                </a>
+                                <a href="#" class="social-link" target="_blank">
+                                    <FacebookIcon :size="20" />
+                                </a>
+                                <a href="#" class="social-link" target="_blank">
+                                    <YoutubeIcon :size="20" />
+                                </a>
+                                <a href="#" class="social-link" target="_blank">
+                                    <TwitterIcon :size="20" />
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-else-if="order.status === 'processing'" class="processing-message">
+                        <div class="processing-content">
+                            <Loader2Icon :size="24" class="processing-icon" />
+                            <div class="message-content">
+                                <h4>¡Hemos recibido tu orden!</h4>
+                                <p>Estamos preparando tu orden, nos comunicaremos contigo al numero/correo que
+                                    ingresaste.</p>
+                            </div>
+                        </div>
+                        <div class="estimated-time">
+                            <ClockIcon :size="16" />
+                            <span>Tiempo estimado de respuesta: 30min - 1hora</span>
+                        </div>
+                    </div>
+
+                    <div class="whatsapp-button-container" v-if="order.status === 'pending'">
                         <button @click="openWhatsapp(order)" class="button primary whatsapp-button">
                             <MessageCircle class="icon" /> Enviar pedido por WhatsApp
                         </button>
@@ -93,8 +149,17 @@ import { useAuthStore } from '@/stores/auth';
 import { useProducts } from '@/composables/useProducts';
 import { storeToRefs } from 'pinia';
 import type { Order, OrderStatus } from '@/types/order.types';
+import type { Product } from '@/types/product.types';
 import MainLayout from '@/layouts/MainLayout.vue';
-import { MessageCircle } from 'lucide-vue-next';
+import {
+    MessageCircle,
+    Instagram as InstagramIcon,
+    Facebook as FacebookIcon,
+    Youtube as YoutubeIcon,
+    Twitter as TwitterIcon,
+    Loader2Icon, ClockIcon
+} from 'lucide-vue-next';
+import { getUrl } from 'aws-amplify/storage';
 
 const auth = useAuthStore();
 const { isAuthenticated, userEmail } = storeToRefs(auth);
@@ -102,6 +167,8 @@ const { products, loadProducts } = useProducts();
 const { loading, error, getUserOrders } = useOrders();
 
 const orders = ref<Order[]>([]);
+const productImages = ref<Record<string, string>>({});
+const orderProducts = ref<Record<string, Product>>({});
 
 const currentUserEmail = computed(() => {
     if (isAuthenticated.value) {
@@ -112,6 +179,48 @@ const currentUserEmail = computed(() => {
 
 const getOrderCardClass = (status: OrderStatus) => {
     return `order-card-${status}`;
+};
+
+const loadProductImages = async () => {
+    for (const order of orders.value) {
+        for (const item of order.items) {
+            const product = products.value.find(p => p.id === item.productID);
+            if (product?.imageUrl) {
+                try {
+                    const { url } = await getUrl({ path: product.imageUrl });
+                    productImages.value[item.productID] = url.toString();
+                } catch (error) {
+                    console.error("Error loading product image:", error);
+                }
+            }
+        }
+    }
+};
+
+const truncateProductName = (name: string, maxLength: number = 45): string => {
+    if (!name) return '';
+
+    const boldMatch = name.match(/\*\*(.*?)\*\*/);
+    if (!boldMatch) {
+        return name.length > maxLength ? name.slice(0, maxLength) + '...' : name;
+    }
+
+    const boldContent = boldMatch[1];
+    const boldStart = name.indexOf('**');
+    const boldEnd = boldStart + boldMatch[0].length;
+
+    if (boldEnd > maxLength) {
+        const truncatedBold = boldContent.slice(0, maxLength - 5) + '...';
+        return `**${truncatedBold}**`;
+    } else {
+        const remainingSpace = maxLength - boldEnd;
+        if (remainingSpace > 3) {
+            const remaining = name.slice(boldEnd, boldEnd + remainingSpace - 3) + '...';
+            return `**${boldContent}**${remaining}`;
+        } else {
+            return `**${boldContent}**`;
+        }
+    }
 };
 
 const getStatusClass = (status: OrderStatus) => {
@@ -131,6 +240,26 @@ const getStatusText = (status: OrderStatus) => {
 const getProductName = (productId: string) => {
     const product = products.value.find(p => p.id === productId);
     return product?.name || 'Producto no encontrado';
+};
+
+const getProductBrand = (productId: string) => {
+    const product = products.value.find(p => p.id === productId);
+    return product?.brand || '';
+};
+
+const hasDiscount = (productId: string) => {
+    const product = products.value.find(p => p.id === productId);
+    return product?.discountPercentage !== undefined && product.discountPercentage > 0;
+};
+
+const getOriginalPrice = (productId: string) => {
+    const product = products.value.find(p => p.id === productId);
+    return product?.originalPrice;
+};
+
+const getDiscountPercentage = (productId: string) => {
+    const product = products.value.find(p => p.id === productId);
+    return product?.discountPercentage || 0;
 };
 
 // Formatea el mensaje de WhatsApp para un pedido
@@ -171,25 +300,24 @@ const openWhatsapp = (order: Order) => {
 onMounted(async () => {
     if (currentUserEmail.value) {
         try {
+            await loadProducts();
             const userOrders = await getUserOrders(currentUserEmail.value);
             orders.value = userOrders;
+            await loadProductImages();
         } catch (err) {
             console.error('Error cargando órdenes:', err);
             orders.value = [];
         }
     }
-    await loadProducts();
 });
 </script>
 
 <style scoped>
 .orders-container {
+    padding: 1.5rem;
     max-width: 1200px;
     margin: 0 auto;
-    padding: 32px;
 }
-
-
 
 .whatsapp-button {
     background-color: #23ad56;
@@ -372,7 +500,18 @@ onMounted(async () => {
 .item-container {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 1rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 0.5rem;
+}
+
+.item-image {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    border-radius: 0.375rem;
+    overflow: hidden;
 }
 
 .quantity-badge {
@@ -387,23 +526,83 @@ onMounted(async () => {
     color: #4b5563;
 }
 
+.product-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
 .item-details {
-    flex: 1;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 0.25rem;
+    flex: 1;
 }
 
 .item-name {
     font-weight: 500;
-    color: #1f2937;
-    font-size: 16px;
+    color: #0f172a;
+    font-size: 1rem;
+}
+
+.item-name :deep(strong) {
+    font-weight: 600;
+}
+
+.item-brand {
+    color: #64748b;
+    font-size: 0.875rem;
 }
 
 .item-price {
     font-weight: 600;
     color: #1f2937;
     font-size: 16px;
+}
+
+.price-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.price-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.original-price {
+    font-size: 0.875rem;
+    color: #94a3b8;
+    text-decoration: line-through;
+}
+
+.current-price {
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.discount-badge {
+    padding: 0.25rem 0.5rem;
+    background: #fee2e2;
+    color: #991b1b;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.quantity-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    background: #e0e7ff;
+    color: #4f46e5;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
 }
 
 .order-summary {
@@ -442,13 +641,179 @@ onMounted(async () => {
     background-color: #1f2937;
 }
 
-@keyframes spin {
+.completion-message {
+    margin-top: 1rem;
+    padding: 1.5rem;
+    background: linear-gradient(to right, #f0fdf4, #dcfce7);
+    border-radius: 0.5rem;
+    text-align: center;
+    animation: fadeIn 0.5s ease-in-out;
+    border: 1px solid #bbf7d0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.completion-main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.completion-icon {
+    font-size: 1.5rem;
+    animation: sparkle 1.5s infinite;
+}
+
+.social-message {
+    padding-top: 1rem;
+    border-top: 1px dashed #86efac;
+}
+
+.social-message p {
+    color: #059669;
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+}
+
+.social-links {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.social-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 9999px;
+    background: white;
+    color: #059669;
+    transition: all 0.2s ease;
+}
+
+.social-link:hover {
+    transform: translateY(-2px);
+    background: #059669;
+    color: white;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes sparkle {
     0% {
-        transform: rotate(0deg);
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
     }
 
     100% {
+        opacity: 1;
+    }
+}
+
+@media (max-width: 640px) {
+    .completion-message {
+        padding: 1rem;
+    }
+
+    .social-links {
+        gap: 0.75rem;
+    }
+
+    .social-link {
+        width: 32px;
+        height: 32px;
+    }
+}
+
+.processing-message {
+    margin-top: 1rem;
+    padding: 1.5rem;
+    background: linear-gradient(to right, #eff6ff, #dbeafe);
+    border-radius: 0.5rem;
+    animation: fadeIn 0.5s ease-in-out;
+    border: 1px solid #bfdbfe;
+}
+
+.processing-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.processing-icon {
+    color: #3b82f6;
+    animation: spin 2s linear infinite;
+}
+
+.message-content {
+    flex: 1;
+}
+
+.message-content h4 {
+    color: #1e40af;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
+.message-content p {
+    color: #3b82f6;
+    font-size: 0.95rem;
+    line-height: 1.4;
+}
+
+.estimated-time {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed #bfdbfe;
+    color: #6b7280;
+    font-size: 0.9rem;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
         transform: rotate(360deg);
+    }
+}
+
+@media (max-width: 640px) {
+    .processing-message {
+        padding: 1rem;
+    }
+
+    .processing-content {
+        gap: 0.75rem;
+    }
+
+    .message-content h4 {
+        font-size: 1rem;
+    }
+
+    .message-content p {
+        font-size: 0.9rem;
     }
 }
 </style>

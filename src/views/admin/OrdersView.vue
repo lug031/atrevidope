@@ -8,6 +8,10 @@
                     <input type="text" placeholder="Buscar órdenes..." class="search-input" v-model="searchQuery" />
                 </div>
             </div>
+            <button @click="loadOrders" class="refresh-button" :disabled="loading">
+                <RefreshCwIcon :size="20" :class="{ 'animate-spin': loading }" />
+                Actualizar
+            </button>
         </div>
 
         <!-- Estados de loading y error -->
@@ -945,6 +949,44 @@ onMounted(async () => {
 
     .action-buttons {
         flex-direction: column;
+    }
+}
+
+.refresh-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background-color: #f1f5f9;
+    border: none;
+    border-radius: 0.375rem;
+    color: #64748b;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.refresh-button:hover:not(:disabled) {
+    background-color: #e2e8f0;
+    color: #1e293b;
+}
+
+.refresh-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
     }
 }
 </style>

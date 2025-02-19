@@ -15,9 +15,9 @@
                 </router-link>
             </div>
 
-            <div class="brand-logo">
+            <!-- <div class="brand-logo">
                 <img :src="brandLogo" alt="Brand Logo" />
-            </div>
+            </div> -->
         </div>
     </div>
 </template>
@@ -36,7 +36,7 @@ const { showToast } = useToast();
 const imageUrls = ref<Record<string, string>>({});
 const brandLogo = ref('/atrevido_logo.png');
 
-const product = ref(products.value?.find(p => p.brand === 'Sally Hansen'));
+const product = ref(products.value?.find(p => p.brand === 'Default'));
 
 const loadImageUrls = async () => {
     if (product.value?.imageUrl) {
@@ -49,9 +49,9 @@ const loadImageUrls = async () => {
     }
 };
 
-onMounted(() => {
+/*onMounted(() => {
     loadImageUrls();
-});
+});*/
 </script>
 
 <style scoped>
@@ -62,7 +62,7 @@ onMounted(() => {
 .promo-banner {
     position: relative;
     height: 600px;
-    background: url('/hero-banner.png') center/cover;
+    background: url('/IMG_9395.png') center/cover;
     display: grid;
     grid-template-columns: 300px 1fr;
     overflow: hidden;

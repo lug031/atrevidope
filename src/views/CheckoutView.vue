@@ -520,7 +520,7 @@ const generateOrder = async () => {
 
         // Format WhatsApp message and create URL
         const message = formatWhatsAppMessage(orderData);
-        const phoneNumber = '51962224044';
+        const phoneNumber = '51934505566';
         const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
 
         whatsappLink.value = whatsappUrl;

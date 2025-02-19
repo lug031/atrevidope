@@ -17,11 +17,11 @@
             </button>
         </div>
 
-        <div class="carousel-dots">
+        <!-- <div class="carousel-dots">
             <button v-for="index in totalDots" :key="index" @click="goToSlide(index - 1)"
                 :class="['dot', { active: Math.floor(currentSlide / brandsPerSlide) === index - 1 }]">
             </button>
-        </div>
+        </div> -->
     </div>
 </template>
 
@@ -30,13 +30,13 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-vue-next';
 
 const brands = [
-    { name: 'CAROLINA HERRERA', logo: '/brands/carolina-herrera.jpg' },
-    { name: 'RABANNE', logo: '/brands/rabanne.png' },
-    { name: 'BOSS', logo: '/brands/boss.png' },
-    { name: 'DIOR', logo: '/brands/dior.jpg' },
-    { name: 'GUERLAIN', logo: '/brands/guerlain.png' },
-    { name: 'GIVENCHY', logo: '/brands/givenchy.png' },
-    { name: 'DOLCE & GABBANA', logo: '/brands/dolce.png' },
+    { name: 'AFNAN', logo: '/brands/AFNAN.png' },
+    { name: 'ARMAF', logo: '/brands/Armaf.png' },
+    { name: 'BHARARA', logo: '/brands/Bharara.png' },
+    { name: 'LATTAFA', logo: '/brands/Lattafa.png' },
+    { name: 'MAISON', logo: '/brands/Maison-Alhambra.png' },
+    { name: 'RASASI', logo: '/brands/Rasasi.png' },
+    { name: 'RAYHAAN', logo: '/brands/Rayhaan.png' },
 ];
 
 const currentSlide = ref(0);

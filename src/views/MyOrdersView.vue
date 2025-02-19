@@ -328,7 +328,7 @@ const formatOrderWhatsAppMessage = (order: Order) => {
 
 const openWhatsapp = (order: Order) => {
     const message = formatOrderWhatsAppMessage(order);
-    const phoneNumber = '51962224044';
+    const phoneNumber = '51934505566';
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
     window.open(whatsappUrl, '_blank');
 };

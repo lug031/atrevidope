@@ -11,7 +11,7 @@
                 </Transition>
 
                 <RouterLink to="/" class="logo-link">
-                    <img src="@/assets/atrevido_logo.png" alt="Logo" class="logo" />
+                    <img src="@/assets/new-logo.png" alt="Logo" class="logo" />
                 </RouterLink>
             </div>
 
@@ -414,7 +414,7 @@ watch(isAuthenticated, async (newValue) => {
     height: 100%;
     object-fit: cover;
     object-position: center;
-    transform: scale(1);
+    transform: scale(0.9);
 }
 
 .search-bar {

@@ -1,3 +1,4 @@
+//CarouselComponent.vue
 <template>
     <div class="carousel-container">
         <!-- Slides -->
@@ -5,8 +6,8 @@
             <div v-for="(product, index) in products" :key="product.id" class="slide"
                 :style="{ left: `${index * 100}%` }">
                 <div class="slide-content">
-                    <img :src="imageUrls[product.id] || '/api/placeholder/800/500'" :alt="product.name"
-                        class="slide-image" />
+                    <img :src="imageCache[product.id] || '/api/placeholder/800/500'" :alt="product.name"
+                        class="slide-image" loading="lazy" />
                     <div class="slide-overlay">
                         <div class="slide-text">
                             <h2>{{ product.name }}</h2>
@@ -41,33 +42,48 @@ import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-vue-next';
 import { useProducts } from '@/composables/useProducts';
-import { getUrl } from 'aws-amplify/storage';
+import { useImageCache } from '@/composables/useImageCache';
 
 const router = useRouter();
 const currentSlide = ref(0);
-const imageUrls = ref<Record<string, string>>({});
 const autoplayInterval = ref<number | null>(null);
 
 const { products, loadProducts } = useProducts();
+const { imageCache, preloadImages } = useImageCache();
 
+// Optimizada la función de carga de imágenes
 const loadImageUrls = async () => {
     if (!products.value) return;
 
-    for (const product of products.value) {
-        if (product.imageUrl) {
-            try {
-                const { url } = await getUrl({ path: product.imageUrl });
-                imageUrls.value[product.id] = url.toString();
-            } catch (error) {
-                console.error("Error cargando imagen:", error);
-            }
-        }
+    const productsToLoad = products.value
+        .filter(product => product.imageUrl)
+        .map(product => ({
+            id: product.id,
+            imageUrl: product.imageUrl || ''
+        }));
+
+    await preloadImages(productsToLoad);
+};
+
+// Función para precargar la siguiente imagen
+const preloadNextImage = () => {
+    if (!products.value) return;
+
+    const nextIndex = (currentSlide.value + 1) % products.value.length;
+    const nextProduct = products.value[nextIndex];
+
+    if (nextProduct && nextProduct.imageUrl) {
+        preloadImages([{
+            id: nextProduct.id,
+            imageUrl: nextProduct.imageUrl
+        }]);
     }
 };
 
 const nextSlide = () => {
     if (!products.value) return;
     currentSlide.value = (currentSlide.value + 1) % products.value.length;
+    preloadNextImage(); // Precargar la siguiente imagen
 };
 
 const prevSlide = () => {
@@ -77,6 +93,7 @@ const prevSlide = () => {
 
 const goToSlide = (index: number) => {
     currentSlide.value = index;
+    preloadNextImage(); // Precargar la siguiente imagen cuando se cambia manualmente
 };
 
 const startAutoplay = () => {
@@ -101,7 +118,17 @@ onBeforeUnmount(() => {
     stopAutoplay();
 });
 
-watch(() => products.value, loadImageUrls);
+// Observar cambios en los productos
+watch(() => products.value, async (newProducts) => {
+    if (newProducts && newProducts.length > 0) {
+        await loadImageUrls();
+    }
+}, { immediate: true });
+
+// Observar cambios en el slide actual para precargar la siguiente imagen
+watch(() => currentSlide.value, () => {
+    preloadNextImage();
+});
 </script>
 
 <style scoped>

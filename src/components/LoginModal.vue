@@ -8,7 +8,7 @@
                     </button>
 
                     <div class="logo-container">
-                        <img src="@/assets/atrevido_logo.png" alt="Atrevido Logo" class="auth-logo" />
+                        <img src="@/assets/new-logo.png" alt="Atrevido Logo" class="auth-logo" />
                     </div>
 
                     <h1>{{ isRegistering ? 'Registro' : 'Iniciar Sesión' }}</h1>
@@ -48,7 +48,7 @@
                 </button>
 
                 <div class="logo-container">
-                    <img src="@/assets/atrevido_logo.png" alt="Atrevido Logo" class="auth-logo" />
+                    <img src="@/assets/new-logo.png" alt="Atrevido Logo" class="auth-logo" />
                 </div>
 
                 <h1>Confirmar Registro</h1>
@@ -77,7 +77,7 @@
                 </button>
 
                 <div class="logo-container">
-                    <img src="@/assets/atrevido_logo.png" alt="Logo" class="auth-logo" />
+                    <img src="@/assets/new-logo.png" alt="Logo" class="auth-logo" />
                 </div>
 
                 <h1>Cambiar Contraseña</h1>
@@ -244,7 +244,8 @@ const toggleAuth = () => {
 
 .logo-container {
     text-align: center;
-    margin-bottom: 2rem;
+    margin-top: 2rem;
+    margin-bottom: 3.5rem;
 }
 
 .auth-logo {

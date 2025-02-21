@@ -123,7 +123,7 @@
         </div>
 
         <!-- Modal actualizado -->
-        <Modal v-if="showCreateModal" :title="editingId ? 'Editar Producto' : 'Nuevo Producto'"
+        <Modal v-if="showCreateModal" :title="editingId ? 'Editar Producto' : 'Nuevo Producto'" :loading="isSubmitting"
             @close="handleCloseModal">
             <form @submit.prevent="handleSubmit" class="product-form">
                 <!-- Campos básicos -->
@@ -362,10 +362,10 @@
                 </div>
 
                 <div class="modal-footer">
-                    <button type="button" class="secondary-button" @click="handleCloseModal">
+                    <button type="button" class="secondary-button" @click="handleCloseModal" :disabled="isSubmitting">
                         Cancelar
                     </button>
-                    <button type="submit" class="primary-button" :disabled="loading">
+                    <button type="submit" class="primary-button" :disabled="isSubmitting">
                         {{ editingId ? 'Actualizar' : 'Crear' }}
                     </button>
                 </div>
@@ -412,6 +412,7 @@ const markdownPreview = computed(() => {
     return simpleMarkdown(formData.value.description)
 })
 const formError = ref('')
+const isSubmitting = ref(false)
 
 const validateForm = (): boolean => {
     // Limpiamos error previo
@@ -805,6 +806,8 @@ const handleSubmit = async () => {
     }
 
     try {
+        isSubmitting.value = true
+
         const imageUrl = await uploadImage();
 
         // Asegurarnos de que el productData coincida con la interfaz Product
@@ -825,22 +828,28 @@ const handleSubmit = async () => {
         };
 
         if (editingId.value) {
-            await updateProduct(editingId.value, productData, formData.value.categoryIDs);
+            await updateProduct(editingId.value, productData, formData.value.categoryIDs)
+            showToast({
+                type: 'success',
+                message: 'Producto actualizado con éxito'
+            })
         } else {
-            await createProduct(productData, formData.value.categoryIDs);
+            await createProduct(productData, formData.value.categoryIDs)
+            showToast({
+                type: 'success',
+                message: 'Producto creado con éxito'
+            })
         }
 
         handleCloseModal();
-        showToast({
-            type: 'success',
-            message: editingId.value ? 'Producto actualizado con éxito' : 'Producto creado con éxito'
-        });
     } catch (error) {
         console.error('Error al procesar el producto:', error);
         showToast({
             type: 'error',
             message: 'Error al guardar el producto'
         });
+    } finally {
+        isSubmitting.value = false
     }
 };
 

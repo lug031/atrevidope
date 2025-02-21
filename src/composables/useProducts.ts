@@ -26,12 +26,19 @@ export function useProducts() {
     await productStore.fetchProductsWeb();
   };
 
-  const createProduct = async (data: Omit<Product, "id">) => {
-    return await productStore.createProduct(data);
+  const createProduct = async (
+    data: Omit<Product, "id">,
+    categoryIds: string[]
+  ) => {
+    return await productStore.createProduct(data, categoryIds);
   };
 
-  const updateProduct = async (id: string, data: Partial<Product>) => {
-    return await productStore.updateProduct(id, data);
+  const updateProduct = async (
+    id: string,
+    data: Partial<Product>,
+    categoryIds?: string[]
+  ) => {
+    return await productStore.updateProduct(id, data, categoryIds);
   };
 
   const deleteProduct = async (id: string) => {

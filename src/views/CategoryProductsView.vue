@@ -43,7 +43,8 @@
                         </div>
 
                         <div class="product-image">
-                            <img :src="imageUrls[product.id] || '/api/placeholder/40/40'" :alt="product.name" />
+                            <img :src="imageCache[product.id] || '/api/placeholder/40/40'" :alt="product.name"
+                                loading="lazy" />
                         </div>
 
                         <div class="product-info">
@@ -96,7 +97,9 @@ import { useToast } from '@/composables/useToast';
 import type { Product } from '@/types/product.types';
 import type { CartItem } from '@/types/cart.types';
 import { getUrl } from 'aws-amplify/storage';
+import { useImageCache } from '@/composables/useImageCache';
 
+const { imageCache, getImageUrl, preloadImages } = useImageCache();
 const router = useRouter();
 const route = useRoute();
 const imageUrls = ref<Record<string, string>>({});
@@ -165,16 +168,16 @@ const parseMarkdown = (text: string): string => {
 };
 
 const loadImageUrls = async () => {
-    for (const product of productsByCategory.value) {
-        if (product.imageUrl) {
-            try {
-                const { url } = await getUrl({ path: product.imageUrl });
-                imageUrls.value[product.id] = url.toString();
-            } catch (error) {
-                console.error("Error cargando imagen:", error);
-            }
-        }
-    }
+    if (!productsByCategory.value) return;
+
+    const productsToLoad = productsByCategory.value
+        .filter(product => product.imageUrl)
+        .map(product => ({
+            id: product.id,
+            imageUrl: product.imageUrl || ''
+        }));
+
+    await preloadImages(productsToLoad);
 };
 
 const hasUpcomingPromotion = (product: Product): boolean => {
@@ -259,12 +262,13 @@ const addToCart = (product: Product) => {
 const loadCategoryProducts = async () => {
     const categoryId = route.params.categoryId as string;
     if (!categoryId) {
-        router.push('/'); // Redirigir al inicio si no hay ID de categoría
+        router.push('/');
         return;
     }
 
     try {
         await loadProductsByCategory(categoryId);
+        await loadImageUrls(); // Cargar imágenes después de obtener los productos
     } catch (err) {
         console.error('Error al cargar productos de categoría:', err);
     }
@@ -283,9 +287,15 @@ watch(
     }
 );
 
-watch(() => productsByCategory.value, () => {
-    loadImageUrls();
-}, { immediate: true });
+watch(
+    () => productsByCategory.value,
+    async (newProducts) => {
+        if (newProducts && newProducts.length > 0) {
+            await loadImageUrls();
+        }
+    },
+    { immediate: true }
+);
 </script>
 
 <style scoped>

@@ -45,7 +45,7 @@
             </div>
 
             <div class="product-image">
-              <img :src="imageUrls[product.id] || '/api/placeholder/40/40'" :alt="product.name" />
+              <img :src="imageCache[product.id] || '/api/placeholder/40/40'" :alt="product.name" loading="lazy" />
             </div>
 
             <div class="product-info">
@@ -97,7 +97,9 @@ import { useToast } from '../composables/useToast';
 import type { Product } from '@/types/product.types';
 import type { CartItem } from '@/types/cart.types';
 import { uploadData, getUrl } from 'aws-amplify/storage';
+import { useImageCache } from '@/composables/useImageCache';
 
+const { imageCache, getImageUrl, preloadImages } = useImageCache();
 const imageUrls = ref<Record<string, string>>({});
 const { products, loading, error, loadProducts } = useProducts();
 const cartStore = useCartStore();
@@ -164,16 +166,15 @@ const parseMarkdown = (text: string): string => {
 };
 
 const loadImageUrls = async () => {
-  for (const product of products.value) {
-    if (product.imageUrl) {
-      try {
-        const { url } = await getUrl({ path: product.imageUrl });
-        imageUrls.value[product.id] = url.toString();
-      } catch (error) {
-        console.error("Error cargando imagen:", error);
-      }
-    }
-  }
+  if (!products.value) return;
+
+  // Precargar todas las imágenes
+  await preloadImages(
+    products.value.map(product => ({
+      id: product.id,
+      imageUrl: product.imageUrl || ''
+    }))
+  );
 };
 
 const hasUpcomingPromotion = (product: Product): boolean => {

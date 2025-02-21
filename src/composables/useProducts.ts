@@ -38,7 +38,13 @@ export function useProducts() {
     data: Partial<Product>,
     categoryIds?: string[]
   ) => {
-    return await productStore.updateProduct(id, data, categoryIds);
+    try {
+      const safeCategories = categoryIds || [];
+      return await productStore.updateProduct(id, data, safeCategories);
+    } catch (error) {
+      console.error("Error en composable updateProduct:", error);
+      throw error;
+    }
   };
 
   const deleteProduct = async (id: string) => {

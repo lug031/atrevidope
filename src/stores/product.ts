@@ -188,28 +188,30 @@ export const useProductStore = defineStore("product", () => {
         ...productData,
       });
 
-      // Obtener las relaciones existentes
-      const { data: existingRelations } =
-        await authClient.models.ProductCategory.list({
-          filter: { productID: { eq: id } },
-        });
+      if (categoryIds) {
+        // Obtener las relaciones existentes
+        const { data: existingRelations } =
+          await authClient.models.ProductCategory.list({
+            filter: { productID: { eq: id } },
+          });
 
-      // Eliminar las relaciones existentes
-      await Promise.all(
-        existingRelations.map((relation) =>
-          authClient.models.ProductCategory.delete({ id: relation.id })
-        )
-      );
+        // Eliminar las relaciones existentes
+        await Promise.all(
+          existingRelations.map((relation) =>
+            authClient.models.ProductCategory.delete({ id: relation.id })
+          )
+        );
 
-      // Crear las nuevas relaciones
-      await Promise.all(
-        categoryIds.map((categoryId) =>
-          authClient.models.ProductCategory.create({
-            productID: id,
-            categoryID: categoryId,
-          })
-        )
-      );
+        // Crear las nuevas relaciones
+        await Promise.all(
+          categoryIds.map((categoryId) =>
+            authClient.models.ProductCategory.create({
+              productID: id,
+              categoryID: categoryId,
+            })
+          )
+        );
+      }
 
       await fetchProducts();
       return updatedProduct;

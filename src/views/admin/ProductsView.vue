@@ -522,7 +522,7 @@ const insertMarkdown = (syntax: string) => {
     textarea.focus()
 }
 
-const decreaseStock = async (product: { stock: number; id: string; name: any }) => {
+const decreaseStock = async (product: Product) => {
     if (product.stock <= 0) return;
 
     try {
@@ -531,43 +531,47 @@ const decreaseStock = async (product: { stock: number; id: string; name: any }) 
             stock: product.stock - 1
         };
 
-        await updateProduct(product.id, updatedProduct);
+        // Obtener los IDs de las categorías actuales del producto
+        const categoryIds = product.categories?.map(cat => cat.id) || [];
 
-        // Añadir clase de animación al badge
+        await updateProduct(product.id, updatedProduct, categoryIds);
+
+        // Animación del badge
         const badge = document.querySelector(`[data-product-id="${product.id}"] .stock-badge`);
         if (badge) {
             badge.classList.add('animate');
             setTimeout(() => badge.classList.remove('animate'), 500);
         }
 
-        // Si el stock es bajo, mostrar una notificación
+        // Notificación de stock bajo
         if (updatedProduct.stock <= 5) {
-            // TODO: Implementar sistema de notificaciones
             showToast({
                 type: 'warning',
                 message: `Stock bajo para ${product.name}: ${updatedProduct.stock} unidades`
             });
         }
     } catch (error) {
+        console.error('Error al actualizar el stock:', error);
         showToast({
             type: 'error',
-            message: `Error al actualizar el stock`
+            message: 'Error al actualizar el stock'
         });
-        console.error('Error al actualizar el stock:', error);
-        // TODO: Mostrar mensaje de error al usuario
     }
 };
 
-const increaseStock = async (product: { stock: number; id: string }) => {
+const increaseStock = async (product: Product) => {
     try {
         const updatedProduct = {
             ...product,
             stock: product.stock + 1
         };
 
-        await updateProduct(product.id, updatedProduct);
+        // Obtener los IDs de las categorías actuales del producto
+        const categoryIds = product.categories?.map(cat => cat.id) || [];
 
-        // Añadir clase de animación al badge
+        await updateProduct(product.id, updatedProduct, categoryIds);
+
+        // Animación del badge
         const badge = document.querySelector(`[data-product-id="${product.id}"] .stock-badge`);
         if (badge) {
             badge.classList.add('animate');
@@ -575,7 +579,10 @@ const increaseStock = async (product: { stock: number; id: string }) => {
         }
     } catch (error) {
         console.error('Error al actualizar el stock:', error);
-        // TODO: Mostrar mensaje de error al usuario
+        showToast({
+            type: 'error',
+            message: 'Error al actualizar el stock'
+        });
     }
 };
 

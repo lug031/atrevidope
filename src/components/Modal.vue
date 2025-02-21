@@ -13,35 +13,32 @@
                 </div>
 
                 <!-- Loading Overlay -->
-                <Transition 
-                    enter-active-class="transition-opacity duration-200" 
-                    enter-from-class="opacity-0"
-                    enter-to-class="opacity-100" 
-                    leave-active-class="transition-opacity duration-200"
-                    leave-from-class="opacity-100" 
-                    leave-to-class="opacity-0"
-                >
-                    <div v-if="loading" class="cart-loading-overlay">
-                        <div class="loading-spinner"></div>
-                        <span class="loading-text">{{ loadingText || 'Cargando...' }}</span>
+                <Transition enter-active-class="transition-opacity duration-200" enter-from-class="opacity-0"
+                    enter-to-class="opacity-100" leave-active-class="transition-opacity duration-200"
+                    leave-from-class="opacity-100" leave-to-class="opacity-0">
+                    <div v-if="loading" class="loading-overlay">
+                        <div class="loading-spinner">
+                            <Loader2Icon :size="40" class="animate-spin" />
+                        </div>
+                        <span class="loading-text">{{ loadingText || 'Procesando...' }}</span>
                     </div>
                 </Transition>
             </div>
         </div>
     </Transition>
 
-    <!-- Confirmation Modal -->
+    <!-- Confirmation Dialog -->
     <Transition name="modal">
         <div v-if="showConfirmDialog" class="modal-overlay confirmation-overlay">
-            <div class="modal-container confirmation-container">
-                <div class="modal-header">
-                    <h2 class="modal-title">Confirmar salida</h2>
+            <div class="confirmation-container">
+                <div class="confirmation-header">
+                    <h3 class="confirmation-title">Confirmar salida</h3>
                 </div>
-                <div class="modal-content">
+                <div class="confirmation-content">
                     <p class="confirmation-message">
                         ¿Estás seguro que deseas salir?
                     </p>
-                    <div class="confirmation-buttons">
+                    <div class="confirmation-actions">
                         <button class="button cancel-button" @click="showConfirmDialog = false" :disabled="loading">
                             Cancelar
                         </button>
@@ -56,13 +53,14 @@
 </template>
 
 <script setup lang="ts">
-import { XIcon, Loader2Icon } from 'lucide-vue-next'
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { XIcon, Loader2Icon } from 'lucide-vue-next'
 
 const props = defineProps<{
     title: string
     loading?: boolean
     loadingText?: string
+    preventClose?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -73,19 +71,19 @@ const isOpen = ref(true)
 const showConfirmDialog = ref(false)
 
 const handleOverlayClick = () => {
-    if (!props.loading) {
+    if (!props.loading && !props.preventClose) {
         showConfirmation()
     }
 }
 
 const showConfirmation = () => {
-    if (!props.loading) {
+    if (!props.loading && !props.preventClose) {
         showConfirmDialog.value = true
     }
 }
 
 const handleClose = () => {
-    if (!props.loading) {
+    if (!props.loading && !props.preventClose) {
         showConfirmDialog.value = false
         isOpen.value = false
         setTimeout(() => {
@@ -95,25 +93,19 @@ const handleClose = () => {
 }
 
 const handleKeyDown = (event: KeyboardEvent) => {
-    if (event.key === 'Escape' && !props.loading) {
+    if (event.key === 'Escape' && !props.loading && !props.preventClose) {
         showConfirmation()
     }
 }
 
 onMounted(() => {
     document.addEventListener('keydown', handleKeyDown)
+    document.body.style.overflow = 'hidden'
 })
 
 onBeforeUnmount(() => {
     document.removeEventListener('keydown', handleKeyDown)
-})
-
-watch(isOpen, (newValue) => {
-    if (newValue) {
-        document.body.style.overflow = 'hidden'
-    } else {
-        document.body.style.overflow = ''
-    }
+    document.body.style.overflow = ''
 })
 </script>
 
@@ -131,76 +123,36 @@ watch(isOpen, (newValue) => {
     z-index: 1000;
 }
 
-.confirmation-overlay {
-    z-index: 1001;
-}
-
 .modal-container {
     background: white;
-    border-radius: 0.5rem;
-    width: 90%;
-    max-width: 500px;
+    border-radius: 0.75rem;
+    width: 95%;
+    max-width: 900px;
+    min-height: 200px;
     max-height: 90vh;
     overflow: hidden;
     position: relative;
-    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
     display: flex;
     flex-direction: column;
-}
-
-/* Loading Overlay - Nuevo estilo que coincide con el cart-loading-overlay */
-.cart-loading-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(255, 255, 255, 0.8);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-}
-
-.loading-spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid #f3f3f3;
-    border-top: 3px solid #3498db;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: 0.5rem;
-}
-
-.loading-text {
-    color: #666;
-    font-size: 0.875rem;
-    margin-top: 0.5rem;
-}
-
-.modal-container.is-loading {
-    pointer-events: none;
-}
-
-.confirmation-container {
-    max-width: 400px;
+    transform: translateY(0);
+    transition: transform 0.3s ease;
 }
 
 .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 1.5rem;
+    padding: 1.25rem 1.5rem;
     border-bottom: 1px solid #e2e8f0;
     background-color: white;
     position: sticky;
     top: 0;
-    z-index: 1;
+    z-index: 10;
 }
 
 .modal-title {
-    font-size: 1.25rem;
+    font-size: 1.5rem;
     font-weight: 600;
     color: #0f172a;
     margin: 0;
@@ -210,16 +162,17 @@ watch(isOpen, (newValue) => {
     background: none;
     border: none;
     padding: 0.5rem;
+    margin: -0.5rem;
     cursor: pointer;
     color: #64748b;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 0.375rem;
-    transition: all 0.2s;
 }
 
-.close-button:not(:disabled):hover {
+.close-button:hover:not(:disabled) {
     background-color: #f1f5f9;
     color: #0f172a;
 }
@@ -230,44 +183,65 @@ watch(isOpen, (newValue) => {
 }
 
 .modal-content {
-    padding: 1.5rem;
+    padding: 1.5rem 2rem;
     overflow-y: auto;
-    position: relative;
     flex: 1;
 }
 
 /* Loading Overlay */
 .loading-overlay {
-    position: fixed;
+    position: absolute;
     inset: 0;
     background-color: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(4px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    z-index: 20;
+}
+
+.loading-spinner {
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1010;
-}
-
-.loader-container {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-    background-color: white;
-    padding: 2rem;
-    border-radius: 0.5rem;
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    z-index: 1011;
+    color: #3b82f6;
 }
 
 .loading-text {
-    color: #0f172a;
-    font-size: 0.875rem;
+    color: #1e293b;
+    font-size: 1rem;
     font-weight: 500;
+}
+
+/* Confirmation Dialog */
+.confirmation-overlay {
+    z-index: 1100;
+}
+
+.confirmation-container {
+    background: white;
+    border-radius: 0.75rem;
+    width: 95%;
+    max-width: 400px;
+    overflow: hidden;
+    box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+}
+
+.confirmation-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.confirmation-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #0f172a;
+    margin: 0;
+}
+
+.confirmation-content {
+    padding: 1.5rem;
 }
 
 .confirmation-message {
@@ -276,23 +250,50 @@ watch(isOpen, (newValue) => {
     color: #0f172a;
 }
 
-.confirmation-buttons {
+.confirmation-actions {
     display: flex;
-    justify-content: center;
-    gap: 1rem;
+    justify-content: flex-end;
+    gap: 0.75rem;
 }
 
+/* Buttons */
 .button {
     padding: 0.5rem 1rem;
-    border-radius: 0.375rem;
+    border-radius: 0.5rem;
     font-weight: 500;
+    font-size: 0.875rem;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 5rem;
 }
 
 .button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+}
+
+.button.primary {
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+}
+
+.button.primary:hover:not(:disabled) {
+    background-color: #2563eb;
+}
+
+.button.secondary {
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+
+.button.secondary:hover:not(:disabled) {
+    background-color: #e2e8f0;
+    color: #1e293b;
 }
 
 .cancel-button {
@@ -316,10 +317,54 @@ watch(isOpen, (newValue) => {
     background-color: #dc2626;
 }
 
+/* Form Grid Layout */
+:deep(.form-grid) {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+:deep(.form-group) {
+    margin-bottom: 1rem;
+}
+
+:deep(.form-group.full-width) {
+    grid-column: 1 / -1;
+}
+
+:deep(.form-label) {
+    display: block;
+    font-weight: 500;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+}
+
+:deep(.form-input) {
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    background-color: white;
+    color: #0f172a;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+:deep(.form-input:focus) {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+:deep(.form-input:disabled) {
+    background-color: #f8fafc;
+    cursor: not-allowed;
+}
+
 /* Animations */
 .modal-enter-active,
 .modal-leave-active {
-    transition: all 0.3s ease;
+    transition: opacity 0.3s ease;
 }
 
 .modal-enter-from,
@@ -333,11 +378,7 @@ watch(isOpen, (newValue) => {
 }
 
 @keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
+    to {
         transform: rotate(360deg);
     }
 }
@@ -347,37 +388,49 @@ watch(isOpen, (newValue) => {
 }
 
 /* Scrollbar Styles */
-.modal-container {
+.modal-content {
     scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 #f1f5f9;
+    scrollbar-color: #cbd5e1 #f8fafc;
 }
 
-.modal-container::-webkit-scrollbar {
-    width: 8px;
+.modal-content::-webkit-scrollbar {
+    width: 6px;
 }
 
-.modal-container::-webkit-scrollbar-track {
-    background: #f1f5f9;
+.modal-content::-webkit-scrollbar-track {
+    background: #f8fafc;
 }
 
-.modal-container::-webkit-scrollbar-thumb {
+.modal-content::-webkit-scrollbar-thumb {
     background-color: #cbd5e1;
-    border-radius: 4px;
-    border: 2px solid #f1f5f9;
+    border-radius: 3px;
 }
 
-@media (max-width: 640px) {
+/* Responsive Design */
+@media (max-width: 768px) {
     .modal-container {
-        width: 95%;
-        max-height: 95vh;
-    }
-
-    .modal-header {
-        padding: 0.75rem 1rem;
+        width: 100%;
+        height: 100%;
+        max-height: none;
+        border-radius: 0;
     }
 
     .modal-content {
-        padding: 1rem;
+        padding: 1rem 1.25rem;
+    }
+
+    :deep(.form-grid) {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .modal-header {
+        padding: 1rem 1.25rem;
+    }
+
+    .modal-title {
+        font-size: 1.25rem;
     }
 }
 </style>

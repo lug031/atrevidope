@@ -871,6 +871,10 @@ const handleDelete = async (id: string) => {
     if (confirm('¿Estás seguro de que quieres eliminar este producto?')) {
         try {
             await deleteProduct(id)
+            showToast({
+                type: 'success',
+                message: 'Producto eliminado con éxito'
+            })
         } catch (error) {
             console.error('Error:', error)
         }
@@ -1205,6 +1209,10 @@ watch(products, loadImageUrls, { immediate: true });
     align-items: center;
     margin-bottom: 1rem;
     width: 100%;
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
 }
 
 .categories-container {

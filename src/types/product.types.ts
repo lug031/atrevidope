@@ -12,9 +12,9 @@ export interface Product {
   stock: number;
   active: boolean;
   isPromoted: boolean;
+  categories?: Category[];
   imageUrl: string;
   promotionStartDate: string;
   promotionEndDate: string;
   promotionType: string;
-  categories?: Category[];
 }

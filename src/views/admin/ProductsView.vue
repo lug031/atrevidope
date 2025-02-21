@@ -793,33 +793,49 @@ const handleSubmit = async () => {
         showToast({
             type: 'error',
             message: formError.value
-        })
-        return
+        });
+        return;
     }
 
     try {
-        const imageUrl = await uploadImage()
+        const imageUrl = await uploadImage();
 
-        const productData = {
-            ...formData.value,
-            imageUrl: imageUrl || formData.value.imageUrl
-        }
+        // Asegurarnos de que el productData coincida con la interfaz Product
+        const productData: Omit<Product, 'id' | 'categories'> = {
+            name: formData.value.name,
+            brand: formData.value.brand,
+            description: formData.value.description,
+            price: formData.value.price,
+            originalPrice: formData.value.originalPrice,
+            discountPercentage: formData.value.discountPercentage,
+            stock: formData.value.stock,
+            active: formData.value.active,
+            isPromoted: formData.value.isPromoted,
+            imageUrl: imageUrl || formData.value.imageUrl,
+            promotionStartDate: formData.value.promotionStartDate || '',
+            promotionEndDate: formData.value.promotionEndDate || '',
+            promotionType: formData.value.promotionType || 'discount'
+        };
 
         if (editingId.value) {
-            await updateProduct(editingId.value, productData, formData.value.categoryIDs)
+            await updateProduct(editingId.value, productData, formData.value.categoryIDs);
         } else {
-            await createProduct(productData, formData.value.categoryIDs)
+            await createProduct(productData, formData.value.categoryIDs);
         }
 
-        handleCloseModal()
+        handleCloseModal();
+        showToast({
+            type: 'success',
+            message: editingId.value ? 'Producto actualizado con éxito' : 'Producto creado con éxito'
+        });
     } catch (error) {
-        console.error('Error:', error)
+        console.error('Error al procesar el producto:', error);
         showToast({
             type: 'error',
             message: 'Error al guardar el producto'
-        })
+        });
     }
-}
+};
 
 watch(() => formData.value.isPromoted, (newValue) => {
     if (!newValue) {

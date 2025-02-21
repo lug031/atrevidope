@@ -107,7 +107,8 @@ export const useProductStore = defineStore("product", () => {
       const products = await Promise.all(productsPromises);
 
       productsByCategory.value = products.filter(
-        (product): product is NonNullable<typeof product> => product !== null && product.active === true
+        (product): product is NonNullable<typeof product> =>
+          product !== null && product.active === true
       ) as unknown as Product[];
     } catch (err) {
       console.error("Error fetching products by category:", err);
@@ -136,32 +137,33 @@ export const useProductStore = defineStore("product", () => {
   };
 
   const createProduct = async (
-    productData: Omit<Product, "id">,
+    productData: Omit<Product, "id" | "categories">,
     categoryIds: string[]
   ) => {
     loading.value = true;
     try {
-      const { data: newProduct } = await authClient.models.Product.create(
-        productData
-      );
+      // Crear el producto
+      const { data: newProduct } = await authClient.models.Product.create({
+        ...productData,
+      });
 
-      if (!newProduct) {
-        throw new Error("Error al crear el producto: producto es null");
+      if (!newProduct || !newProduct.id) {
+        throw new Error(
+          "Error al crear el producto: respuesta inválida del servidor"
+        );
       }
 
-      if (!newProduct.id) {
-        throw new Error("Error al crear el producto: ID es null");
-      }
-
-      await Promise.all(
-        categoryIds.map((categoryId) =>
-          authClient.models.ProductCategory.create({
-            productID: newProduct.id,
-            categoryID: categoryId,
-          })
-        )
+      // Crear las relaciones con las categorías
+      const productCategoryPromises = categoryIds.map((categoryId) =>
+        authClient.models.ProductCategory.create({
+          productID: newProduct.id,
+          categoryID: categoryId,
+        })
       );
 
+      await Promise.all(productCategoryPromises);
+
+      // Recargar los productos
       await fetchProducts();
       return newProduct;
     } catch (err) {
@@ -175,52 +177,44 @@ export const useProductStore = defineStore("product", () => {
 
   const updateProduct = async (
     id: string,
-    productData: Partial<Product>,
-    categoryIds?: string[]
+    productData: Partial<Omit<Product, "id" | "categories">>,
+    categoryIds: string[]
   ) => {
     loading.value = true;
     try {
-      const { id: _, categories: __, ...updateData } = productData;
-
+      // Actualizar el producto
       const { data: updatedProduct } = await authClient.models.Product.update({
         id,
-        ...updateData,
+        ...productData,
       });
 
-      if (!updatedProduct) {
-        throw new Error("Error al actualizar el producto: producto es null");
-      }
+      // Obtener las relaciones existentes
+      const { data: existingRelations } =
+        await authClient.models.ProductCategory.list({
+          filter: { productID: { eq: id } },
+        });
 
-      if (categoryIds) {
-        const { data: existingRelations } =
-          await authClient.models.ProductCategory.list({
-            filter: { productID: { eq: id } },
-          });
+      // Eliminar las relaciones existentes
+      await Promise.all(
+        existingRelations.map((relation) =>
+          authClient.models.ProductCategory.delete({ id: relation.id })
+        )
+      );
 
-        if (existingRelations) {
-          await Promise.all(
-            existingRelations.map((relation) =>
-              relation.id
-                ? authClient.models.ProductCategory.delete({ id: relation.id })
-                : Promise.resolve()
-            )
-          );
-        }
-
-        await Promise.all(
-          categoryIds.map((categoryId) =>
-            authClient.models.ProductCategory.create({
-              productID: id,
-              categoryID: categoryId,
-            })
-          )
-        );
-      }
+      // Crear las nuevas relaciones
+      await Promise.all(
+        categoryIds.map((categoryId) =>
+          authClient.models.ProductCategory.create({
+            productID: id,
+            categoryID: categoryId,
+          })
+        )
+      );
 
       await fetchProducts();
       return updatedProduct;
     } catch (err) {
-      error.value = "Error al actualizar producto";
+      error.value = "Error al crear producto";
       console.error(err);
       throw err;
     } finally {

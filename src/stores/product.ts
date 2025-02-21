@@ -23,7 +23,50 @@ export const useProductStore = defineStore("product", () => {
     loading.value = true;
     try {
       const { data: items } = await publicClient.models.Product.list();
-      products.value = items as unknown as Product[];
+
+      if (!items) {
+        throw new Error("Error al obtener productos: items es null");
+      }
+
+      const productsWithCategories = await Promise.all(
+        items.map(async (product) => {
+          const { data: productCategories } =
+            await publicClient.models.ProductCategory.list({
+              filter: {
+                productID: { eq: product.id },
+              },
+            });
+
+          if (!productCategories) {
+            return { ...product, categories: [] };
+          }
+
+          const categoriesPromises = productCategories
+            .filter((pc) => pc.categoryID !== null)
+            .map(async (pc) => {
+              if (pc.categoryID) {
+                const { data: category } =
+                  await publicClient.models.Category.get({
+                    id: pc.categoryID,
+                  });
+                return category;
+              }
+              return null;
+            });
+
+          const categories = await Promise.all(categoriesPromises);
+
+          return {
+            ...product,
+            categories: categories.filter(
+              (category): category is NonNullable<typeof category> =>
+                category !== null
+            ),
+          };
+        })
+      );
+
+      products.value = productsWithCategories as unknown as Product[];
     } catch (err) {
       error.value = "Error al cargar productos";
       console.error(err);
@@ -37,13 +80,35 @@ export const useProductStore = defineStore("product", () => {
     error.value = null;
 
     try {
-      const { data: items } = await publicClient.models.Product.list({
-        filter: {
-          and: [{ categoryID: { eq: categoryId } }, { active: { eq: true } }],
-        },
-      });
+      const { data: productCategories } =
+        await publicClient.models.ProductCategory.list({
+          filter: {
+            categoryID: { eq: categoryId },
+          },
+        });
 
-      productsByCategory.value = items as unknown as Product[];
+      if (!productCategories) {
+        productsByCategory.value = [];
+        return;
+      }
+
+      const productsPromises = productCategories
+        .filter((pc) => pc.productID !== null)
+        .map(async (pc) => {
+          if (pc.productID) {
+            const { data: product } = await publicClient.models.Product.get({
+              id: pc.productID,
+            });
+            return product;
+          }
+          return null;
+        });
+
+      const products = await Promise.all(productsPromises);
+
+      productsByCategory.value = products.filter(
+        (product): product is NonNullable<typeof product> => product !== null && product.active === true
+      ) as unknown as Product[];
     } catch (err) {
       console.error("Error fetching products by category:", err);
       error.value = "Error al cargar productos de la categoría";
@@ -58,14 +123,7 @@ export const useProductStore = defineStore("product", () => {
     try {
       const { data: items } = await publicClient.models.Product.list({
         filter: {
-          and: [
-            {
-              isPromoted: { eq: false },
-            },
-            {
-              active: { eq: true },
-            },
-          ],
+          and: [{ isPromoted: { eq: false } }, { active: { eq: true } }],
         },
       });
       productsWeb.value = items as unknown as Product[];
@@ -77,12 +135,33 @@ export const useProductStore = defineStore("product", () => {
     }
   };
 
-  const createProduct = async (productData: Omit<Product, "id">) => {
+  const createProduct = async (
+    productData: Omit<Product, "id">,
+    categoryIds: string[]
+  ) => {
     loading.value = true;
     try {
       const { data: newProduct } = await authClient.models.Product.create(
         productData
       );
+
+      if (!newProduct) {
+        throw new Error("Error al crear el producto: producto es null");
+      }
+
+      if (!newProduct.id) {
+        throw new Error("Error al crear el producto: ID es null");
+      }
+
+      await Promise.all(
+        categoryIds.map((categoryId) =>
+          authClient.models.ProductCategory.create({
+            productID: newProduct.id,
+            categoryID: categoryId,
+          })
+        )
+      );
+
       await fetchProducts();
       return newProduct;
     } catch (err) {
@@ -94,14 +173,50 @@ export const useProductStore = defineStore("product", () => {
     }
   };
 
-  const updateProduct = async (id: string, productData: Partial<Product>) => {
+  const updateProduct = async (
+    id: string,
+    productData: Partial<Product>,
+    categoryIds?: string[]
+  ) => {
     loading.value = true;
     try {
-      const { id: _, ...updateData } = productData;
+      const { id: _, categories: __, ...updateData } = productData;
+
       const { data: updatedProduct } = await authClient.models.Product.update({
         id,
         ...updateData,
       });
+
+      if (!updatedProduct) {
+        throw new Error("Error al actualizar el producto: producto es null");
+      }
+
+      if (categoryIds) {
+        const { data: existingRelations } =
+          await authClient.models.ProductCategory.list({
+            filter: { productID: { eq: id } },
+          });
+
+        if (existingRelations) {
+          await Promise.all(
+            existingRelations.map((relation) =>
+              relation.id
+                ? authClient.models.ProductCategory.delete({ id: relation.id })
+                : Promise.resolve()
+            )
+          );
+        }
+
+        await Promise.all(
+          categoryIds.map((categoryId) =>
+            authClient.models.ProductCategory.create({
+              productID: id,
+              categoryID: categoryId,
+            })
+          )
+        );
+      }
+
       await fetchProducts();
       return updatedProduct;
     } catch (err) {
@@ -116,6 +231,20 @@ export const useProductStore = defineStore("product", () => {
   const deleteProduct = async (id: string) => {
     loading.value = true;
     try {
+      const { data: relations } = await authClient.models.ProductCategory.list({
+        filter: { productID: { eq: id } },
+      });
+
+      if (relations) {
+        await Promise.all(
+          relations.map((relation) =>
+            relation.id
+              ? authClient.models.ProductCategory.delete({ id: relation.id })
+              : Promise.resolve()
+          )
+        );
+      }
+
       await authClient.models.Product.delete({ id });
       await fetchProducts();
     } catch (err) {

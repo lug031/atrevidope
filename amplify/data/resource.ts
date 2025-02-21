@@ -6,7 +6,7 @@ const schema = a.schema({
       name: a.string(),
       description: a.string(),
       active: a.boolean(),
-      products: a.hasMany("Product", "categoryID"),
+      products: a.hasMany("ProductCategory", "categoryID"),
     })
     .authorization((allow) => [
       allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
@@ -25,8 +25,7 @@ const schema = a.schema({
       stock: a.integer(),
       active: a.boolean(),
       isPromoted: a.boolean(),
-      categoryID: a.string(),
-      category: a.belongsTo("Category", "categoryID"),
+      categories: a.hasMany("ProductCategory", "productID"),
       imageUrl: a.string(),
       promotionStartDate: a.string(),
       promotionEndDate: a.string(),
@@ -38,6 +37,20 @@ const schema = a.schema({
       allow.authenticated().to(["read"]),
       allow.publicApiKey().to(["read"]),
     ]),
+
+  ProductCategory: a
+    .model({
+      productID: a.string(),
+      categoryID: a.string(),
+      product: a.belongsTo("Product", "productID"),
+      category: a.belongsTo("Category", "categoryID"),
+    })
+    .authorization((allow) => [
+      allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
+      allow.authenticated().to(["read"]),
+      allow.publicApiKey().to(["read"]),
+    ]),
+
   Cart: a
     .model({
       userID: a.string(),
@@ -71,6 +84,7 @@ const schema = a.schema({
       allow.authenticated().to(["read"]),
       allow.publicApiKey().to(["read"]),
     ]),
+
   Order: a
     .model({
       // Customer Info como campos individuales

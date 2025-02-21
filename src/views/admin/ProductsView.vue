@@ -295,7 +295,7 @@
                 </div>
 
                 <!-- Campo de categoría -->
-                <div class="form-group">
+                <!-- <div class="form-group">
                     <label for="category">Categoría</label>
                     <select id="category" v-model="formData.categoryID" class="form-input" required>
                         <option value="">Selecciona una categoría</option>
@@ -304,6 +304,26 @@
                             {{ category.name }}
                         </option>
                     </select>
+                </div> -->
+
+                <div class="form-group">
+                    <label>Categorías</label>
+                    <div class="categories-container">
+                        <div class="categories-tags">
+                            <button v-for="category in categories" :key="category.id" type="button" :class="[
+                                'category-tag',
+                                formData.categoryIDs.includes(category.id) ? 'selected' : '',
+                                !category.active ? 'disabled' : ''
+                            ]" :disabled="!category.active" @click="toggleCategory(category.id)">
+                                {{ category.name }}
+                                <XIcon v-if="formData.categoryIDs.includes(category.id)" :size="14"
+                                    class="remove-icon" />
+                            </button>
+                        </div>
+                        <span v-if="formData.categoryIDs.length === 0" class="categories-hint">
+                            Selecciona al menos una categoría
+                        </span>
+                    </div>
                 </div>
 
                 <!-- Campo de imagen
@@ -396,6 +416,11 @@ const formError = ref('')
 const validateForm = (): boolean => {
     // Limpiamos error previo
     formError.value = ''
+
+    if (formData.value.categoryIDs.length === 0) {
+        formError.value = 'Debes seleccionar al menos una categoría'
+        return false
+    }
 
     // Validamos que si hay promoción, el descuento debe ser mayor a 0
     if (formData.value.isPromoted && (!formData.value.discountPercentage || formData.value.discountPercentage <= 0)) {
@@ -590,11 +615,20 @@ const initialFormData = {
     stock: 0,
     active: true,
     isPromoted: false,
-    categoryID: '',
+    categoryIDs: [] as string[],
     imageUrl: '',
     promotionStartDate: '',
     promotionEndDate: '',
     promotionType: 'discount'
+}
+
+const toggleCategory = (categoryId: string) => {
+    const index = formData.value.categoryIDs.indexOf(categoryId);
+    if (index === -1) {
+        formData.value.categoryIDs.push(categoryId);
+    } else {
+        formData.value.categoryIDs.splice(index, 1);
+    }
 }
 
 const formData = ref({ ...initialFormData })
@@ -733,7 +767,7 @@ const handleEdit = (product: Product) => {
         stock: product.stock,
         active: product.active,
         isPromoted: product.isPromoted,
-        categoryID: product.categoryID,
+        categoryIDs: product.categories?.map(cat => cat.id) || [],
         imageUrl: product.imageUrl || '',
         promotionStartDate: product.promotionStartDate || '',
         promotionEndDate: product.promotionEndDate || '',
@@ -772,9 +806,9 @@ const handleSubmit = async () => {
         }
 
         if (editingId.value) {
-            await updateProduct(editingId.value, productData)
+            await updateProduct(editingId.value, productData, formData.value.categoryIDs)
         } else {
-            await createProduct(productData)
+            await createProduct(productData, formData.value.categoryIDs)
         }
 
         handleCloseModal()
@@ -1139,6 +1173,59 @@ watch(products, loadImageUrls, { immediate: true });
     align-items: center;
     margin-bottom: 1rem;
     width: 100%;
+}
+
+.categories-container {
+    width: 100%;
+}
+
+.categories-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.category-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    border: 1px solid #e2e8f0;
+    background-color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.category-tag:hover:not(.disabled) {
+    background-color: #f1f5f9;
+}
+
+.category-tag.selected {
+    background-color: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+.category-tag.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.categories-hint {
+    display: block;
+    color: #64748b;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+}
+
+.remove-icon {
+    opacity: 0.7;
+}
+
+.remove-icon:hover {
+    opacity: 1;
 }
 
 .search-filter {

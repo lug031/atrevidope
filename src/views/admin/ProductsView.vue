@@ -1543,7 +1543,20 @@ watch(products, loadImageUrls, { immediate: true });
     background: #e2e8f0;
 }
 
-.loading-state,
+/* Loading State */
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    gap: 1rem;
+}
+
+/* Error State */
 .error-state {
     display: flex;
     flex-direction: column;
@@ -1691,5 +1704,15 @@ watch(products, loadImageUrls, { immediate: true });
     background-color: #dcfce7;
     border-color: #bbf7d0;
     color: #16a34a;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 </style>

@@ -359,7 +359,7 @@ watch(isAuthenticated, async (newValue) => {
 
 <style scoped>
 .main-nav {
-    padding: 1rem 2rem;
+    padding: 1rem;
     border-bottom: 1px solid #eee;
     background-color: white;
     position: sticky;
@@ -444,7 +444,7 @@ watch(isAuthenticated, async (newValue) => {
 .nav-right {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
+    gap: 0.75rem;
 }
 
 .icon-button {
@@ -900,6 +900,42 @@ watch(isAuthenticated, async (newValue) => {
     .mobile-search-results .product-thumbnail {
         width: 50px;
         height: 50px;
+    }
+}
+
+@media (max-width: 768px) {
+    .nav-content {
+        padding: 0 0.5rem;
+        /* Reducido el padding horizontal */
+    }
+
+    .icon-button {
+        padding: 6px;
+        /* Reducido de 8px a 6px */
+    }
+
+    .logo-link {
+        width: 120px;
+        /* Reducido de 150px */
+    }
+
+    /* Ajustar el contenedor de órdenes para móvil */
+    .orders-container {
+        margin-right: 0.25rem;
+        /* Añadir un pequeño margen a la derecha */
+    }
+
+    /* Ajustar el espacio entre los iconos */
+    .nav-right {
+        gap: 0.5rem;
+        /* Reducido aún más el espacio entre elementos */
+    }
+
+    /* Asegurar que los iconos no se deformen */
+    .orders-icon,
+    .cart-icon,
+    .user-icon {
+        min-width: 24px;
     }
 }
 </style>

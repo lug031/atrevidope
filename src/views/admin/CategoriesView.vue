@@ -450,7 +450,20 @@ onMounted(loadCategories)
     background: #e2e8f0;
 }
 
-.loading-state,
+/* Loading State */
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    gap: 1rem;
+}
+
+/* Error State */
 .error-state {
     display: flex;
     flex-direction: column;
@@ -461,6 +474,10 @@ onMounted(loadCategories)
     border-radius: 0.5rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     gap: 1rem;
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
 }
 
 .form-group {
@@ -506,5 +523,15 @@ onMounted(loadCategories)
     font-weight: 500;
     cursor: pointer;
     transition: background-color 0.2s;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 </style>

@@ -172,31 +172,29 @@
                         <div v-for="item in selectedOrder?.items" :key="item.productID" class="order-item">
                             <div class="item-info">
                                 <img :src="productImages[item.productID] || '/api/placeholder/60/60'"
-                                    :alt="orderProducts[item.productID]?.name" class="item-image" />
+                                    :alt="item.productSnapshot?.name" class="item-image" />
                                 <div class="item-details">
                                     <div class="item-header">
                                         <span class="item-name"
-                                            v-html="truncateProductName(orderProducts[item.productID]?.name)"></span>
-                                        <!-- <span class="item-brand">{{ orderProducts[item.productID]?.brand }}</span>-->
+                                            v-html="truncateProductName(item.productSnapshot?.name)"></span>
+                                        <span class="item-brand">{{ item.productSnapshot?.brand }}</span>
                                     </div>
                                     <div class="item-pricing">
                                         <div class="quantity-info">
                                             <span class="item-quantity">Cantidad: {{ item.quantity }}</span>
-                                            <span class="stock-info" v-if="orderProducts[item.productID]">
-                                                Stock disponible: {{ orderProducts[item.productID].stock }}
-                                            </span>
+                                            <!-- Ya no mostramos stock actual -->
                                         </div>
                                         <div class="price-details">
                                             <div class="price-group">
                                                 <span class="original-price"
-                                                    v-if="orderProducts[item.productID]?.originalPrice !== item.price">
-                                                    S/{{ formatPrice(orderProducts[item.productID]?.originalPrice) }}
+                                                    v-if="item.productSnapshot?.originalPrice !== item.price">
+                                                    S/{{ formatPrice(item.productSnapshot?.originalPrice) }}
                                                 </span>
                                                 <span class="current-price">S/{{ formatPrice(item.price) }}</span>
                                             </div>
                                             <span class="discount-badge"
-                                                v-if="orderProducts[item.productID]?.discountPercentage > 0">
-                                                -{{ orderProducts[item.productID]?.discountPercentage }}%
+                                                v-if="item.productSnapshot?.discountPercentage > 0">
+                                                -{{ item.productSnapshot?.discountPercentage }}%
                                             </span>
                                         </div>
                                     </div>
@@ -251,53 +249,39 @@ import type { Order } from '@/types/order.types'
 import ModalOrder from '@/components/ModalOrder.vue'
 import { useToast } from '@/composables/useToast'
 
-const {
-    orders,
-    loading,
-    error,
-    loadOrders,
-    updateOrderStatus,
-    orderStats
-} = useOrders()
+const { orders, loading, error, loadOrders, updateOrderStatus, orderStats } = useOrders()
 
 const { showToast } = useToast()
 
 const searchQuery = ref('')
 const showDetailsModal = ref(false)
 const selectedOrder = ref<Order | null>(null)
-const orderProducts = ref<Record<string, Product>>({})
+//const orderProducts = ref<Record<string, Product>>({})
 const productImages = ref<Record<string, string>>({})
 
-const { products, loadProducts } = useProducts()
+//const { products, loadProducts } = useProducts()
 
 const loadOrderProducts = async () => {
     if (!selectedOrder.value) return
-
-    // Si los productos no están cargados, cargarlos primero
-    if (products.value.length === 0) {
-        await loadProducts()
-    }
-
-    // Asociar productos con items de la orden
-    selectedOrder.value.items.forEach(item => {
-        const product = products.value.find(p => p.id === item.productID)
-        if (product) {
-            orderProducts.value[item.productID] = product
-        }
-    })
+    // Ya no necesitamos cargar productos existentes
 }
 
 const loadProductImages = async () => {
     if (!selectedOrder.value) return
 
     for (const item of selectedOrder.value.items) {
-        const product = orderProducts.value[item.productID]
-        if (product?.imageUrl) {
-            try {
-                const { url } = await getUrl({ path: product.imageUrl })
-                productImages.value[item.productID] = url.toString()
-            } catch (error) {
-                console.error("Error loading product image:", error)
+        if (item.productSnapshot?.imageUrl) {
+            if (item.productSnapshot.imageUrl.startsWith('data:')) {
+                // Si la imagen está en base64
+                productImages.value[item.productID] = item.productSnapshot.imageUrl;
+            } else {
+                // Si es una URL de S3
+                try {
+                    const { url } = await getUrl({ path: item.productSnapshot.imageUrl })
+                    productImages.value[item.productID] = url.toString()
+                } catch (error) {
+                    console.error("Error loading product image:", error)
+                }
             }
         }
     }

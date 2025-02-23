@@ -185,14 +185,15 @@
                                 <div v-for="item in cartItems" :key="item.id" class="cart-item">
                                     <div class="item-container">
                                         <img :src="imageUrls[item.productID] || '/api/placeholder/80/80'"
-                                            :alt="productDetails[item.productID]?.name" class="item-image">
+                                            :alt="item.product?.name || 'Producto'" class="item-image">
                                         <div class="item-details">
-                                            <div class="item-name">{{ productDetails[item.productID]?.name }}</div>
+                                            <div class="item-name">{{ item.product?.name || 'Producto no disponible' }}
+                                            </div>
                                             <div class="item-quantity">
                                                 Cantidad: {{ item.quantity }}
-                                                <span v-if="productDetails[item.productID]?.stock < item.quantity"
+                                                <span v-if="(item.product?.stock ?? 0) < item.quantity"
                                                     class="stock-alert">
-                                                    (Stock disponible: {{ productDetails[item.productID]?.stock }})
+                                                    (Stock disponible: {{ item.product?.stock ?? 0 }})
                                                 </span>
                                             </div>
                                             <div class="item-price">S/. {{ item.price.toFixed(2) }}</div>
@@ -250,7 +251,7 @@ const currentStep = ref(0);
 const submitting = ref(false);
 const loadingState = ref<'idle' | 'validating' | 'generating'>('idle');
 const imageUrls = ref<Record<string, string>>({});
-const productDetails = ref<Record<string, Product>>({});
+/*const productDetails = ref<Record<string, Product>>({});*/
 const stockValidationMessage = ref('');
 const whatsappLink = ref('');
 const noProducts = computed(() => total.value <= 0);
@@ -377,20 +378,19 @@ const loadingMessage = computed(() => {
     }
 });
 
-const updateProductDetails = () => {
+/*const updateProductDetails = () => {
     const productsMap: Record<string, Product> = {};
     products.value.forEach(product => {
         productsMap[product.id] = product;
     });
     productDetails.value = productsMap;
-};
+};*/
 
 const loadImageUrls = async () => {
     for (const item of validItems.value) {
-        const product = productDetails.value[item.productID];
-        if (product?.imageUrl) {
+        if (item.product?.imageUrl) {
             try {
-                const { url } = await getUrl({ path: product.imageUrl });
+                const { url } = await getUrl({ path: item.product.imageUrl });
                 imageUrls.value[item.productID] = url.toString();
             } catch (error) {
                 console.error("Error cargando imagen:", error);
@@ -402,7 +402,7 @@ const loadImageUrls = async () => {
 const initializeCheckout = async () => {
     try {
         await loadProducts();
-        updateProductDetails();
+        //updateProductDetails();
         await loadImageUrls();
     } catch (error) {
         console.error('Error initializing checkout:', error);
@@ -416,33 +416,32 @@ const initializeCheckout = async () => {
 const validateAndUpdateStock = async (): Promise<boolean> => {
     loadingState.value = 'validating';
     try {
-        await loadProducts(); // Refresh products data
+        await loadProducts();
         let valid = true;
         let updates: Promise<any>[] = [];
         let stockWarnings: string[] = [];
 
         for (const item of validItems.value) {
-            const product = productDetails.value[item.productID];
-
-            if (!product) {
+            // Validar que el producto exista
+            if (!item.product) {
                 stockWarnings.push(`Producto no encontrado: ${item.productID}`);
                 valid = false;
                 continue;
             }
 
-            if (product.stock < item.quantity) {
+            const stock = item.product.stock ?? 0; // Usar 0 como valor por defecto
+
+            if (stock < item.quantity) {
                 valid = false;
-                if (product.stock > 0) {
-                    // Update quantity to available stock
-                    updates.push(updateQuantity(item.id, product.stock));
+                if (stock > 0) {
+                    updates.push(updateQuantity(item.id, stock));
                     stockWarnings.push(
-                        `Stock insuficiente para ${product.name}. Se actualizó a ${product.stock} unidades disponibles.`
+                        `Stock insuficiente para ${item.product.name}. Se actualizó a ${stock} unidades disponibles.`
                     );
                 } else {
-                    // Remove item if no stock
                     updates.push(removeFromCart(item.id));
                     stockWarnings.push(
-                        `${product.name} no tiene stock disponible y se removió del carrito.`
+                        `${item.product.name} no tiene stock disponible y se removió del carrito.`
                     );
                 }
             }
@@ -451,19 +450,13 @@ const validateAndUpdateStock = async (): Promise<boolean> => {
         if (updates.length > 0) {
             await Promise.all(updates);
             stockValidationMessage.value = 'Algunos productos han sido actualizados por cambios en stock. Por favor, revisa tu orden.';
-            /*showToast({
-                type: 'warning',
-                message: stockWarnings.join('\n')
-            });*/
         } else {
             stockValidationMessage.value = '';
         }
 
         return valid;
     } finally {
-        if (loadingState.value === 'validating') {
-            loadingState.value = 'idle';
-        }
+        loadingState.value = 'idle';
     }
 };
 
@@ -481,16 +474,59 @@ const generateOrder = async () => {
             localStorage.setItem('userEmail', form.value.email);
         }
 
+        const processedItems = await Promise.all(validItems.value.map(async item => {
+            let imageSnapshot = '';
+
+            if (item.product?.imageUrl) {
+                try {
+                    // Obtener la URL de la imagen original
+                    const { url } = await getUrl({ path: item.product.imageUrl });
+
+                    // Aquí puedes:
+                    // 1. Guardar la URL como base64
+                    const response = await fetch(url.toString());
+                    const blob = await response.blob();
+                    const base64 = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.readAsDataURL(blob);
+                    });
+
+                    imageSnapshot = base64 as string;
+                } catch (error) {
+                    console.error("Error procesando imagen:", error);
+                }
+            }
+
+            return {
+                productID: item.productID,
+                quantity: item.quantity,
+                price: item.price,
+                subtotal: item.price * item.quantity,
+                productSnapshot: {
+                    name: item.product?.name || '',
+                    brand: item.product?.brand || '',
+                    description: item.product?.description || '',
+                    price: item.product?.price || 0,
+                    originalPrice: item.product?.originalPrice || 0,
+                    discountPercentage: item.product?.discountPercentage || 0,
+                    imageUrl: imageSnapshot,
+                    categories: item.product?.categories || [],
+                    stock: item.product?.stock || 0,
+                    active: item.product?.active || false,
+                    isPromoted: item.product?.isPromoted || false,
+                    promotionStartDate: item.product?.promotionStartDate || '',
+                    promotionEndDate: item.product?.promotionEndDate || '',
+                    promotionType: item.product?.promotionType || ''
+                }
+            };
+        }));
+
         // Create order and update stock
         const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {
             customerInfo: form.value,
             userEmail,
-            items: validItems.value.map(item => ({
-                productID: item.productID,
-                quantity: item.quantity,
-                price: item.price,
-                subtotal: item.price * item.quantity
-            })),
+            items: processedItems,
             subtotal: subtotal.value,
             shipping: shippingCost.value,
             total: total.value,
@@ -498,7 +534,7 @@ const generateOrder = async () => {
         };
 
 
-        //console.log("items?????: ", orderData)
+        console.log("items?????: ", orderData)
         const newOrder = await createOrder(orderData);
 
         if (!newOrder) {
@@ -550,7 +586,6 @@ const generateOrder = async () => {
 const formatWhatsAppMessage = (order: any) => {
     const { customerInfo, items, subtotal, shipping, total } = order;
 
-    // Format customer information
     const customerDetails =
         `*INFORMACIÓN DEL CLIENTE*\n` +
         `Nombre: ${customerInfo.firstName} ${customerInfo.lastName}\n` +
@@ -558,13 +593,11 @@ const formatWhatsAppMessage = (order: any) => {
         `${customerInfo.documentType}: ${customerInfo.documentNumber}\n` +
         `Teléfono: ${customerInfo.phone}\n\n`;
 
-    // Format items
+    // Usar item.product directamente
     const itemsDetails = items.map((item: any) => {
-        const product = productDetails.value[item.productID];
-        return `- ${product?.name} (${item.quantity}x) : S/. ${item.price.toFixed(2)}`;
+        return `- ${item.product?.name} (${item.quantity}x) : S/. ${item.price.toFixed(2)}`;
     }).join('\n');
 
-    // Format totals
     const totalsDetails =
         `\n*TOTALES*\n` +
         `Subtotal: S/. ${subtotal.toFixed(2)}\n` +
@@ -614,12 +647,12 @@ const openWhatsapp = () => {
     }
 };
 
-watch(
+/*watch(
     () => products.value,
     () => {
         updateProductDetails();
     }
-);
+);*/
 
 watch(
     () => validItems.value,

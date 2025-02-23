@@ -66,24 +66,23 @@
                             <div class="item-container">
                                 <div class="item-image">
                                     <img :src="productImages[item.productID] || '/api/placeholder/60/60'"
-                                        :alt="getProductName(item.productID)" class="product-img" />
+                                        :alt="getProductName(item)" class="product-img" />
                                 </div>
                                 <div class="quantity-badge">
                                     {{ item.quantity }}
                                 </div>
                                 <div class="item-details">
-                                    <span class="item-name"
-                                        v-html="truncateProductName(getProductName(item.productID))"></span>
-                                    <span class="item-brand">{{ getProductBrand(item.productID) }}</span>
+                                    <span class="item-name" v-html="truncateProductName(getProductName(item))"></span>
+                                    <span class="item-brand">{{ getProductBrand(item) }}</span>
                                     <div class="price-info">
                                         <div class="price-group">
-                                            <span class="original-price" v-if="hasDiscount(item.productID)">
-                                                S/. {{ getOriginalPrice(item.productID)?.toFixed(2) }}
+                                            <span class="original-price" v-if="hasDiscount(item)">
+                                                S/. {{ getOriginalPrice(item)?.toFixed(2) }}
                                             </span>
                                             <span class="current-price">S/. {{ item.price.toFixed(2) }}</span>
                                         </div>
-                                        <span class="discount-badge" v-if="hasDiscount(item.productID)">
-                                            -{{ getDiscountPercentage(item.productID) }}%
+                                        <span class="discount-badge" v-if="hasDiscount(item)">
+                                            -{{ getDiscountPercentage(item) }}%
                                         </span>
                                     </div>
                                 </div>
@@ -223,13 +222,18 @@ const getOrderCardClass = (status: OrderStatus) => {
 const loadProductImages = async () => {
     for (const order of orders.value) {
         for (const item of order.items) {
-            const product = products.value.find(p => p.id === item.productID);
-            if (product?.imageUrl) {
-                try {
-                    const { url } = await getUrl({ path: product.imageUrl });
-                    productImages.value[item.productID] = url.toString();
-                } catch (error) {
-                    console.error("Error loading product image:", error);
+            if (item.productSnapshot?.imageUrl) {
+                // Si la imagen está en base64
+                if (item.productSnapshot.imageUrl.startsWith('data:')) {
+                    productImages.value[item.productID] = item.productSnapshot.imageUrl;
+                } else {
+                    // Si es una URL de S3
+                    try {
+                        const { url } = await getUrl({ path: item.productSnapshot.imageUrl });
+                        productImages.value[item.productID] = url.toString();
+                    } catch (error) {
+                        console.error("Error loading product image:", error);
+                    }
                 }
             }
         }
@@ -276,29 +280,49 @@ const getStatusText = (status: OrderStatus) => {
     return statusText[status];
 };
 
-const getProductName = (productId: string) => {
+/*const getProductName = (productId: string) => {
     const product = products.value.find(p => p.id === productId);
     return product?.name || 'Producto no encontrado';
+};*/
+
+const getProductName = (item: any) => {
+    return item.productSnapshot?.name || 'Producto no encontrado';
 };
 
-const getProductBrand = (productId: string) => {
+/*const getProductBrand = (productId: string) => {
     const product = products.value.find(p => p.id === productId);
     return product?.brand || '';
+};*/
+
+const getProductBrand = (item: any) => {
+    return item.productSnapshot?.brand || '';
 };
 
-const hasDiscount = (productId: string) => {
+/*const hasDiscount = (productId: string) => {
     const product = products.value.find(p => p.id === productId);
     return product?.discountPercentage !== undefined && product.discountPercentage > 0;
+};*/
+
+const hasDiscount = (item: any) => {
+    return item.productSnapshot?.discountPercentage > 0;
 };
 
-const getOriginalPrice = (productId: string) => {
+/*const getOriginalPrice = (productId: string) => {
     const product = products.value.find(p => p.id === productId);
     return product?.originalPrice;
+};*/
+
+const getOriginalPrice = (item: any) => {
+    return item.productSnapshot?.originalPrice;
 };
 
-const getDiscountPercentage = (productId: string) => {
+/*const getDiscountPercentage = (productId: string) => {
     const product = products.value.find(p => p.id === productId);
     return product?.discountPercentage || 0;
+};*/
+
+const getDiscountPercentage = (item: any) => {
+    return item.productSnapshot?.discountPercentage || 0;
 };
 
 // Formatea el mensaje de WhatsApp para un pedido
@@ -312,8 +336,7 @@ const formatOrderWhatsAppMessage = (order: Order) => {
         `Teléfono: ${customerInfo.phone}\n\n`;
 
     const itemsDetails = items.map((item: any) => {
-        const productName = getProductName(item.productID);
-        return `- ${productName} (${item.quantity}x) : S/. ${item.price.toFixed(2)}`;
+        return `- ${item.productSnapshot.name} (${item.quantity}x) : S/. ${item.price.toFixed(2)}`;
     }).join('\n');
 
     const totalsDetails =
@@ -342,7 +365,7 @@ const filterOrders = () => {
 onMounted(async () => {
     if (currentUserEmail.value) {
         try {
-            await loadProducts();
+            //await loadProducts();
             const userOrders = await getUserOrders(currentUserEmail.value);
             orders.value = userOrders;
             await loadProductImages();

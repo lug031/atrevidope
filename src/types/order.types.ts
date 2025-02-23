@@ -1,5 +1,8 @@
 // order.types.ts
 
+import type { Category } from "./category.types";
+import type { Product } from "./product.types";
+
 // Tipo para la información del cliente
 export interface CustomerInfo {
   firstName: string;
@@ -18,6 +21,7 @@ export interface OrderItem {
   quantity: number;
   price: number;
   subtotal: number;
+  productSnapshot: Omit<Product, "id">;
 }
 
 // Tipo para el estado del pedido

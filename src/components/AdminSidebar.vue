@@ -108,7 +108,7 @@ const handleItemClick = (item: NavigationItem) => {
     width: 100%;
     height: 100vh;
     background-color: rgba(159, 159, 159, 0.367);
-    z-index: 1000;
+    z-index: 2000;
     display: flex;
 }
 

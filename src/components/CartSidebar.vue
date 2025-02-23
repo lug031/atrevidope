@@ -383,7 +383,7 @@ onMounted(() => {
     left: 0;
     right: 0;
     bottom: 0;
-    z-index: 200;
+    z-index: 2000;
     display: flex;
     justify-content: flex-end;
 }

@@ -359,12 +359,34 @@ watch(isAuthenticated, async (newValue) => {
 
 <style scoped>
 .main-nav {
-    padding: 1rem;
-    border-bottom: 1px solid #eee;
-    background-color: white;
-    position: sticky;
+    position: fixed;
     top: 0;
-    z-index: 100;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 72px;
+    /* Altura fija para calcular correctamente los offsets */
+    padding: 1rem;
+    background-color: white;
+    border-bottom: 1px solid #eee;
+    z-index: 1000;
+}
+
+body {
+    padding-top: 80px;
+    /* Ajusta este valor según la altura de tu nav */
+}
+
+@media (max-width: 768px) {
+    .main-nav {
+        height: 64px;
+        padding: 0.75rem;
+    }
+
+    body {
+        padding-top: 72px;
+        /* Ajusta este valor para móvil según necesites */
+    }
 }
 
 .orders-icon.active-orders {
@@ -485,7 +507,7 @@ watch(isAuthenticated, async (newValue) => {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     min-width: 200px;
     margin-top: 0.5rem;
-    z-index: 1000;
+    z-index: 1001;
     overflow: hidden;
 }
 
@@ -729,7 +751,7 @@ watch(isAuthenticated, async (newValue) => {
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     max-height: 400px;
     overflow-y: auto;
-    z-index: 50;
+    z-index: 1001;
 }
 
 .search-loading {
@@ -826,7 +848,7 @@ watch(isAuthenticated, async (newValue) => {
     left: 0;
     right: 0;
     background: white;
-    z-index: 200;
+    z-index: 1002;
     padding: 1rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }

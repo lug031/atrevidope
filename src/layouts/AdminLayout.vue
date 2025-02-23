@@ -24,6 +24,7 @@ import MainNavigation from '@/components/MainNavigation.vue'
 .admin-main {
     flex: 1;
     padding: 2rem;
+    padding-top: 6rem;
 }
 
 .content-area {
@@ -38,6 +39,7 @@ import MainNavigation from '@/components/MainNavigation.vue'
 @media (max-width: 768px) {
     .admin-main {
         padding: 1rem;
+        padding-top: 5rem;
     }
 
     .content-area {

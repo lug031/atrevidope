@@ -43,7 +43,7 @@
                             <div class="price-container">
                                 <div class="price-wrapper">
                                     <span class="current-price">S/{{ formatPrice(calculateDiscountedPrice(product))
-                                        }}</span>
+                                    }}</span>
                                     <span class="original-price">S/{{ formatPrice(product.originalPrice) }}</span>
                                 </div>
                             </div>
@@ -118,14 +118,14 @@ const isPromotionActive = (product: Product): boolean => {
 };
 
 const getCurrentPeruDate = (): string => {
-  const date = new Date();
-  const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
-  
-  const year = peruDate.getFullYear();
-  const month = String(peruDate.getMonth() + 1).padStart(2, '0');
-  const day = String(peruDate.getDate()).padStart(2, '0');
-  
-  return `${year}-${month}-${day}`;
+    const date = new Date();
+    const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
+
+    const year = peruDate.getFullYear();
+    const month = String(peruDate.getMonth() + 1).padStart(2, '0');
+    const day = String(peruDate.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
 };
 
 const isSingleDayPromotion = (product: Product): boolean => {
@@ -294,18 +294,31 @@ watch(() => activePromotionsWithDates.value, () => {
 }
 
 .product-image {
-    height: 200px;
+    position: relative;
+    width: 100%;
+    height: 400px;
+    /* Altura fija para todas las imágenes */
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 1rem;
-    padding: 1rem;
+    background-color: #f8f8f8;
+    margin-bottom: 15px;
+
+    overflow: hidden;
+    border-radius: 4px;
 }
 
 .product-image img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* Mantiene la proporción y cubre el espacio */
+    object-position: center;
+    transition: transform 0.3s ease;
+}
+
+.product-content:hover .product-image img {
+    transform: scale(1.05);
 }
 
 .product-info {

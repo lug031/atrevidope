@@ -475,15 +475,26 @@ watch(
 }
 
 .product-image {
-    margin-bottom: 15px;
     position: relative;
+    width: 100%;
+    height: 400px;
+    /* Altura fija para todas las imágenes */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f8f8f8;
+    margin-bottom: 15px;
+
     overflow: hidden;
     border-radius: 4px;
 }
 
 .product-image img {
-    max-width: 100%;
-    height: auto;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* Mantiene la proporción y cubre el espacio */
+    object-position: center;
     transition: transform 0.3s ease;
 }
 

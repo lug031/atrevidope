@@ -37,7 +37,7 @@
                         <template v-if="isValidPromotion">
                             <p class="product-price">
                                 <span class="current-price">S/{{ formatPrice(calculateDiscountedPrice(currentProduct))
-                                    }}</span>
+                                }}</span>
                                 <span class="original-price">S/{{ formatPrice(currentProduct.originalPrice) }}</span>
                             </p>
                             <div class="discount-badge">-{{ currentProduct.discountPercentage }}%</div>
@@ -490,19 +490,36 @@ watch(() => currentProduct.value, () => {
 .product-detail {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 40px;
+    gap: 20px;
     margin-top: 20px;
 }
 
 .product-gallery {
     position: sticky;
     top: 20px;
+    width: 100%;
+    /* Establecemos un aspect ratio máximo de 1080:1350 */
+    aspect-ratio: 1080/1350;
+    overflow: hidden;
+    border-radius: 8px;
 }
 
 .main-image {
     width: 100%;
-    height: auto;
+    height: 100%;
+    object-fit: cover;
+    /* Esto hará que la imagen cubra el contenedor manteniendo su proporción */
+    object-position: center;
+    /* Centra la imagen vertical y horizontalmente */
     border-radius: 8px;
+}
+
+/* Para pantallas más pequeñas, mantenemos la proporción */
+@media (max-width: 768px) {
+    .product-gallery {
+        aspect-ratio: 1080/1350;
+        margin: 0 auto;
+    }
 }
 
 .product-info {

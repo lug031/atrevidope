@@ -3,6 +3,7 @@ import { ref } from "vue";
 import type { Schema } from "../../amplify/data/resource";
 import type { Product } from "@/types/product.types";
 import { generateClient } from "aws-amplify/data";
+import { useImageCache } from "@/composables/useImageCache";
 
 const publicClient = generateClient<Schema>({
   authMode: "apiKey",
@@ -18,6 +19,8 @@ export const useProductStore = defineStore("product", () => {
   const productsByCategory = ref<Product[]>([]);
   const loading = ref(false);
   const error = ref<string | null>(null);
+  const { removeFromCache, validateAndUpdateImage, cleanExpiredCache } =
+    useImageCache();
 
   const fetchProducts = async () => {
     loading.value = true;
@@ -67,6 +70,7 @@ export const useProductStore = defineStore("product", () => {
       );
 
       products.value = productsWithCategories as unknown as Product[];
+      cleanExpiredCache(products.value.map((p) => p.id));
     } catch (err) {
       error.value = "Error al cargar productos";
       console.error(err);
@@ -188,6 +192,10 @@ export const useProductStore = defineStore("product", () => {
         ...productData,
       });
 
+      if (productData.imageUrl) {
+        await validateAndUpdateImage(id, productData.imageUrl);
+      }
+
       if (categoryIds) {
         // Obtener las relaciones existentes
         const { data: existingRelations } =
@@ -242,6 +250,8 @@ export const useProductStore = defineStore("product", () => {
       }
 
       await authClient.models.Product.delete({ id });
+
+      removeFromCache(id);
       await fetchProducts();
     } catch (err) {
       error.value = "Error al eliminar producto";

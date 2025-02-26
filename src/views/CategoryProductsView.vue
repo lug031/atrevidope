@@ -42,6 +42,16 @@
                             <span class="promotion-start">{{ formatPromotionDate(product.promotionStartDate) }}</span>
                         </div>
 
+                        <div v-if="hasActivePromotion(product)" class="active-promotion-badge"
+                            :class="{ 'one-day-promotion': isOneDayPromotion(product) }">
+                            <span class="promotion-text" v-if="isOneDayPromotion(product)">¡SOLO POR HOY!</span>
+                            <span class="promotion-text" v-else>¡EN PROMOCIÓN!</span>
+                            <span class="promotion-discount">-{{ product.discountPercentage || 0 }}%</span>
+                            <span class="promotion-end" v-if="!isOneDayPromotion(product)">
+                                Hasta {{ formatPromotionDate(product.promotionEndDate) }}
+                            </span>
+                        </div>
+
                         <div class="product-image">
                             <img :src="imageCache[product.id] || '/api/placeholder/40/40'" :alt="product.name"
                                 loading="lazy" />
@@ -54,9 +64,16 @@
                                 v-html="parseMarkdown(truncateText(product.description, 100))" />
 
                             <!-- Precios -->
-                            <div class="price-info" :class="{ 'has-promotion': hasUpcomingPromotion(product) }">
+                            <div class="price-info" :class="{
+                                'has-promotion': hasUpcomingPromotion(product),
+                                'has-active-promotion': hasActivePromotion(product)
+                            }">
                                 <p class="product-price">
-                                    <template v-if="hasUpcomingPromotion(product)">
+                                    <template v-if="hasActivePromotion(product)">
+                                        <span class="original-price">S/{{ product.originalPrice.toFixed(2) }}</span>
+                                        <span class="discounted-price">S/{{ calculateDiscountedPrice(product) }}</span>
+                                    </template>
+                                    <template v-else-if="hasUpcomingPromotion(product)">
                                         <span class="current-price">S/{{ product.originalPrice.toFixed(2) }}</span>
                                     </template>
                                     <template v-else>
@@ -180,6 +197,32 @@ const loadImageUrls = async () => {
     await preloadImages(productsToLoad);
 };
 
+const isOneDayPromotion = (product: Product) => {
+    if (!product.promotionStartDate || !product.promotionEndDate) {
+        return false;
+    }
+
+    return product.promotionStartDate === product.promotionEndDate;
+};
+
+const hasActivePromotion = (product: Product) => {
+    if (!product.isPromoted || !product.promotionStartDate || !product.promotionEndDate) {
+        return false;
+    }
+
+    const currentDate = getCurrentPeruDate();
+    return currentDate >= product.promotionStartDate && currentDate <= product.promotionEndDate;
+};
+
+// 2. Modificar el método calculateDiscountedPrice para que calcule correctamente el precio con descuento
+const calculateDiscountedPrice = (product: Product) => {
+    if (!product.originalPrice || !product.discountPercentage) {
+        return product.originalPrice || 0;
+    }
+    const discountMultiplier = 1 - (product.discountPercentage / 100);
+    return (product.originalPrice * discountMultiplier).toFixed(2);
+};
+
 const hasUpcomingPromotion = (product: Product): boolean => {
     if (!product.isPromoted || !product.promotionStartDate || !product.promotionEndDate) {
         return false;
@@ -217,15 +260,29 @@ const formatPromotionDate = (dateStr: string | undefined): string => {
     }).format(date);
 };
 
+const getEffectivePrice = (product: Product): number => {
+    // Si hay promoción activa, usar precio con descuento
+    if (hasActivePromotion(product)) {
+        const discountMultiplier = 1 - (product.discountPercentage / 100);
+        return product.price * discountMultiplier;
+    }
+    // Si es una promoción futura, usar originalPrice
+    else if (hasUpcomingPromotion(product)) {
+        return product.originalPrice || 0;
+    }
+    // En cualquier otro caso, usar precio normal
+    return product.price || 0;
+};
+
 const sortedProducts = computed(() => {
     if (!productsByCategory.value) return [];
 
     return [...productsByCategory.value].sort((a, b) => {
         switch (sortBy.value) {
             case 'price-asc':
-                return (a.price || 0) - (b.price || 0);
+                return getEffectivePrice(a) - getEffectivePrice(b);
             case 'price-desc':
-                return (b.price || 0) - (a.price || 0);
+                return getEffectivePrice(b) - getEffectivePrice(a);
             case 'name':
                 return (a.name || '').localeCompare(b.name || '');
             default:
@@ -388,6 +445,105 @@ watch(
     flex-direction: column;
     align-items: center;
     gap: 4px;
+    z-index: 10;
+}
+
+/* Estilos para el badge de promoción activa */
+.active-promotion-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #000000;
+    /* Mismo color negro que el resto de la aplicación */
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    z-index: 10;
+}
+
+.active-promotion-badge .promotion-text {
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.active-promotion-badge .promotion-discount {
+    font-size: 1rem;
+    font-weight: bold;
+}
+
+.active-promotion-badge .promotion-end {
+    font-size: 0.75rem;
+    color: #ffd700;
+    /* Mismo amarillo dorado que usas en las promociones futuras */
+}
+
+/* Estilos para los precios en promoción activa */
+.price-info.has-active-promotion {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.price-info .original-price {
+    font-size: 0.9rem;
+    color: #666;
+    text-decoration: line-through;
+    margin-right: 6px;
+}
+
+.price-info .discounted-price {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #000;
+    /* Mismo color negro para mantener consistencia */
+}
+
+/* Asegurar que el badge no se superpongan si se muestran ambos */
+@media (max-width: 768px) {
+    .active-promotion-badge {
+        top: 10px;
+        right: 10px;
+        padding: 6px 10px;
+    }
+
+    .promotion-badge {
+        top: 10px;
+        left: 10px;
+        padding: 6px 10px;
+    }
+}
+
+.active-promotion-badge.one-day-promotion {
+    background-color: #d61c1c;
+    /* Rojo más intenso para destacar */
+    box-shadow: 0 2px 8px rgba(214, 28, 28, 0.4);
+    /* Sombra para dar énfasis */
+    animation: pulse 1.5s infinite;
+    /* Animación de pulso para llamar la atención */
+}
+
+.one-day-promotion .promotion-text {
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+
+/* Animación de pulso para llamar la atención en promociones de un día */
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+
+    100% {
+        transform: scale(1);
+    }
 }
 
 .promotion-date {

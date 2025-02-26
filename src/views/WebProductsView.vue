@@ -84,7 +84,7 @@
           </button> -->
         </div>
       </div>
-      <div v-if="!loading && !error && allProductsWeb.length === 0" class="empty-state">
+      <div v-if="!loading && !error && productsWeb.length === 0" class="empty-state">
         No hay productos disponibles.
       </div>
     </div>
@@ -104,7 +104,7 @@ import { useImageCache } from '@/composables/useImageCache';
 
 const { imageCache, getImageUrl, preloadImages } = useImageCache();
 const imageUrls = ref<Record<string, string>>({});
-const { allProductsWeb, loading, error, loadAllProductsWeb } = useProducts();
+const { productsWeb, loading, error, loadProductsWeb } = useProducts();
 const cartStore = useCartStore();
 const { showToast } = useToast();
 const sortBy = ref('position');
@@ -169,11 +169,11 @@ const parseMarkdown = (text: string): string => {
 };
 
 const loadImageUrls = async () => {
-  if (!allProductsWeb.value) return;
+  if (!productsWeb.value) return;
 
   // Precargar todas las imágenes
   await preloadImages(
-    allProductsWeb.value.map(product => ({
+    productsWeb.value.map(product => ({
       id: product.id,
       imageUrl: product.imageUrl || ''
     }))
@@ -235,24 +235,26 @@ const formatPromotionDate = (dateStr: string | undefined): string => {
   }).format(date);
 };
 
-const calculateDiscountedPrice = (product: Product): number => {
-  if (!product.price || !product.discountPercentage) {
-    return product.price || 0;
+const getEffectivePrice = (product: Product): number => {
+  // Si hay promoción futura, usar originalPrice
+  if (hasUpcomingPromotion(product)) {
+    return product.originalPrice || 0;
   }
-  return product.price * (1 - product.discountPercentage / 100);
+  // En cualquier otro caso, usar precio normal
+  return product.price || 0;
 };
 
 const sortedProducts = computed(() => {
-  if (!allProductsWeb.value) return [];
+  if (!productsWeb.value) return [];
 
-  const productsToShow = allProductsWeb.value.filter(product => shouldShowProduct(product));
+  const productsToShow = productsWeb.value.filter(product => shouldShowProduct(product));
 
   return productsToShow.sort((a, b) => {
     switch (sortBy.value) {
       case 'price-asc':
-        return (a.price || 0) - (b.price || 0);
+        return getEffectivePrice(a) - getEffectivePrice(b);
       case 'price-desc':
-        return (b.price || 0) - (a.price || 0);
+        return getEffectivePrice(b) - getEffectivePrice(a);
       case 'name':
         return (a.name || '').localeCompare(b.name || '');
       default:
@@ -289,10 +291,10 @@ const addToCart = (product: Product) => {
 };
 
 onMounted(() => {
-  loadAllProductsWeb();
+  loadProductsWeb();
 });
 
-watch(() => allProductsWeb.value, () => {
+watch(() => productsWeb.value, () => {
   loadImageUrls();
 }, { immediate: true });
 </script>
@@ -374,6 +376,8 @@ watch(() => allProductsWeb.value, () => {
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  z-index: 10;
+  /* Add z-index to make it appear on top */
 }
 
 .promotion-date {
@@ -493,12 +497,12 @@ watch(() => allProductsWeb.value, () => {
 }
 
 .empty-state {
-    text-align: center;
-    padding: 3rem;
-    background-color: #f9fafb;
-    border-radius: 8px;
-    color: #6b7280;
-    font-size: 1.1rem;
+  text-align: center;
+  padding: 3rem;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  color: #6b7280;
+  font-size: 1.1rem;
 }
 
 /* Rest of the styles remain the same */

@@ -129,16 +129,43 @@ export const useProductStore = defineStore("product", () => {
     try {
       const { data: items } = await publicClient.models.Product.list({
         filter: {
-          and: [{ isPromoted: { eq: false } }, { active: { eq: true } }],
+          active: { eq: true },
         },
       });
-      productsWeb.value = items as unknown as Product[];
+
+      const currentDate = getCurrentPeruDate();
+
+      productsWeb.value = items.filter((product) => {
+        if (!product.isPromoted) return true;
+
+        if (!product.promotionStartDate || !product.promotionEndDate)
+          return false;
+
+        const isWithinPromotionPeriod =
+          currentDate >= product.promotionStartDate &&
+          currentDate <= product.promotionEndDate;
+
+        return !isWithinPromotionPeriod;
+      }) as unknown as Product[];
     } catch (err) {
       error.value = "Error al cargar productos web";
       console.error(err);
     } finally {
       loading.value = false;
     }
+  };
+
+  const getCurrentPeruDate = (): string => {
+    const date = new Date();
+    const peruDate = new Date(
+      date.toLocaleString("en-US", { timeZone: "America/Lima" })
+    );
+
+    const year = peruDate.getFullYear();
+    const month = String(peruDate.getMonth() + 1).padStart(2, "0");
+    const day = String(peruDate.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
   };
 
   const fetchAllProductsWeb = async () => {

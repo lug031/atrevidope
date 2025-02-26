@@ -232,7 +232,6 @@ import { useCart } from '@/composables/useCart';
 import { useToast } from '@/composables/useToast';
 import MainLayout from '@/layouts/MainLayout.vue';
 import AdminLayout from '@/layouts/AdminLayout.vue';
-import { useProducts } from '@/composables/useProducts';
 import { getUrl } from 'aws-amplify/storage';
 import type { Product } from '@/types/product.types';
 import { useAuthStore } from '@/stores/auth';
@@ -244,7 +243,6 @@ const auth = useAuthStore();
 const { createOrder } = useOrders();
 const { showToast } = useToast();
 const { items: cartItems, shippingCost, subtotal, total, validItems, clearCart, updateQuantity, removeFromCart } = useCart();
-const { products, loadProducts, updateProduct } = useProducts();
 
 const steps = ['Identificación', 'Entrega y Pago', 'Resumen de pago'];
 const currentStep = ref(0);
@@ -401,7 +399,6 @@ const loadImageUrls = async () => {
 
 const initializeCheckout = async () => {
     try {
-        await loadProducts();
         //updateProductDetails();
         await loadImageUrls();
     } catch (error) {
@@ -416,7 +413,6 @@ const initializeCheckout = async () => {
 const validateAndUpdateStock = async (): Promise<boolean> => {
     loadingState.value = 'validating';
     try {
-        await loadProducts();
         let valid = true;
         let updates: Promise<any>[] = [];
         let stockWarnings: string[] = [];

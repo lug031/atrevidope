@@ -43,7 +43,7 @@
                             <div class="price-container">
                                 <div class="price-wrapper">
                                     <span class="current-price">S/{{ formatPrice(calculateDiscountedPrice(product))
-                                    }}</span>
+                                        }}</span>
                                     <span class="original-price">S/{{ formatPrice(product.originalPrice) }}</span>
                                 </div>
                             </div>
@@ -400,8 +400,11 @@ watch(() => activePromotionsWithDates.value, () => {
 
 .empty-state {
     text-align: center;
-    color: #666;
     padding: 3rem;
+    background-color: #f9fafb;
+    border-radius: 8px;
+    color: #6b7280;
+    font-size: 1.1rem;
 }
 
 .loader {

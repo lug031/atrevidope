@@ -84,6 +84,9 @@
           </button> -->
         </div>
       </div>
+      <div v-if="!loading && !error && allProductsWeb.length === 0" class="empty-state">
+        No hay productos disponibles.
+      </div>
     </div>
   </MainLayout>
 </template>
@@ -101,7 +104,7 @@ import { useImageCache } from '@/composables/useImageCache';
 
 const { imageCache, getImageUrl, preloadImages } = useImageCache();
 const imageUrls = ref<Record<string, string>>({});
-const { products, loading, error, loadProducts } = useProducts();
+const { allProductsWeb, loading, error, loadAllProductsWeb } = useProducts();
 const cartStore = useCartStore();
 const { showToast } = useToast();
 const sortBy = ref('position');
@@ -166,11 +169,11 @@ const parseMarkdown = (text: string): string => {
 };
 
 const loadImageUrls = async () => {
-  if (!products.value) return;
+  if (!allProductsWeb.value) return;
 
   // Precargar todas las imágenes
   await preloadImages(
-    products.value.map(product => ({
+    allProductsWeb.value.map(product => ({
       id: product.id,
       imageUrl: product.imageUrl || ''
     }))
@@ -240,9 +243,9 @@ const calculateDiscountedPrice = (product: Product): number => {
 };
 
 const sortedProducts = computed(() => {
-  if (!products.value) return [];
+  if (!allProductsWeb.value) return [];
 
-  const productsToShow = products.value.filter(product => shouldShowProduct(product));
+  const productsToShow = allProductsWeb.value.filter(product => shouldShowProduct(product));
 
   return productsToShow.sort((a, b) => {
     switch (sortBy.value) {
@@ -286,10 +289,10 @@ const addToCart = (product: Product) => {
 };
 
 onMounted(() => {
-  loadProducts();
+  loadAllProductsWeb();
 });
 
-watch(() => products.value, () => {
+watch(() => allProductsWeb.value, () => {
   loadImageUrls();
 }, { immediate: true });
 </script>
@@ -489,6 +492,15 @@ watch(() => products.value, () => {
   }
 }
 
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    background-color: #f9fafb;
+    border-radius: 8px;
+    color: #6b7280;
+    font-size: 1.1rem;
+}
+
 /* Rest of the styles remain the same */
 .filter-section {
   display: flex;
@@ -546,7 +558,7 @@ watch(() => products.value, () => {
   justify-content: center;
   background-color: #f8f8f8;
   margin-bottom: 15px;
-  
+
   overflow: hidden;
   border-radius: 4px;
 }

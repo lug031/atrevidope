@@ -163,7 +163,6 @@
 import { computed, onMounted, ref } from 'vue';
 import { useOrders } from '@/composables/useOrders';
 import { useAuthStore } from '@/stores/auth';
-import { useProducts } from '@/composables/useProducts';
 import { storeToRefs } from 'pinia';
 import type { Order, OrderStatus } from '@/types/order.types';
 import type { Product } from '@/types/product.types';
@@ -180,7 +179,6 @@ import { getUrl } from 'aws-amplify/storage';
 
 const auth = useAuthStore();
 const { isAuthenticated, userEmail } = storeToRefs(auth);
-const { products, loadProducts } = useProducts();
 const { getUserOrders } = useOrders();
 
 const selectedStatus = ref<string>('all');

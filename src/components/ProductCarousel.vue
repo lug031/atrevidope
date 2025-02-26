@@ -3,7 +3,7 @@
     <div class="carousel-container">
         <!-- Slides -->
         <div class="slides-container" :style="{ transform: `translateX(-${currentSlide * 100}%)` }">
-            <div v-for="(product, index) in products" :key="product.id" class="slide"
+            <div v-for="(product, index) in allProductsWeb" :key="product.id" class="slide"
                 :style="{ left: `${index * 100}%` }">
                 <div class="slide-content">
                     <img :src="imageCache[product.id] || '/api/placeholder/800/500'" :alt="product.name"
@@ -30,7 +30,7 @@
 
         <!-- Dots Navigation -->
         <div class="carousel-dots">
-            <button v-for="(_, index) in products" :key="index" @click="goToSlide(index)"
+            <button v-for="(_, index) in allProductsWeb" :key="index" @click="goToSlide(index)"
                 :class="['dot', { active: index === currentSlide }]" :aria-label="`Go to slide ${index + 1}`">
             </button>
         </div>
@@ -48,14 +48,14 @@ const router = useRouter();
 const currentSlide = ref(0);
 const autoplayInterval = ref<number | null>(null);
 
-const { products, loadProducts } = useProducts();
+const { allProductsWeb, loadAllProductsWeb } = useProducts();
 const { imageCache, preloadImages } = useImageCache();
 
 // Optimizada la función de carga de imágenes
 const loadImageUrls = async () => {
-    if (!products.value) return;
+    if (!allProductsWeb.value) return;
 
-    const productsToLoad = products.value
+    const productsToLoad = allProductsWeb.value
         .filter(product => product.imageUrl)
         .map(product => ({
             id: product.id,
@@ -67,10 +67,10 @@ const loadImageUrls = async () => {
 
 // Función para precargar la siguiente imagen
 const preloadNextImage = () => {
-    if (!products.value) return;
+    if (!allProductsWeb.value) return;
 
-    const nextIndex = (currentSlide.value + 1) % products.value.length;
-    const nextProduct = products.value[nextIndex];
+    const nextIndex = (currentSlide.value + 1) % allProductsWeb.value.length;
+    const nextProduct = allProductsWeb.value[nextIndex];
 
     if (nextProduct && nextProduct.imageUrl) {
         preloadImages([{
@@ -81,14 +81,14 @@ const preloadNextImage = () => {
 };
 
 const nextSlide = () => {
-    if (!products.value) return;
-    currentSlide.value = (currentSlide.value + 1) % products.value.length;
+    if (!allProductsWeb.value) return;
+    currentSlide.value = (currentSlide.value + 1) % allProductsWeb.value.length;
     preloadNextImage(); // Precargar la siguiente imagen
 };
 
 const prevSlide = () => {
-    if (!products.value) return;
-    currentSlide.value = currentSlide.value === 0 ? products.value.length - 1 : currentSlide.value - 1;
+    if (!allProductsWeb.value) return;
+    currentSlide.value = currentSlide.value === 0 ? allProductsWeb.value.length - 1 : currentSlide.value - 1;
 };
 
 const goToSlide = (index: number) => {
@@ -109,7 +109,7 @@ const stopAutoplay = () => {
 };
 
 onMounted(async () => {
-    await loadProducts();
+    await loadAllProductsWeb();
     await loadImageUrls();
     startAutoplay();
 });
@@ -119,7 +119,7 @@ onBeforeUnmount(() => {
 });
 
 // Observar cambios en los productos
-watch(() => products.value, async (newProducts) => {
+watch(() => allProductsWeb.value, async (newProducts) => {
     if (newProducts && newProducts.length > 0) {
         await loadImageUrls();
     }

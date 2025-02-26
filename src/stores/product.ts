@@ -15,6 +15,7 @@ const authClient = generateClient<Schema>({
 
 export const useProductStore = defineStore("product", () => {
   const products = ref<Product[]>([]);
+  const allProductsWeb = ref<Product[]>([]);
   const productsWeb = ref<Product[]>([]);
   const productsByCategory = ref<Product[]>([]);
   const loading = ref(false);
@@ -132,6 +133,23 @@ export const useProductStore = defineStore("product", () => {
         },
       });
       productsWeb.value = items as unknown as Product[];
+    } catch (err) {
+      error.value = "Error al cargar productos web";
+      console.error(err);
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const fetchAllProductsWeb = async () => {
+    loading.value = true;
+    try {
+      const { data: items } = await publicClient.models.Product.list({
+        filter: {
+          and: [{ active: { eq: true } }],
+        },
+      });
+      allProductsWeb.value = items as unknown as Product[];
     } catch (err) {
       error.value = "Error al cargar productos web";
       console.error(err);
@@ -265,12 +283,14 @@ export const useProductStore = defineStore("product", () => {
   return {
     products,
     productsWeb,
+    allProductsWeb,
     productsByCategory,
     loading,
     error,
     fetchProducts,
     fetchProductsByCategory,
     fetchProductsWeb,
+    fetchAllProductsWeb,
     createProduct,
     updateProduct,
     deleteProduct,

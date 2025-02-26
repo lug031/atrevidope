@@ -107,7 +107,7 @@ import type { CartItem } from '@/types/cart.types';
 const imageUrls = ref<Record<string, string>>({});
 const route = useRoute();
 const router = useRouter();
-const { products, loading: productsLoading, error: productsError, loadProducts } = useProducts();
+const { allProductsWeb, loading: productsLoading, error: productsError, loadAllProductsWeb } = useProducts();
 const {
     activePromotions,
     loading: promotionsLoading,
@@ -303,7 +303,7 @@ const currentProduct = computed(() => {
     if (isFromPromotions) {
         return activePromotions.value?.find(p => p.id === productId) || null;
     }
-    return products.value?.find(p => p.id === productId) || null;
+    return allProductsWeb.value?.find(p => p.id === productId) || null;
 });
 
 const isPromotionalProduct = computed(() => {
@@ -396,7 +396,7 @@ onMounted(async () => {
     if (isFromPromotions) {
         await loadPromotions();
     } else {
-        await loadProducts();
+        await loadAllProductsWeb();
     }
 });
 

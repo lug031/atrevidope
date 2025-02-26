@@ -5,8 +5,14 @@ import type { Product } from "@/types/product.types";
 
 export function useProducts() {
   const productStore = useProductStore();
-  const { products, productsWeb, productsByCategory, loading, error } =
-    storeToRefs(productStore);
+  const {
+    products,
+    productsWeb,
+    allProductsWeb,
+    productsByCategory,
+    loading,
+    error,
+  } = storeToRefs(productStore);
 
   const totalProducts = computed(() => products.value.length);
 
@@ -24,6 +30,10 @@ export function useProducts() {
 
   const loadProductsWeb = async () => {
     await productStore.fetchProductsWeb();
+  };
+
+  const loadAllProductsWeb = async () => {
+    await productStore.fetchAllProductsWeb();
   };
 
   const createProduct = async (
@@ -54,11 +64,13 @@ export function useProducts() {
   return {
     products,
     productsWeb,
+    allProductsWeb,
     productsByCategory,
     loading,
     error,
     totalProducts,
     loadProducts,
+    loadAllProductsWeb,
     loadProductsByCategory,
     loadProductsWeb,
     createProduct,

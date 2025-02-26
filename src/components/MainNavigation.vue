@@ -197,7 +197,7 @@ const searchQuery = ref('')
 const showResults = ref(false)
 const loading = ref(false)
 const imageUrls = ref<Record<string, string>>({})
-const { products, loadProducts } = useProducts()
+const { allProductsWeb, loadAllProductsWeb } = useProducts()
 const filteredProducts = ref<any[]>([])
 const isMobileSearchOpen = ref(false)
 
@@ -246,7 +246,7 @@ const filterProducts = () => {
     }
 
     const query = searchQuery.value.toLowerCase()
-    filteredProducts.value = products.value
+    filteredProducts.value = allProductsWeb.value
         .filter(product =>
             product.name.toLowerCase().includes(query) ||
             product.brand.toLowerCase().includes(query)
@@ -330,7 +330,7 @@ onMounted(async () => {
     await Promise.all([
         authStore.checkAuth(),
         cartStore.fetchCartItems(),
-        loadProducts(),
+        loadAllProductsWeb(),
         checkUserOrders()
     ])
 })

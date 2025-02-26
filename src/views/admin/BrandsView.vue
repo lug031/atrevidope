@@ -165,10 +165,8 @@ const {
     getBrandProducts
 } = useBrands()
 
-// Para almacenar el conteo de productos por marca
 const brandProductCounts = ref<Record<string, number>>({})
 
-// Función para cargar el conteo de productos para cada marca
 const loadProductCounts = async () => {
     for (const brand of brands.value) {
         try {

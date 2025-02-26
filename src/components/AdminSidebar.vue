@@ -80,7 +80,7 @@ const navigationItems: NavigationItem[] = [
         path: '/admin/brands',
         icon: TagIcon,
         label: 'Marcas',
-        disabled: true
+        disabled: false
     }
 ]
 

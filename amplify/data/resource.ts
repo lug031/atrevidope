@@ -14,10 +14,23 @@ const schema = a.schema({
       allow.publicApiKey().to(["read"]),
     ]),
 
+  Brand: a
+    .model({
+      name: a.string(),
+      description: a.string(),
+      logo: a.string(),
+      active: a.boolean(),
+      products: a.hasMany("Product", "brandID"),
+    })
+    .authorization((allow) => [
+      allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
+      allow.authenticated().to(["read"]),
+      allow.publicApiKey().to(["read"]),
+    ]),
+
   Product: a
     .model({
       name: a.string(),
-      brand: a.string(),
       description: a.string(),
       price: a.float(),
       originalPrice: a.float(),
@@ -26,6 +39,8 @@ const schema = a.schema({
       active: a.boolean(),
       isPromoted: a.boolean(),
       categories: a.hasMany("ProductCategory", "productID"),
+      brandID: a.string(),
+      brand: a.belongsTo("Brand", "brandID"),
       imageUrl: a.string(),
       promotionStartDate: a.string(),
       promotionEndDate: a.string(),

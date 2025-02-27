@@ -9,13 +9,16 @@
                     </p>
                 </div>
                 <div v-if="isAuthenticated" class="filter-container">
-                    <select v-model="selectedStatus" class="status-filter" @change="filterOrders">
+                    <select v-model="selectedStatus" class="status-filter" @change="filterOrders" :disabled="loading">
                         <option value="all">Todos los pedidos</option>
                         <option value="pending">Pendientes</option>
                         <option value="processing">En proceso</option>
                         <option value="completed">Completados</option>
                         <option value="cancelled">Cancelados</option>
                     </select>
+                    <div v-if="loading" class="filter-loading">
+                        <Loader2Icon :size="16" class="animate-spin" />
+                    </div>
                 </div>
             </div>
 
@@ -99,7 +102,38 @@
                             </div>
                             <div class="payment-method" v-if="order.paymentMethod">
                                 <span class="method-label">Método:</span>
-                                <span class="method-value">{{ order.paymentMethod }}</span>
+                                <div class="payment-method-display">
+                                    <!-- Para tarjeta, mostrar nombre e icono -->
+                                    <template v-if="order.paymentMethod === 'tarjeta'">
+                                        <span class="method-value">Tarjeta</span>
+                                        <div class="method-icon">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                                stroke-linecap="round" stroke-linejoin="round">
+                                                <rect x="2" y="5" width="20" height="14" rx="2" />
+                                                <line x1="2" y1="10" x2="22" y2="10" />
+                                            </svg>
+                                        </div>
+                                    </template>
+
+                                    <!-- Para Yape, mostrar solo imagen -->
+                                    <div v-else-if="order.paymentMethod === 'yape'" class="method-icon-container yape">
+                                        <img src="/yape-icon.png" alt="Yape" class="method-icon-img" />
+                                    </div>
+
+                                    <!-- Para Plin, mostrar solo imagen -->
+                                    <div v-else-if="order.paymentMethod === 'plin'" class="method-icon-container plin">
+                                        <img src="/plin-icon.png" alt="Plin" class="method-icon-img" />
+                                    </div>
+
+                                    <!-- Para QR, mostrar solo imagen -->
+                                    <div v-else-if="order.paymentMethod === 'qr'" class="method-icon-container qr">
+                                        <img src="/qr-icon.png" alt="QR" class="method-icon-img" />
+                                    </div>
+
+                                    <!-- Para otros métodos no contemplados, mostrar nombre -->
+                                    <span v-else class="method-value">{{ order.paymentMethod }}</span>
+                                </div>
                             </div>
                         </div>
 
@@ -122,7 +156,7 @@
                                     <CheckCircleIcon :size="16" class="message-icon success" />
                                     <p>¡Su link de pago está listo! Haga clic en el botón para realizar el pago.</p>
                                 </div>
-                                <a :href="order.linkPago" target="_blank" class="payment-button">
+                                <a :href="formatPaymentLink(order.linkPago)" target="_blank" class="payment-button">
                                     <CreditCardIcon :size="16" />
                                     Realizar pago
                                     <ArrowRightIcon :size="16" />
@@ -139,8 +173,22 @@
 
                             <div v-if="order.linkPago" class="inactive-payment-link">
                                 <span class="inactive-link-label">Referencia de pago:</span>
-                                <span class="inactive-link-value">{{ truncatePaymentLink(order.linkPago) }}</span>
+                                <span class="inactive-link-value">{{
+                                    truncatePaymentLink(formatPaymentLink(order.linkPago)) }}</span>
                             </div>
+                        </div>
+                    </div>
+
+                    <div class="payment-info-section cancelled" v-else>
+                        <div class="payment-header">
+                            <div class="payment-title">
+                                <CreditCardIcon :size="18" />
+                                <h4>Información de pago</h4>
+                            </div>
+                        </div>
+                        <div class="payment-message cancelled">
+                            <XCircleIcon :size="16" class="message-icon" />
+                            <p>Este pedido ha sido cancelado. No se generará ningún enlace de pago.</p>
                         </div>
                     </div>
 
@@ -188,14 +236,14 @@
                     </div>
 
                     <div v-else-if="order.status === 'processing'" class="processing-message">
-                        <div class="processing-content">
+                        <!-- <div class="processing-content">
                             <Loader2Icon :size="24" class="processing-icon" />
                             <div class="message-content">
                                 <h4>¡Hemos recibido tu orden!</h4>
                                 <p>Estamos preparando tu orden, nos comunicaremos contigo al numero/correo que
                                     ingresaste.</p>
                             </div>
-                        </div>
+                        </div> -->
                         <div class="estimated-time">
                             <ClockIcon :size="16" />
                             <span>Tiempo estimado de respuesta: 30min - 1hora</span>
@@ -231,14 +279,16 @@ import {
     CreditCardIcon,
     AlertCircleIcon,
     CheckCircleIcon,
-    ArrowRightIcon
+    ArrowRightIcon,
+    XCircleIcon
 } from 'lucide-vue-next';
 import { getUrl } from 'aws-amplify/storage';
+import { useToast } from '@/composables/useToast'
 
 const auth = useAuthStore();
 const { isAuthenticated, userEmail } = storeToRefs(auth);
 const { getUserOrders } = useOrders();
-
+const { showToast } = useToast()
 const pollingOrderIds = ref<Set<string>>(new Set());
 const POLLING_INTERVAL = 15000;
 const selectedStatus = ref<string>('all');
@@ -293,6 +343,18 @@ const stopPaymentLinkPolling = () => {
     }
 };
 
+const formatPaymentLink = (link: string): string => {
+    if (!link) return '#';
+
+    // Si el enlace ya comienza con http:// o https://, devolverlo tal cual
+    if (link.startsWith('http://') || link.startsWith('https://')) {
+        return link;
+    }
+
+    // Si comienza con www. o es otro tipo de dominio, añadir https://
+    return `https://${link}`;
+};
+
 const checkPaymentLinks = async () => {
     if (pollingOrderIds.value.size === 0) {
         stopPaymentLinkPolling();
@@ -303,14 +365,21 @@ const checkPaymentLinks = async () => {
         // Obtener las órdenes actualizadas
         const refreshedOrders = await getUserOrders(currentUserEmail.value || '');
 
-        // Verificar si alguna orden ha recibido su enlace de pago
+        // Verificar si alguna orden ha recibido su enlace de pago o ha cambiado de estado
         let updatesFound = false;
 
         refreshedOrders.forEach(order => {
-            if (order.id && pollingOrderIds.value.has(order.id) && order.linkPago) {
-                // Eliminar del conjunto de consulta
-                pollingOrderIds.value.delete(order.id);
-                updatesFound = true;
+            if (order.id && pollingOrderIds.value.has(order.id)) {
+                // Si la orden tiene enlace de pago o ha sido cancelada, dejar de consultarla
+                if (order.linkPago || order.status === 'cancelled' || order.status === 'completed') {
+                    pollingOrderIds.value.delete(order.id);
+                    updatesFound = true;
+
+                    // Si fue cancelada, mostrar notificación al usuario
+                    if (order.status === 'cancelled') {
+                        showCancellationNotification(order);
+                    }
+                }
             }
         });
 
@@ -326,6 +395,20 @@ const checkPaymentLinks = async () => {
         }
     } catch (error) {
         console.error('Error al consultar enlaces de pago:', error);
+    }
+};
+
+const showCancellationNotification = (order: Order) => {
+    // Si tienes un sistema de notificaciones, úsalo aquí
+    // Por ejemplo, usando el hook useToast que ya parece estar en uso
+    if (typeof showToast === 'function') {
+        showToast({
+            type: 'warning',
+            message: `El pedido #${order.id?.slice(-6)} ha sido cancelado.`
+        });
+    } else {
+        // Fallback a una alerta simple si no hay sistema de notificaciones
+        alert(`El pedido #${order.id?.slice(-6)} ha sido cancelado.`);
     }
 };
 
@@ -468,6 +551,8 @@ const getDiscountPercentage = (item: any) => {
 
 // Formatea el mensaje de WhatsApp para un pedido
 const formatOrderWhatsAppMessage = (order: Order) => {
+    console.log("order");
+    console.log(order);
     const { customerInfo, items, subtotal, shipping, total } = order;
     const customerDetails =
         `*INFORMACIÓN DEL CLIENTE*\n` +
@@ -480,6 +565,17 @@ const formatOrderWhatsAppMessage = (order: Order) => {
         return `- ${item.productSnapshot.name} (${item.quantity}x) : S/. ${item.price.toFixed(2)}`;
     }).join('\n');
 
+    type PaymentMethod = 'tarjeta' | 'qr' | 'plin' | 'yape';
+
+    const paymentMethodMap: Record<PaymentMethod, string> = {
+        tarjeta: 'Tarjeta de crédito/débito',
+        qr: 'QR',
+        plin: 'Plin',
+        yape: 'Yape',
+    };
+
+    const paymentMethod = paymentMethodMap[order.paymentMethod as PaymentMethod] || order.paymentMethod;
+
     const totalsDetails =
         `\n*TOTALES*\n` +
         `Subtotal: S/. ${subtotal.toFixed(2)}\n` +
@@ -488,7 +584,8 @@ const formatOrderWhatsAppMessage = (order: Order) => {
 
     return encodeURIComponent(
         `${customerDetails}` +
-        `*PRODUCTOS*\n${itemsDetails}\n` +
+        `*PRODUCTOS*\n${itemsDetails}\n\n` +
+        `*MÉTODO DE PAGO*\n${paymentMethod}\n` +
         `${totalsDetails}`
     );
 };
@@ -500,7 +597,37 @@ const openWhatsapp = (order: Order) => {
     window.open(whatsappUrl, '_blank');
 };
 
-const filterOrders = () => {
+// Función para filtrar órdenes y refrescar datos
+const filterOrders = async () => {
+    // Detener cualquier consulta anterior en curso
+    stopPaymentLinkPolling();
+
+    // Resetear mensaje de error si existe
+    error.value = null;
+
+    // Mostrar estado de carga
+    loading.value = true;
+
+    try {
+        // Obtener todos los pedidos actualizados
+        const userOrders = await getUserOrders(currentUserEmail.value || '');
+
+        // Actualizar la lista completa de órdenes
+        orders.value = userOrders;
+
+        // Cargar imágenes de productos
+        await loadProductImages();
+
+        // Si el filtro es "processing" o "all", iniciar el polling para enlaces de pago
+        if (selectedStatus.value === 'processing' || selectedStatus.value === 'all') {
+            startPaymentLinkPolling();
+        }
+    } catch (err) {
+        console.error('Error al filtrar órdenes:', err);
+        error.value = 'Hubo un error al actualizar los pedidos';
+    } finally {
+        loading.value = false;
+    }
 };
 
 const loadOrders = async () => {
@@ -516,6 +643,8 @@ const loadOrders = async () => {
         const userOrders = await getUserOrders(currentUserEmail.value);
         orders.value = userOrders;
         await loadProductImages();
+
+        // Iniciar el polling para las órdenes en proceso
         startPaymentLinkPolling();
     } catch (err) {
         //console.error('Error cargando órdenes:', err);
@@ -536,13 +665,8 @@ onMounted(async () => {
 });
 
 watch(selectedStatus, () => {
-    // Si el estado seleccionado es "processing", reiniciar el polling
-    if (selectedStatus.value === 'processing' || selectedStatus.value === 'all') {
-        startPaymentLinkPolling();
-    } else {
-        // Si no estamos mirando órdenes en proceso, detener el polling
-        stopPaymentLinkPolling();
-    }
+    // Llamar a filterOrders para obtener los datos actualizados según el filtro
+    filterOrders();
 });
 </script>
 
@@ -598,6 +722,8 @@ watch(selectedStatus, () => {
 .filter-container {
     display: flex;
     align-items: center;
+    gap: 0.75rem;
+    position: relative;
 }
 
 .status-filter {
@@ -610,16 +736,39 @@ watch(selectedStatus, () => {
     cursor: pointer;
     outline: none;
     transition: all 0.2s;
+    min-width: 180px;
 }
 
-.status-filter:hover {
+.status-filter:disabled {
+    background-color: #f8fafc;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.status-filter:hover:not(:disabled) {
+    border-color: #cbd5e0;
+}
+
+.status-filter:focus:not(:disabled) {
+    border-color: #4299e1;
+    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+}
+
+.filter-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #4a5568;
+}
+
+/*.status-filter:hover {
     border-color: #cbd5e0;
 }
 
 .status-filter:focus {
     border-color: #4299e1;
     box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
-}
+}*/
 
 .loading-state {
     display: flex;
@@ -678,165 +827,15 @@ watch(selectedStatus, () => {
     border: 1px solid #e5e7eb;
 }
 
-.payment-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
+.payment-message.cancelled {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
 }
 
-.payment-title {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: #111827;
-}
-
-.payment-title h4 {
-    font-size: 1rem;
-    font-weight: 600;
-    margin: 0;
-}
-
-.payment-method {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.method-label {
-    font-size: 0.875rem;
-    color: #6b7280;
-}
-
-.method-value {
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: #111827;
-    background-color: #e5e7eb;
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.25rem;
-}
-
-.payment-message {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    padding: 0.875rem;
-    border-radius: 0.375rem;
-    font-size: 0.875rem;
-    line-height: 1.4;
-}
-
-.payment-message.pending {
-    background-color: #fef3c7;
-    color: #92400e;
-    border: 1px solid #fde68a;
-}
-
-.payment-message.processing {
-    background-color: #dbeafe;
-    color: #1e40af;
-    border: 1px solid #bfdbfe;
-}
-
-.payment-message.completed {
-    background-color: #d1fae5;
-    color: #065f46;
-    border: 1px solid #a7f3d0;
-}
-
-.message-icon {
-    margin-top: 0.125rem;
-}
-
-.message-icon.success {
-    color: #10b981;
-}
-
-.animate-spin {
-    animation: spin 2s linear infinite;
-}
-
-.payment-status {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.payment-link-container {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.payment-link-ready {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    padding: 0.875rem;
-    border-radius: 0.375rem;
-    background-color: #d1fae5;
-    color: #065f46;
-    border: 1px solid #a7f3d0;
-    font-size: 0.875rem;
-    line-height: 1.4;
-}
-
-.payment-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.25rem;
-    background-color: #4f46e5;
-    color: white;
-    border-radius: 0.375rem;
-    font-weight: 500;
-    text-align: center;
-    text-decoration: none;
-    transition: all 0.2s ease;
-    border: none;
-    cursor: pointer;
-}
-
-.payment-button:hover {
-    background-color: #4338ca;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-}
-
-.inactive-payment-link {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    padding: 0.75rem;
-    background-color: #f3f4f6;
-    border-radius: 0.375rem;
-    border: 1px dashed #d1d5db;
-}
-
-.inactive-link-label {
-    font-size: 0.75rem;
-    color: #6b7280;
-}
-
-.inactive-link-value {
-    font-family: monospace;
-    font-size: 0.875rem;
-    color: #9ca3af;
-}
-
-@media (max-width: 640px) {
-    .payment-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.5rem;
-    }
-
-    .payment-button {
-        width: 100%;
-    }
+.payment-info-section.cancelled {
+    background-color: #fef2f2;
+    border-color: #fecaca;
 }
 
 .payment-info-section {
@@ -878,6 +877,12 @@ watch(selectedStatus, () => {
     color: #6b7280;
 }
 
+.payment-method-display {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .method-value {
     font-size: 0.875rem;
     font-weight: 500;
@@ -885,6 +890,45 @@ watch(selectedStatus, () => {
     background-color: #e5e7eb;
     padding: 0.25rem 0.5rem;
     border-radius: 0.25rem;
+}
+
+.method-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    color: #4b5563;
+}
+
+.method-icon-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 0.25rem;
+    background-color: #f3f4f6;
+    padding: 0.25rem;
+    overflow: hidden;
+}
+
+.method-icon-container.yape {
+    background-color: #f5f3ff;
+}
+
+.method-icon-container.plin {
+    background-color: #eff6ff;
+}
+
+.method-icon-container.qr {
+    background-color: #f3f4f6;
+}
+
+.method-icon-img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
 }
 
 .payment-message {
@@ -997,6 +1041,10 @@ watch(selectedStatus, () => {
 }
 
 @media (max-width: 640px) {
+    .payment-method {
+        margin-top: 0.5rem;
+    }
+
     .payment-header {
         flex-direction: column;
         align-items: flex-start;
@@ -1393,8 +1441,8 @@ watch(selectedStatus, () => {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding-top: 0.75rem;
-    border-top: 1px dashed #bfdbfe;
+    /*padding-top: 0.75rem;
+    border-top: 1px dashed #bfdbfe;*/
     color: #6b7280;
     font-size: 0.9rem;
 }

@@ -64,7 +64,7 @@
                                         @input="validateDocumentNumber" :class="{ 'error': errors.documentNumber }"
                                         :maxlength="getDocumentMaxLength">
                                     <span class="error-message" v-if="errors.documentNumber">{{ errors.documentNumber
-                                    }}</span>
+                                        }}</span>
                                 </div>
                             </div>
 
@@ -115,14 +115,76 @@
                                 </div>
                             </div> -->
 
-                            <div class="form-section">
+                            <div class="form-section payment-method-section">
                                 <h3>Método de pago</h3>
-                                <select v-model="form.paymentMethod" class="payment-dropdown">
-                                    <option value="tarjeta">Tarjeta de crédito/débito</option>
-                                    <option value="yape">Yape</option>
-                                    <option value="plin">Plin</option>
-                                    <option value="qr">QR</option>
-                                </select>
+                                <div class="payment-methods-container">
+                                    <div class="payment-method-option"
+                                        :class="{ active: form.paymentMethod === 'tarjeta' }">
+                                        <label class="payment-option-label">
+                                            <input type="radio" v-model="form.paymentMethod" value="tarjeta"
+                                                class="payment-method-input" />
+                                            <div class="payment-option-text">
+                                                <span class="payment-method-name">Tarjeta</span>
+                                                <span class="payment-method-desc">Crédito o débito</span>
+                                            </div>
+                                            <div class="payment-option-icon">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <rect x="2" y="5" width="20" height="14" rx="2" />
+                                                    <line x1="2" y1="10" x2="22" y2="10" />
+                                                </svg>
+                                            </div>
+                                        </label>
+                                    </div>
+
+                                    <div class="payment-method-option"
+                                        :class="{ active: form.paymentMethod === 'yape' }">
+                                        <label class="payment-option-label">
+                                            <input type="radio" v-model="form.paymentMethod" value="yape"
+                                                class="payment-method-input" />
+                                            <div class="payment-option-text">
+                                                <span class="payment-method-name">Yape</span>
+                                                <!-- <span class="payment-method-desc">Pago móvil rápido</span> -->
+                                            </div>
+                                            <div class="payment-option-icon yape">
+                                                <img src="/yape-icon.png" alt="Yape"
+                                                    class="payment-method-img" />
+                                            </div>
+                                        </label>
+                                    </div>
+
+                                    <div class="payment-method-option"
+                                        :class="{ active: form.paymentMethod === 'plin' }">
+                                        <label class="payment-option-label">
+                                            <input type="radio" v-model="form.paymentMethod" value="plin"
+                                                class="payment-method-input" />
+                                            <div class="payment-option-text">
+                                                <span class="payment-method-name">Plin</span>
+                                                <!-- <span class="payment-method-desc">Transferencia instantánea</span> -->
+                                            </div>
+                                            <div class="payment-option-icon plin">
+                                                <img src="/plin-icon.png" alt="Plin"
+                                                    class="payment-method-img" />
+                                            </div>
+                                        </label>
+                                    </div>
+
+                                    <div class="payment-method-option" :class="{ active: form.paymentMethod === 'qr' }">
+                                        <label class="payment-option-label">
+                                            <input type="radio" v-model="form.paymentMethod" value="qr"
+                                                class="payment-method-input" />
+                                            <div class="payment-option-text">
+                                                <span class="payment-method-name">Código QR</span>
+                                                <span class="payment-method-desc">Escanea y paga</span>
+                                            </div>
+                                            <div class="payment-option-icon">
+                                                <img src="/qr-icon.png" alt="QR Code"
+                                                    class="payment-method-img" />
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="button-group">
@@ -158,7 +220,7 @@
                                     <div class="info-item">
                                         <span class="info-label">Documento</span>
                                         <span class="info-value">{{ form.documentType }}: {{ form.documentNumber
-                                        }}</span>
+                                            }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -689,6 +751,151 @@ onMounted(() => {
 .cart-items-container {
     position: relative;
     min-height: 100px;
+}
+
+.payment-dropdown {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    color: #1a1a1a;
+    background-color: #fff;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+    padding-right: 2.5rem;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.payment-dropdown:focus {
+    outline: none;
+    border-color: #000000;
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}
+
+.payment-dropdown:hover {
+    border-color: #d1d5db;
+}
+
+/* Estilo para las opciones dentro del dropdown */
+.payment-dropdown option {
+    padding: 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* Contenedor para el dropdown con ícono opcional */
+.payment-method-container {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+/* Para añadir un ícono al dropdown si se desea */
+.payment-method-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6b7280;
+}
+
+/* Si se usa un ícono, añadir padding extra a la izquierda */
+.payment-dropdown.with-icon {
+    padding-left: 2.5rem;
+}
+
+.payment-method-section {
+    margin-bottom: 1.5rem;
+}
+
+.payment-methods-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.payment-method-option {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.payment-method-option:hover {
+    border-color: #d1d5db;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.payment-method-option.active {
+    border-color: #000000;
+    background-color: #f9fafb;
+}
+
+.payment-option-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 1rem;
+    cursor: pointer;
+}
+
+.payment-method-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.payment-option-text {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding-right: 12px;
+}
+
+.payment-option-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+}
+
+.payment-method-img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
+.payment-method-name {
+    font-weight: 500;
+    color: #1a1a1a;
+    margin-bottom: 0.25rem;
+}
+
+.payment-method-desc {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+/* Estilos específicos para cuando están activos */
+.payment-method-option.active .payment-method-name {
+    color: #000000;
+    font-weight: 600;
+}
+
+@media (max-width: 640px) {
+    .payment-methods-container {
+        grid-template-columns: 1fr;
+    }
 }
 
 .customer-subtitle {

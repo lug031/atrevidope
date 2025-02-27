@@ -128,7 +128,7 @@ export const useCartStore = defineStore("cart", () => {
           discountPercentage: product.discountPercentage,
           isPromoted: product.isPromoted,
         }
-        console.log("ITEM: ",newItem)
+        //console.log("ITEM: ",newItem)
         items.value.push(newItem);
         showNotification.value = true;
         setTimeout(() => {

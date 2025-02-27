@@ -173,7 +173,7 @@ const loadImageUrls = async () => {
     if (currentProduct.value?.imageUrl) {
         try {
             const { url } = await getUrl({ path: currentProduct.value.imageUrl });
-            console.log('DETAIL Image URL:', url);
+            //console.log('DETAIL Image URL:', url);
             imageUrls.value[currentProduct.value.id] = url.toString();
         } catch (error) {
             console.error("Error cargando imagen:", error);

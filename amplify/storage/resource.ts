@@ -13,10 +13,5 @@ export const storage = defineStorage({
       allow.authenticated.to(["read"]),
       allow.groups(["admin"]).to(["read", "write", "delete"]),
     ],
-    "order-images/*": [
-      allow.guest.to(["read"]),
-      allow.authenticated.to(["read"]),
-      allow.groups(["admin"]).to(["read", "write", "delete"]),
-    ],
   }),
 });

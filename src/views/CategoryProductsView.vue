@@ -66,15 +66,14 @@
                             <!-- Precios -->
                             <div class="price-info" :class="{
                                 'has-promotion': hasUpcomingPromotion(product),
-                                'has-active-promotion': hasActivePromotion(product),
-                                'has-expired-promotion': hasExpiredPromotion(product)
+                                'has-active-promotion': hasActivePromotion(product)
                             }">
                                 <p class="product-price">
                                     <template v-if="hasActivePromotion(product)">
                                         <span class="original-price">S/{{ product.originalPrice.toFixed(2) }}</span>
                                         <span class="discounted-price">S/{{ calculateDiscountedPrice(product) }}</span>
                                     </template>
-                                    <template v-else-if="hasUpcomingPromotion(product) || hasExpiredPromotion(product)">
+                                    <template v-else-if="hasUpcomingPromotion(product)">
                                         <span class="current-price">S/{{ product.originalPrice.toFixed(2) }}</span>
                                     </template>
                                     <template v-else>
@@ -266,10 +265,10 @@ const getEffectivePrice = (product: Product): number => {
     // Si hay promoción activa, usar precio con descuento
     if (hasActivePromotion(product)) {
         const discountMultiplier = 1 - (product.discountPercentage / 100);
-        return product.originalPrice * discountMultiplier;
+        return product.price * discountMultiplier;
     }
-    // Si es una promoción futura o expirada, usar originalPrice
-    else if (hasUpcomingPromotion(product) || hasExpiredPromotion(product)) {
+    // Si es una promoción futura, usar originalPrice
+    else if (hasUpcomingPromotion(product)) {
         return product.originalPrice || 0;
     }
     // En cualquier otro caso, usar precio normal
@@ -292,15 +291,6 @@ const sortedProducts = computed(() => {
         }
     });
 });
-
-const hasExpiredPromotion = (product: Product): boolean => {
-    if (!product.isPromoted || !product.promotionStartDate || !product.promotionEndDate) {
-        return false;
-    }
-
-    const currentDate = getCurrentPeruDate();
-    return currentDate > product.promotionEndDate;
-};
 
 const addToCart = (product: Product) => {
     if (!product.stock) {
@@ -343,16 +333,16 @@ const loadCategoryProducts = async () => {
 };
 
 const loadCategoryProductsMounted = async () => {
-    loading.value = true;
-    error.value = null;
+  loading.value = true;
+  error.value = null;
 
-    try {
-        await loadCategoryProducts();
-    } catch (err) {
-        error.value = 'Hubo un error al cargar productos de la categoría.';
-    } finally {
-        loading.value = false;
-    }
+  try {
+    await loadCategoryProducts();
+  } catch (err) {
+    error.value = 'Hubo un error al cargar productos de la categoría.';
+  } finally {
+    loading.value = false;
+  }
 };
 
 onMounted(() => {
@@ -517,17 +507,6 @@ watch(
     color: #666;
     text-decoration: line-through;
     margin-right: 6px;
-}
-
-.price-info.has-expired-promotion {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.price-info.has-expired-promotion .current-price {
-    font-size: 1.2rem;
-    font-weight: bold;
 }
 
 .price-info .discounted-price {

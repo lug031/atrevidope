@@ -37,7 +37,7 @@
                         <template v-if="isValidPromotion">
                             <p class="product-price">
                                 <span class="current-price">S/{{ formatPrice(calculateDiscountedPrice(currentProduct))
-                                    }}</span>
+                                }}</span>
                                 <span class="original-price">S/{{ formatPrice(currentProduct.originalPrice) }}</span>
                             </p>
                             <div class="discount-badge">-{{ currentProduct.discountPercentage }}%</div>
@@ -45,12 +45,8 @@
                                 {{ getPromotionDateText(currentProduct) }}
                             </div>
                         </template>
-                        <template
-                            v-else-if="hasExpiredPromotion(currentProduct) || hasUpcomingPromotion(currentProduct)">
-                            <p class="product-price">S/{{ formatPrice(currentProduct.originalPrice) }}</p>
-                        </template>
                         <template v-else>
-                            <p class="product-price">S/{{ formatPrice(currentProduct.price) }}</p>
+                            <p class="product-price">S/{{ currentProduct.price.toFixed(2) }}</p>
                         </template>
                     </div>
 
@@ -177,7 +173,6 @@ const loadImageUrls = async () => {
     if (currentProduct.value?.imageUrl) {
         try {
             const { url } = await getUrl({ path: currentProduct.value.imageUrl });
-            //console.log('DETAIL Image URL:', url);
             imageUrls.value[currentProduct.value.id] = url.toString();
         } catch (error) {
             console.error("Error cargando imagen:", error);
@@ -188,24 +183,6 @@ const loadImageUrls = async () => {
 const isSingleDayPromotion = computed(() => {
     return currentProduct.value?.promotionStartDate === currentProduct.value?.promotionEndDate;
 });
-
-const hasExpiredPromotion = (product: Product): boolean => {
-    if (!product.isPromoted || !product.promotionStartDate || !product.promotionEndDate) {
-        return false;
-    }
-
-    const today = getCurrentPeruDate();
-    return today > product.promotionEndDate;
-};
-
-const hasUpcomingPromotion = (product: Product): boolean => {
-    if (!product.isPromoted || !product.promotionStartDate || !product.promotionEndDate) {
-        return false;
-    }
-
-    const today = getCurrentPeruDate();
-    return today < product.promotionStartDate;
-};
 
 const isPromotionActive = (product: Product): boolean => {
     if (!product.isPromoted || !product.promotionStartDate || !product.promotionEndDate) {
@@ -257,7 +234,6 @@ const isValidPromotion = computed(() => {
         return false;
     }
 
-    // Only active promotions are valid (not upcoming or expired)
     return isPromotionActive(currentProduct.value);
 });
 
@@ -382,21 +358,12 @@ const addToCart = async () => {
         isAddingToCart.value = true;
 
         if (quantity.value <= currentProduct.value.stock) {
-            // Determine the correct price to use
-            let productPrice = currentProduct.value.price;
-
-            if (isValidPromotion.value) {
-                // Active promotion - use discounted price
-                productPrice = calculateDiscountedPrice(currentProduct.value);
-            } else if (hasExpiredPromotion(currentProduct.value) || hasUpcomingPromotion(currentProduct.value)) {
-                // Expired or upcoming promotion - use original price
-                productPrice = currentProduct.value.originalPrice;
-            }
-
             await addItemToCart(
                 {
                     ...currentProduct.value,
-                    price: productPrice,
+                    price: isPromotionalProduct.value
+                        ? calculateDiscountedPrice(currentProduct.value)
+                        : currentProduct.value.price,
                     originalPrice: currentProduct.value.originalPrice,
                 },
                 quantity.value
@@ -464,16 +431,6 @@ watch(() => currentProduct.value, () => {
 
 .formatted-description h2 {
     font-size: 1.25em;
-}
-
-.promotion-ended {
-    margin-left: 1rem;
-    padding: 4px 8px;
-    background-color: #f3f4f6;
-    color: #6b7280;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    font-weight: 500;
 }
 
 .formatted-description h3 {

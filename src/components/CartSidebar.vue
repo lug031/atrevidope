@@ -22,22 +22,20 @@
                         </div>
                         <div v-for="item in items" :key="item.id" class="cart-item">
                             <img :src="imageUrls[item.productID] || '/api/placeholder/80/80'"
-                                :alt="productDetails[item.productID]?.name || 'Product image'" class="item-image"
-                                @error="handleImageError(item.productID)" />
+                                :alt="productDetails[item.productID]?.name" class="item-image" />
 
                             <div class="item-details">
                                 <div class="item-info">
                                     <span class="item-brand">{{ productDetails[item.productID]?.brand }}</span>
                                     <h3 class="item-name">{{ productDetails[item.productID]?.name }}</h3>
                                     <div class="price-container">
-                                        <span v-if="item.isPromoted && isPromotionActive(item)" class="original-price">
+                                        <span v-if="item.isPromoted" class="original-price">
                                             S/. {{ item.originalPrice.toFixed(2) }}
                                         </span>
-                                        <span class="item-price"
-                                            :class="{ promotional: item.isPromoted && isPromotionActive(item) }">
+                                        <span class="item-price" :class="{ promotional: item.isPromoted }">
                                             S/. {{ item.price.toFixed(2) }}
                                         </span>
-                                        <span v-if="item.isPromoted && isPromotionActive(item)" class="discount-badge">
+                                        <span v-if="item.isPromoted" class="discount-badge">
                                             -{{ item.discountPercentage }}%
                                         </span>
                                     </div>
@@ -153,10 +151,6 @@ const initializeCart = async () => {
         if (!items.value.length) {
             await loadCartItems();
         }
-
-        if (products.value.length === 0) {
-            await productStore.fetchProducts();
-        }
         updateProductDetails();
         await loadImageUrls();
     } catch (error) {
@@ -164,26 +158,6 @@ const initializeCart = async () => {
     } finally {
         cartInitializing.value = false;
     }
-};
-
-const isPromotionActive = (item: CartItem): boolean => {
-    if (!item.isPromoted || !item.product?.promotionStartDate || !item.product?.promotionEndDate) {
-        return false;
-    }
-
-    const today = getCurrentPeruDate();
-    return today >= item.product?.promotionStartDate && today <= item.product?.promotionEndDate;
-};
-
-const getCurrentPeruDate = (): string => {
-    const date = new Date();
-    const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
-
-    const year = peruDate.getFullYear();
-    const month = String(peruDate.getMonth() + 1).padStart(2, '0');
-    const day = String(peruDate.getDate()).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
 };
 
 const updateProductDetails = () => {
@@ -194,23 +168,16 @@ const updateProductDetails = () => {
     productDetails.value = productsMap;
 };
 
-const handleImageError = (productId: string) => {
-    imageUrls.value[productId] = '/api/placeholder/80/80';
-};
-
 const loadImageUrls = async () => {
     for (const item of items.value) {
         const product = productDetails.value[item.productID];
-
         if (product?.imageUrl) {
             try {
                 const { url } = await getUrl({ path: product.imageUrl });
                 imageUrls.value[item.productID] = url.toString();
             } catch (error) {
-                imageUrls.value[item.productID] = '/api/placeholder/80/80';
+                console.error("Error cargando imagen:", error);
             }
-        } else {
-            imageUrls.value[item.productID] = '/api/placeholder/80/80';
         }
     }
 };

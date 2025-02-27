@@ -376,7 +376,7 @@ const loadOrders = async () => {
         orders.value = userOrders;
         await loadProductImages();
     } catch (err) {
-        console.error('Error cargando órdenes:', err);
+        //console.error('Error cargando órdenes:', err);
         error.value = 'Hubo un error al cargar los pedidos';
         orders.value = [];
     } finally {

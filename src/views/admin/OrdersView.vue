@@ -5,7 +5,7 @@
             <div class="search-filter">
                 <div class="search-box">
                     <SearchIcon :size="20" class="search-icon" />
-                    <input type="text" placeholder="Buscar órdenes..." class="search-input" v-model="searchQuery" />
+                    <input type="text" placeholder="Buscar pedidos..." class="search-input" v-model="searchQuery" />
                 </div>
             </div>
             <button @click="loadOrders" class="refresh-button" :disabled="loading">
@@ -17,7 +17,7 @@
         <!-- Estados de loading y error -->
         <div v-if="loading" class="loading-state">
             <Loader2Icon :size="40" class="animate-spin" />
-            <p>Cargando órdenes...</p>
+            <p>Cargando pedidos...</p>
         </div>
 
         <div v-else-if="error" class="error-state">
@@ -35,7 +35,7 @@
                 <div class="stat-card">
                     <PackageIcon :size="24" class="stat-icon" />
                     <div class="stat-info">
-                        <span class="stat-label">Total Órdenes</span>
+                        <span class="stat-label">Total Pedidos</span>
                         <span class="stat-value">{{ orderStats.total }}</span>
                     </div>
                 </div>

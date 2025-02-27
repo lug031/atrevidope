@@ -84,7 +84,7 @@ export const useOrderStore = defineStore("order", () => {
       const { data: items } = await authClient.models.Order.list();
       orders.value = items.map(parseOrderData);
     } catch (err) {
-      error.value = "Error al cargar órdenes";
+      error.value = "Error al cargar pedidos";
       console.error(err);
     } finally {
       loading.value = false;
@@ -232,7 +232,7 @@ export const useOrderStore = defineStore("order", () => {
       });
       return items.map(parseOrderData);
     } catch (err) {
-      error.value = "Error al cargar órdenes del usuario";
+      error.value = "Error al cargar pedidos del usuario";
       console.error(err);
       throw err;
     } finally {

@@ -25,7 +25,7 @@
                     <div v-if="currentStep === 0" class="checkout-card">
                         <h2>Información del cliente</h2>
                         <p class="customer-subtitle">Por favor asegúrese de ingresar datos verídicos y correctos, ya que
-                            esta información será esencial para la entrega de su pedido.</p>
+                            esta información será esencial para el pago y entrega de su pedido.</p>
                         <form @submit.prevent="nextStep" class="customer-form">
                             <div class="form-row">
                                 <div class="form-group">

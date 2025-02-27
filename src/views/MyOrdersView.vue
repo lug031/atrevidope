@@ -90,6 +90,60 @@
                         </div>
                     </div>
 
+                    <!-- Payment Information Section -->
+                    <div class="payment-info-section" v-if="order.status !== 'cancelled'">
+                        <div class="payment-header">
+                            <div class="payment-title">
+                                <CreditCardIcon :size="18" />
+                                <h4>Información de pago</h4>
+                            </div>
+                            <div class="payment-method" v-if="order.paymentMethod">
+                                <span class="method-label">Método:</span>
+                                <span class="method-value">{{ order.paymentMethod }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Pending Order Payment Message -->
+                        <div v-if="order.status === 'pending'" class="payment-message pending">
+                            <AlertCircleIcon :size="16" class="message-icon" />
+                            <p>Su solicitud de link de pago ha sido generada. En breve nuestro equipo procesará su
+                                pedido.</p>
+                        </div>
+
+                        <!-- Processing Order Payment Message -->
+                        <div v-if="order.status === 'processing'" class="payment-status">
+                            <div v-if="!order.linkPago" class="payment-message processing">
+                                <Loader2Icon :size="16" class="message-icon animate-spin" />
+                                <p>Su link de pago se está generando, pronto estará disponible.</p>
+                            </div>
+
+                            <div v-else class="payment-link-container">
+                                <div class="payment-link-ready">
+                                    <CheckCircleIcon :size="16" class="message-icon success" />
+                                    <p>¡Su link de pago está listo! Haga clic en el botón para realizar el pago.</p>
+                                </div>
+                                <a :href="order.linkPago" target="_blank" class="payment-button">
+                                    <CreditCardIcon :size="16" />
+                                    Realizar pago
+                                    <ArrowRightIcon :size="16" />
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Completed Order Payment Message -->
+                        <div v-if="order.status === 'completed'" class="payment-status">
+                            <div class="payment-message completed">
+                                <CheckCircleIcon :size="16" class="message-icon success" />
+                                <p>Pago completado con éxito.</p>
+                            </div>
+
+                            <div v-if="order.linkPago" class="inactive-payment-link">
+                                <span class="inactive-link-label">Referencia de pago:</span>
+                                <span class="inactive-link-value">{{ truncatePaymentLink(order.linkPago) }}</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Order Summary -->
                     <div class="order-summary">
                         <div class="summary-row">
@@ -160,7 +214,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useOrders } from '@/composables/useOrders';
 import { useAuthStore } from '@/stores/auth';
 import { storeToRefs } from 'pinia';
@@ -173,7 +227,11 @@ import {
     Facebook as FacebookIcon,
     Youtube as YoutubeIcon,
     Twitter as TwitterIcon,
-    Loader2Icon, ClockIcon
+    Loader2Icon, ClockIcon,
+    CreditCardIcon,
+    AlertCircleIcon,
+    CheckCircleIcon,
+    ArrowRightIcon
 } from 'lucide-vue-next';
 import { getUrl } from 'aws-amplify/storage';
 
@@ -181,12 +239,95 @@ const auth = useAuthStore();
 const { isAuthenticated, userEmail } = storeToRefs(auth);
 const { getUserOrders } = useOrders();
 
+const pollingOrderIds = ref<Set<string>>(new Set());
+const POLLING_INTERVAL = 15000;
 const selectedStatus = ref<string>('all');
 const orders = ref<Order[]>([]);
 const productImages = ref<Record<string, string>>({});
 const orderProducts = ref<Record<string, Product>>({});
 const loading = ref(true);
 const error = ref<string | null>(null);
+
+const truncatePaymentLink = (link: string, maxLength: number = 30): string => {
+    if (!link) return '';
+    if (link.length <= maxLength) return link;
+
+    // Extrae el dominio principal para mejor legibilidad
+    try {
+        const url = new URL(link);
+        return url.hostname + '/...';
+    } catch (e) {
+        // Si no es una URL válida, simplemente trunca
+        return link.substring(0, maxLength) + '...';
+    }
+};
+
+const startPaymentLinkPolling = () => {
+    // Detener cualquier intervalo existente
+    stopPaymentLinkPolling();
+
+    // Filtrar órdenes en proceso que no tienen enlace de pago
+    const processingOrdersWithoutLink = orders.value.filter(
+        order => order.status === 'processing' && !order.linkPago && order.id
+    );
+
+    // Si no hay órdenes para consultar, no hacer nada
+    if (processingOrdersWithoutLink.length === 0) return;
+
+    // Añadir IDs al conjunto de consulta
+    processingOrdersWithoutLink.forEach(order => {
+        if (order.id) pollingOrderIds.value.add(order.id);
+    });
+
+    // Iniciar intervalo de consulta
+    const intervalId = setInterval(checkPaymentLinks, POLLING_INTERVAL);
+
+    // Almacenar el ID del intervalo para poder detenerlo después
+    (window as any).paymentLinkPollingId = intervalId;
+};
+
+const stopPaymentLinkPolling = () => {
+    if ((window as any).paymentLinkPollingId) {
+        clearInterval((window as any).paymentLinkPollingId);
+        (window as any).paymentLinkPollingId = null;
+    }
+};
+
+const checkPaymentLinks = async () => {
+    if (pollingOrderIds.value.size === 0) {
+        stopPaymentLinkPolling();
+        return;
+    }
+
+    try {
+        // Obtener las órdenes actualizadas
+        const refreshedOrders = await getUserOrders(currentUserEmail.value || '');
+
+        // Verificar si alguna orden ha recibido su enlace de pago
+        let updatesFound = false;
+
+        refreshedOrders.forEach(order => {
+            if (order.id && pollingOrderIds.value.has(order.id) && order.linkPago) {
+                // Eliminar del conjunto de consulta
+                pollingOrderIds.value.delete(order.id);
+                updatesFound = true;
+            }
+        });
+
+        // Si hubo actualizaciones, actualizar la lista de órdenes
+        if (updatesFound) {
+            orders.value = refreshedOrders;
+            await loadProductImages();
+        }
+
+        // Si no quedan órdenes por consultar, detener el polling
+        if (pollingOrderIds.value.size === 0) {
+            stopPaymentLinkPolling();
+        }
+    } catch (error) {
+        console.error('Error al consultar enlaces de pago:', error);
+    }
+};
 
 const filteredOrders = computed(() => {
     if (selectedStatus.value === 'all') {
@@ -375,6 +516,7 @@ const loadOrders = async () => {
         const userOrders = await getUserOrders(currentUserEmail.value);
         orders.value = userOrders;
         await loadProductImages();
+        startPaymentLinkPolling();
     } catch (err) {
         //console.error('Error cargando órdenes:', err);
         error.value = 'Hubo un error al cargar los pedidos';
@@ -384,8 +526,23 @@ const loadOrders = async () => {
     }
 };
 
+onUnmounted(() => {
+    // Detener el polling cuando el componente se desmonta
+    stopPaymentLinkPolling();
+});
+
 onMounted(async () => {
     loadOrders();
+});
+
+watch(selectedStatus, () => {
+    // Si el estado seleccionado es "processing", reiniciar el polling
+    if (selectedStatus.value === 'processing' || selectedStatus.value === 'all') {
+        startPaymentLinkPolling();
+    } else {
+        // Si no estamos mirando órdenes en proceso, detener el polling
+        stopPaymentLinkPolling();
+    }
 });
 </script>
 
@@ -511,6 +668,344 @@ onMounted(async () => {
     display: flex;
     flex-direction: column;
     gap: 24px;
+}
+
+.payment-info-section {
+    margin-top: 1.5rem;
+    padding: 1.25rem;
+    background-color: #f9fafb;
+    border-radius: 0.5rem;
+    border: 1px solid #e5e7eb;
+}
+
+.payment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.payment-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #111827;
+}
+
+.payment-title h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.payment-method {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.method-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.method-value {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #111827;
+    background-color: #e5e7eb;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+.payment-message {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.875rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.payment-message.pending {
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+
+.payment-message.processing {
+    background-color: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+}
+
+.payment-message.completed {
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.message-icon {
+    margin-top: 0.125rem;
+}
+
+.message-icon.success {
+    color: #10b981;
+}
+
+.animate-spin {
+    animation: spin 2s linear infinite;
+}
+
+.payment-status {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.payment-link-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.payment-link-ready {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.875rem;
+    border-radius: 0.375rem;
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.payment-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background-color: #4f46e5;
+    color: white;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    text-align: center;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border: none;
+    cursor: pointer;
+}
+
+.payment-button:hover {
+    background-color: #4338ca;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+.inactive-payment-link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.75rem;
+    background-color: #f3f4f6;
+    border-radius: 0.375rem;
+    border: 1px dashed #d1d5db;
+}
+
+.inactive-link-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+.inactive-link-value {
+    font-family: monospace;
+    font-size: 0.875rem;
+    color: #9ca3af;
+}
+
+@media (max-width: 640px) {
+    .payment-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .payment-button {
+        width: 100%;
+    }
+}
+
+.payment-info-section {
+    margin-top: 1.5rem;
+    padding: 1.25rem;
+    background-color: #f9fafb;
+    border-radius: 0.5rem;
+    border: 1px solid #e5e7eb;
+}
+
+.payment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.payment-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #111827;
+}
+
+.payment-title h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.payment-method {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.method-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.method-value {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #111827;
+    background-color: #e5e7eb;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+.payment-message {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.875rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.payment-message.pending {
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+
+.payment-message.processing {
+    background-color: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+}
+
+.payment-message.completed {
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+}
+
+.message-icon {
+    margin-top: 0.125rem;
+}
+
+.message-icon.success {
+    color: #10b981;
+}
+
+.animate-spin {
+    animation: spin 2s linear infinite;
+}
+
+.payment-status {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.payment-link-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.payment-link-ready {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.875rem;
+    border-radius: 0.375rem;
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.payment-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background-color: #4f46e5;
+    color: white;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    text-align: center;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border: none;
+    cursor: pointer;
+}
+
+.payment-button:hover {
+    background-color: #4338ca;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+.inactive-payment-link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.75rem;
+    background-color: #f3f4f6;
+    border-radius: 0.375rem;
+    border: 1px dashed #d1d5db;
+}
+
+.inactive-link-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+.inactive-link-value {
+    font-family: monospace;
+    font-size: 0.875rem;
+    color: #9ca3af;
+}
+
+@media (max-width: 640px) {
+    .payment-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .payment-button {
+        width: 100%;
+    }
 }
 
 .order-card {

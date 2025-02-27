@@ -64,7 +64,7 @@
                                         @input="validateDocumentNumber" :class="{ 'error': errors.documentNumber }"
                                         :maxlength="getDocumentMaxLength">
                                     <span class="error-message" v-if="errors.documentNumber">{{ errors.documentNumber
-                                        }}</span>
+                                    }}</span>
                                 </div>
                             </div>
 
@@ -101,7 +101,7 @@
                                 </div>
                             </div>
 
-                            <div class="form-section">
+                            <!-- <div class="form-section">
                                 <h3>Tipo de comprobante</h3>
                                 <div class="invoice-options">
                                     <label class="radio-button">
@@ -113,6 +113,16 @@
                                         <span>Factura</span>
                                     </label>
                                 </div>
+                            </div> -->
+
+                            <div class="form-section">
+                                <h3>Método de pago</h3>
+                                <select v-model="form.paymentMethod" class="payment-dropdown">
+                                    <option value="tarjeta">Tarjeta de crédito/débito</option>
+                                    <option value="yape">Yape</option>
+                                    <option value="plin">Plin</option>
+                                    <option value="qr">QR</option>
+                                </select>
                             </div>
 
                             <div class="button-group">
@@ -148,7 +158,7 @@
                                     <div class="info-item">
                                         <span class="info-label">Documento</span>
                                         <span class="info-value">{{ form.documentType }}: {{ form.documentNumber
-                                            }}</span>
+                                        }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -270,7 +280,8 @@ const form = ref<CustomerInfo>({
     documentNumber: '',
     phone: '',
     shippingMethod: 'regular',
-    invoiceType: 'boleta'
+    invoiceType: 'boleta',
+    paymentMethod: 'yape'
 });
 
 const nextStep = () => {
@@ -527,11 +538,13 @@ const generateOrder = async () => {
             subtotal: subtotal.value,
             shipping: shippingCost.value,
             total: total.value,
-            status: 'pending'
+            status: 'pending',
+            paymentMethod: form.value.paymentMethod,
+            linkPago: '',
         };
 
 
-        console.log("items?????: ", orderData)
+        //console.log("items?????: ", orderData)
         const newOrder = await createOrder(orderData);
 
         if (!newOrder) {

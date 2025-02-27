@@ -101,7 +101,7 @@
                                 </div>
                             </div>
 
-                            <div class="form-section">
+                            <!-- <div class="form-section">
                                 <h3>Tipo de comprobante</h3>
                                 <div class="invoice-options">
                                     <label class="radio-button">
@@ -112,6 +112,75 @@
                                         <input type="radio" v-model="form.invoiceType" value="factura">
                                         <span>Factura</span>
                                     </label>
+                                </div>
+                            </div> -->
+
+                            <div class="form-section payment-method-section">
+                                <h3>Método de pago</h3>
+                                <div class="payment-methods-container">
+                                    <div class="payment-method-option"
+                                        :class="{ active: form.paymentMethod === 'tarjeta' }">
+                                        <label class="payment-option-label">
+                                            <input type="radio" v-model="form.paymentMethod" value="tarjeta"
+                                                class="payment-method-input" />
+                                            <div class="payment-option-text">
+                                                <span class="payment-method-name">Tarjeta</span>
+                                                <span class="payment-method-desc">Crédito o débito</span>
+                                            </div>
+                                            <div class="payment-option-icon">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <rect x="2" y="5" width="20" height="14" rx="2" />
+                                                    <line x1="2" y1="10" x2="22" y2="10" />
+                                                </svg>
+                                            </div>
+                                        </label>
+                                    </div>
+
+                                    <div class="payment-method-option"
+                                        :class="{ active: form.paymentMethod === 'yape' }">
+                                        <label class="payment-option-label">
+                                            <input type="radio" v-model="form.paymentMethod" value="yape"
+                                                class="payment-method-input" />
+                                            <div class="payment-option-text">
+                                                <span class="payment-method-name">Yape</span>
+                                                <!-- <span class="payment-method-desc">Pago móvil rápido</span> -->
+                                            </div>
+                                            <div class="payment-option-icon yape">
+                                                <img src="/yape-icon.png" alt="Yape" class="payment-method-img" />
+                                            </div>
+                                        </label>
+                                    </div>
+
+                                    <div class="payment-method-option"
+                                        :class="{ active: form.paymentMethod === 'plin' }">
+                                        <label class="payment-option-label">
+                                            <input type="radio" v-model="form.paymentMethod" value="plin"
+                                                class="payment-method-input" />
+                                            <div class="payment-option-text">
+                                                <span class="payment-method-name">Plin</span>
+                                                <!-- <span class="payment-method-desc">Transferencia instantánea</span> -->
+                                            </div>
+                                            <div class="payment-option-icon plin">
+                                                <img src="/plin-icon.png" alt="Plin" class="payment-method-img" />
+                                            </div>
+                                        </label>
+                                    </div>
+
+                                    <div class="payment-method-option" :class="{ active: form.paymentMethod === 'qr' }">
+                                        <label class="payment-option-label">
+                                            <input type="radio" v-model="form.paymentMethod" value="qr"
+                                                class="payment-method-input" />
+                                            <div class="payment-option-text">
+                                                <span class="payment-method-name">Código QR</span>
+                                                <span class="payment-method-desc">Escanea y paga</span>
+                                            </div>
+                                            <div class="payment-option-icon">
+                                                <img src="/qr-icon.png" alt="QR Code" class="payment-method-img" />
+                                            </div>
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
 
@@ -196,7 +265,20 @@
                                                     (Stock disponible: {{ item.product?.stock ?? 0 }})
                                                 </span>
                                             </div>
-                                            <div class="item-price">S/. {{ item.price.toFixed(2) }}</div>
+                                            <div class="price-container">
+                                                <span v-if="item.isPromoted && isPromotionActive(item)"
+                                                    class="original-price">
+                                                    S/. {{ item.originalPrice.toFixed(2) }}
+                                                </span>
+                                                <span class="item-price"
+                                                    :class="{ promotional: item.isPromoted && isPromotionActive(item) }">
+                                                    S/. {{ item.price.toFixed(2) }}
+                                                </span>
+                                                <span v-if="item.isPromoted && isPromotionActive(item)"
+                                                    class="discount-badge">
+                                                    -{{ item.discountPercentage }}%
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -232,11 +314,12 @@ import { useCart } from '@/composables/useCart';
 import { useToast } from '@/composables/useToast';
 import MainLayout from '@/layouts/MainLayout.vue';
 import AdminLayout from '@/layouts/AdminLayout.vue';
-import { getUrl } from 'aws-amplify/storage';
 import type { Product } from '@/types/product.types';
 import { useAuthStore } from '@/stores/auth';
 import { useOrders } from '@/composables/useOrders';
 import type { CustomerInfo, Order } from '@/types/order.types';
+import { uploadData, getUrl } from 'aws-amplify/storage';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -270,7 +353,8 @@ const form = ref<CustomerInfo>({
     documentNumber: '',
     phone: '',
     shippingMethod: 'regular',
-    invoiceType: 'boleta'
+    invoiceType: 'boleta',
+    paymentMethod: 'yape'
 });
 
 const nextStep = () => {
@@ -456,39 +540,71 @@ const validateAndUpdateStock = async (): Promise<boolean> => {
     }
 };
 
+const isPromotionActive = (item: any) => {
+    if (!item.isPromoted || !item.product?.promotionStartDate || !item.product?.promotionEndDate) {
+        return false;
+    }
+
+    const today = getCurrentPeruDate();
+    return today >= item.product.promotionStartDate && today <= item.product.promotionEndDate;
+};
+
+const getCurrentPeruDate = () => {
+    const date = new Date();
+    const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
+
+    const year = peruDate.getFullYear();
+    const month = String(peruDate.getMonth() + 1).padStart(2, '0');
+    const day = String(peruDate.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+};
+
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const generateOrder = async () => {
     loadingState.value = 'generating';
     try {
-
         await sleep(2000);
-
         const userEmail = auth.userEmail ?? form.value.email;
 
         if (!auth.userEmail && form.value.email) {
             localStorage.setItem('userEmail', form.value.email);
         }
 
+        // Procesar los productos del carrito
         const processedItems = await Promise.all(validItems.value.map(async item => {
-            let imageSnapshot = '';
+            let orderImagePath = '';
 
+            // Procesar la imagen del producto
             if (item.product?.imageUrl) {
                 try {
                     // Obtener la URL de la imagen original
                     const { url } = await getUrl({ path: item.product.imageUrl });
 
-                    // Aquí puedes:
-                    // 1. Guardar la URL como base64
+                    // Fetch la imagen
                     const response = await fetch(url.toString());
                     const blob = await response.blob();
-                    const base64 = await new Promise((resolve) => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result);
-                        reader.readAsDataURL(blob);
-                    });
 
-                    imageSnapshot = base64 as string;
+                    // Redimensionar la imagen para reducir su tamaño
+                    const resizedBlob = await resizeImage(blob, 400, 400);
+
+                    // Crear una ruta única para guardar una copia de la imagen en la carpeta de pedidos
+                    const orderImagesFolder = 'order-images';
+                    const uniqueFileName = `${Date.now()}-${item.productID}`;
+                    const imagePath = `${orderImagesFolder}/${uniqueFileName}.jpg`;
+
+                    // Subir la imagen redimensionada a Storage
+                    await uploadData({
+                        data: resizedBlob as Blob,
+                        path: imagePath,
+                        options: {
+                            contentType: 'image/jpeg'
+                        }
+                    }).result;
+
+                    // Guardar la ruta de la imagen en el pedido
+                    orderImagePath = imagePath;
                 } catch (error) {
                     console.error("Error procesando imagen:", error);
                 }
@@ -507,7 +623,8 @@ const generateOrder = async () => {
                     price: item.product?.price || 0,
                     originalPrice: item.product?.originalPrice || 0,
                     discountPercentage: item.product?.discountPercentage || 0,
-                    imageUrl: imageSnapshot,
+                    // Usar la nueva ruta independiente para la imagen
+                    imageUrl: orderImagePath,
                     categories: item.product?.categories || [],
                     stock: item.product?.stock || 0,
                     active: item.product?.active || false,
@@ -519,7 +636,8 @@ const generateOrder = async () => {
             };
         }));
 
-        // Create order and update stock
+
+        // Crear orden y actualizar stock
         const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {
             customerInfo: form.value,
             userEmail,
@@ -527,42 +645,24 @@ const generateOrder = async () => {
             subtotal: subtotal.value,
             shipping: shippingCost.value,
             total: total.value,
-            status: 'pending'
+            status: 'pending',
+            paymentMethod: form.value.paymentMethod,
+            linkPago: '',
         };
 
-
-        console.log("items?????: ", orderData)
         const newOrder = await createOrder(orderData);
 
+        // Resto de la función...
         if (!newOrder) {
             throw new Error('Error al crear el pedido');
         }
 
-        // Submit order to backend
-        /*const orderResponse = await fetch('/api/orders', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(order)
-        });
-
-        if (!orderResponse.ok) {
-            throw new Error('Error al crear el pedido');
-        }*/
-
-        // Format WhatsApp message and create URL
+        // Formato del mensaje de WhatsApp
         const message = formatWhatsAppMessage(orderData);
         const phoneNumber = '51934505566';
         const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
 
         whatsappLink.value = whatsappUrl;
-        // Update product stock
-        //await updateProductStock();
-        //await clearCart();
-
-        // Redirect to WhatsApp
-        //window.open(whatsappUrl, '_blank');
 
         await clearCart();
         showToast({
@@ -570,7 +670,6 @@ const generateOrder = async () => {
             message: 'Pedido registrado correctamente'
         });
 
-        //router.push('/order-confirmation');
         router.push('/my-orders');
     } catch (error) {
         console.error('Error generando orden:', error);
@@ -578,6 +677,51 @@ const generateOrder = async () => {
     } finally {
         loadingState.value = 'idle';
     }
+};
+
+const resizeImage = (blob: Blob | MediaSource, maxWidth: number, maxHeight: number, quality = 0.8) => {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            // Crear un canvas para redimensionar
+            const canvas = document.createElement('canvas');
+
+            // Calcular nuevas dimensiones manteniendo la proporción
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+                if (width > maxWidth) {
+                    height = Math.round(height * (maxWidth / width));
+                    width = maxWidth;
+                }
+            } else {
+                if (height > maxHeight) {
+                    width = Math.round(width * (maxHeight / height));
+                    height = maxHeight;
+                }
+            }
+
+            // Establecer dimensiones del canvas
+            canvas.width = width;
+            canvas.height = height;
+
+            // Dibujar imagen en el canvas
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(img, 0, 0, width, height);
+            } else {
+                console.error('Failed to get 2D context');
+            }
+
+            // Convertir a Blob con calidad reducida
+            canvas.toBlob((resizedBlob) => {
+                resolve(resizedBlob);
+            }, 'image/jpeg', quality);
+        };
+
+        img.src = URL.createObjectURL(blob);
+    });
 };
 
 const formatWhatsAppMessage = (order: any) => {
@@ -676,6 +820,177 @@ onMounted(() => {
 .cart-items-container {
     position: relative;
     min-height: 100px;
+}
+
+.payment-dropdown {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    color: #1a1a1a;
+    background-color: #fff;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+    padding-right: 2.5rem;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.payment-dropdown:focus {
+    outline: none;
+    border-color: #000000;
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}
+
+.payment-dropdown:hover {
+    border-color: #d1d5db;
+}
+
+/* Estilo para las opciones dentro del dropdown */
+.payment-dropdown option {
+    padding: 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* Contenedor para el dropdown con ícono opcional */
+.payment-method-container {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+/* Para añadir un ícono al dropdown si se desea */
+.payment-method-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6b7280;
+}
+
+/* Si se usa un ícono, añadir padding extra a la izquierda */
+.payment-dropdown.with-icon {
+    padding-left: 2.5rem;
+}
+
+.payment-method-section {
+    margin-bottom: 1.5rem;
+}
+
+.payment-methods-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.payment-method-option {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.payment-method-option:hover {
+    border-color: #d1d5db;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.payment-method-option.active {
+    border-color: #000000;
+    background-color: #f9fafb;
+}
+
+.payment-option-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 1rem;
+    cursor: pointer;
+}
+
+.payment-method-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.payment-option-text {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding-right: 12px;
+}
+
+.payment-option-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+}
+
+.price-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.original-price {
+    text-decoration: line-through;
+    color: #666;
+    font-size: 0.9em;
+}
+
+.promotional {
+    color: #e53e3e;
+}
+
+.discount-badge {
+    background-color: #e53e3e;
+    color: white;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+
+.payment-method-img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
+.payment-method-name {
+    font-weight: 500;
+    color: #1a1a1a;
+    margin-bottom: 0.25rem;
+}
+
+.payment-method-desc {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+/* Estilos específicos para cuando están activos */
+.payment-method-option.active .payment-method-name {
+    color: #000000;
+    font-weight: 600;
+}
+
+@media (max-width: 640px) {
+    .payment-methods-container {
+        grid-template-columns: 1fr;
+    }
 }
 
 .customer-subtitle {

@@ -13,6 +13,7 @@ export interface CustomerInfo {
   phone: string;
   shippingMethod: "regular";
   invoiceType: "boleta" | "factura";
+  paymentMethod: "tarjeta" | "yape" | "plin" | "qr";
 }
 
 // Tipo para los items del pedido
@@ -37,6 +38,8 @@ export interface Order {
   shipping: number;
   total: number;
   status: OrderStatus;
+  paymentMethod: string;
+  linkPago?: string;
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }

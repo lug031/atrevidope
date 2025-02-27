@@ -22,7 +22,8 @@
                         </div>
                         <div v-for="item in items" :key="item.id" class="cart-item">
                             <img :src="imageUrls[item.productID] || '/api/placeholder/80/80'"
-                                :alt="productDetails[item.productID]?.name" class="item-image" />
+                                :alt="productDetails[item.productID]?.name || 'Product image'" class="item-image"
+                                @error="handleImageError(item.productID)" />
 
                             <div class="item-details">
                                 <div class="item-info">
@@ -151,6 +152,10 @@ const initializeCart = async () => {
         if (!items.value.length) {
             await loadCartItems();
         }
+
+        if (products.value.length === 0) {
+            await productStore.fetchProducts();
+        }
         updateProductDetails();
         await loadImageUrls();
     } catch (error) {
@@ -168,16 +173,23 @@ const updateProductDetails = () => {
     productDetails.value = productsMap;
 };
 
+const handleImageError = (productId: string) => {
+    imageUrls.value[productId] = '/api/placeholder/80/80';
+};
+
 const loadImageUrls = async () => {
     for (const item of items.value) {
         const product = productDetails.value[item.productID];
+
         if (product?.imageUrl) {
             try {
                 const { url } = await getUrl({ path: product.imageUrl });
                 imageUrls.value[item.productID] = url.toString();
             } catch (error) {
-                console.error("Error cargando imagen:", error);
+                imageUrls.value[item.productID] = '/api/placeholder/80/80';
             }
+        } else {
+            imageUrls.value[item.productID] = '/api/placeholder/80/80';
         }
     }
 };

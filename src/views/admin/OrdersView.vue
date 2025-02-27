@@ -206,6 +206,40 @@
                             </div>
                         </div>
                     </div>
+
+                    <h3>Detalles de Pago</h3>
+                    <div class="payment-info">
+                        <div class="detail-item">
+                            <span class="label">Método de Pago:</span>
+                            <span class="value">{{ selectedOrder?.paymentMethod || 'No especificado' }}</span>
+                        </div>
+                        <div class="payment-link-container">
+                            <div class="payment-link-field">
+                                <span class="label">Link de Pago:</span>
+                                <div class="link-input-group">
+                                    <input type="text" v-model="paymentLinkInput" class="payment-link-input"
+                                        placeholder="Ingrese el enlace de pago"
+                                        :disabled="selectedOrder?.status !== 'processing'" />
+                                    <button @click="updatePaymentLink" class="update-link-button"
+                                        :disabled="updateLinkLoading || selectedOrder?.status !== 'processing'">
+                                        <span v-if="!updateLinkLoading">Enviar</span>
+                                        <Loader2Icon v-else :size="16" class="animate-spin" />
+                                    </button>
+                                </div>
+                                <span v-if="selectedOrder?.status !== 'processing'" class="status-warning">
+                                    Solo se puede actualizar el enlace de pago cuando la orden está en proceso
+                                </span>
+                            </div>
+                            <div v-if="selectedOrder?.linkPago" class="current-link">
+                                <span class="current-link-label">Enlace actual:</span>
+                                <a :href="selectedOrder.linkPago" target="_blank" class="current-link-value">
+                                    {{ truncateLink(selectedOrder.linkPago) }}
+                                    <ExternalLinkIcon :size="14" class="external-link-icon" />
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="order-summary">
                         <div class="summary-item">
                             <span>Subtotal</span>
@@ -227,7 +261,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { getUrl } from 'aws-amplify/storage'
 import { useProducts } from '@/composables/useProducts'
 import type { Product } from '@/types/product.types'
@@ -243,16 +277,21 @@ import {
     DollarSignIcon,
     PlayIcon,
     CheckIcon,
-    XIcon
+    XIcon,
+    ExternalLinkIcon
 } from 'lucide-vue-next'
 import type { Order } from '@/types/order.types'
 import ModalOrder from '@/components/ModalOrder.vue'
 import { useToast } from '@/composables/useToast'
+import { useOrderStore } from '@/stores/order';
 
 const { orders, loading, error, loadOrders, updateOrderStatus, orderStats } = useOrders()
 
 const { showToast } = useToast()
 
+const orderStore = useOrderStore();
+const paymentLinkInput = ref('');
+const updateLinkLoading = ref(false);
 const searchQuery = ref('')
 const showDetailsModal = ref(false)
 const selectedOrder = ref<Order | null>(null)
@@ -265,6 +304,50 @@ const loadOrderProducts = async () => {
     if (!selectedOrder.value) return
     // Ya no necesitamos cargar productos existentes
 }
+
+const updatePaymentLink = async () => {
+    if (!selectedOrder.value?.id || !paymentLinkInput.value) return;
+
+    if (selectedOrder.value.status !== 'processing') {
+        showToast({
+            type: 'warning',
+            message: 'Solo se puede actualizar el enlace de pago cuando la orden está en proceso'
+        });
+        return;
+    }
+
+    updateLinkLoading.value = true;
+    try {
+        const updatedOrder = await orderStore.updateOrderPaymentLink(
+            selectedOrder.value.id,
+            paymentLinkInput.value
+        );
+
+        // Actualizar el orden seleccionado con la información actualizada
+        selectedOrder.value = updatedOrder;
+
+        showToast({
+            type: 'success',
+            message: 'Enlace de pago actualizado correctamente'
+        });
+    } catch (error) {
+        console.error('Error al actualizar el enlace de pago:', error);
+        showToast({
+            type: 'error',
+            message: 'Error al actualizar el enlace de pago'
+        });
+    } finally {
+        updateLinkLoading.value = false;
+    }
+};
+
+// Función para truncar enlaces largos para mostrarlos
+const truncateLink = (link: string, maxLength: number = 40): string => {
+    if (!link) return '';
+    if (link.length <= maxLength) return link;
+
+    return link.substring(0, maxLength) + '...';
+};
 
 const loadProductImages = async () => {
     if (!selectedOrder.value) return
@@ -392,6 +475,15 @@ const updateStatus = async (orderId: string | undefined, newStatus: Order['statu
 onMounted(async () => {
     await loadOrders()
 })
+
+watch(
+    () => selectedOrder.value,
+    (newOrder) => {
+        if (newOrder) {
+            paymentLinkInput.value = newOrder.linkPago || '';
+        }
+    }
+);
 </script>
 
 <style scoped>
@@ -399,6 +491,112 @@ onMounted(async () => {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+}
+
+/* Estilos para la sección de detalles de pago */
+.payment-details {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.payment-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.payment-link-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.payment-link-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.link-input-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.payment-link-input {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    transition: border-color 0.2s;
+}
+
+.payment-link-input:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.2);
+}
+
+.update-link-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    background-color: #6366f1;
+    color: white;
+    border: none;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    min-width: 100px;
+}
+
+.update-link-button:hover:not(:disabled) {
+    background-color: #4f46e5;
+}
+
+.update-link-button:disabled {
+    background-color: #c7d2fe;
+    cursor: not-allowed;
+}
+
+.current-link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+}
+
+.current-link-label {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.current-link-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    color: #6366f1;
+    text-decoration: none;
+    word-break: break-all;
+}
+
+.current-link-value:hover {
+    text-decoration: underline;
+}
+
+.external-link-icon {
+    color: #94a3b8;
+}
+
+.status-warning {
+    font-size: 0.75rem;
+    color: #ef4444;
+    margin-top: 0.25rem;
 }
 
 /* Stats Section */

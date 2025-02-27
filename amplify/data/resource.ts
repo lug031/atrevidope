@@ -125,6 +125,11 @@ const schema = a.schema({
       // Status
       status: a.enum(["pending", "processing", "completed", "cancelled"]),
 
+      // Payment
+      // Metodo de pago
+      paymentMethod: a.string(),
+      linkPago: a.string(),
+
       createdAt: a.datetime(),
       updatedAt: a.datetime(),
     })

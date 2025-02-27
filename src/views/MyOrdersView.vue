@@ -51,10 +51,12 @@
                         <div class="order-info">
                             <h3>Pedido #{{ order.id?.slice(-6) }}</h3>
                             <p class="order-date">
-                                {{ new Date(order.createdAt!).toLocaleDateString('es-PE', {
+                                {{ new Date(order.createdAt!).toLocaleString('es-PE', {
                                     year: 'numeric',
                                     month: 'long',
-                                    day: 'numeric'
+                                    day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
                                 }) }}
                             </p>
                         </div>

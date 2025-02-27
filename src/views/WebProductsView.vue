@@ -55,10 +55,17 @@
               <div class="formatted-description" v-html="parseMarkdown(truncateText(product.description, 100))" />
 
               <!-- Precios -->
-              <div class="price-info" :class="{ 'has-promotion': hasUpcomingPromotion(product) }">
+              <div class="price-info" :class="{
+                'has-promotion': hasUpcomingPromotion(product),
+                'expired-promotion': hasExpiredPromotion(product)
+              }">
                 <p class="product-price">
-                  <template v-if="hasUpcomingPromotion(product)">
+                  <template v-if="hasUpcomingPromotion(product) || hasExpiredPromotion(product)">
                     <span class="current-price">S/{{ product.originalPrice.toFixed(2) }}</span>
+                  </template>
+                  <template v-else-if="isActivePromotion(product)">
+                    <span class="promotion-price">S/{{ product.price.toFixed(2) }}</span>
+                    <span class="original-price">S/{{ product.originalPrice.toFixed(2) }}</span>
                   </template>
                   <template v-else>
                     <span class="current-price">S/{{ product.price.toFixed(2) }}</span>
@@ -193,6 +200,24 @@ const hasUpcomingPromotion = (product: Product): boolean => {
   }
 
   return product.promotionStartDate > currentDate;
+};
+
+const hasExpiredPromotion = (product: Product): boolean => {
+  if (!product.isPromoted || !product.promotionStartDate || !product.promotionEndDate) {
+    return false;
+  }
+
+  const currentDate = getCurrentPeruDate();
+  return currentDate > product.promotionEndDate;
+};
+
+const isActivePromotion = (product: Product): boolean => {
+  if (!product.isPromoted || !product.promotionStartDate || !product.promotionEndDate) {
+    return false;
+  }
+
+  const currentDate = getCurrentPeruDate();
+  return currentDate >= product.promotionStartDate && currentDate <= product.promotionEndDate;
 };
 
 const shouldShowProduct = (product: Product): boolean => {

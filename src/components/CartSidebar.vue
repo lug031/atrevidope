@@ -30,13 +30,14 @@
                                     <span class="item-brand">{{ productDetails[item.productID]?.brand }}</span>
                                     <h3 class="item-name">{{ productDetails[item.productID]?.name }}</h3>
                                     <div class="price-container">
-                                        <span v-if="item.isPromoted" class="original-price">
+                                        <span v-if="item.isPromoted && isPromotionActive(item)" class="original-price">
                                             S/. {{ item.originalPrice.toFixed(2) }}
                                         </span>
-                                        <span class="item-price" :class="{ promotional: item.isPromoted }">
+                                        <span class="item-price"
+                                            :class="{ promotional: item.isPromoted && isPromotionActive(item) }">
                                             S/. {{ item.price.toFixed(2) }}
                                         </span>
-                                        <span v-if="item.isPromoted" class="discount-badge">
+                                        <span v-if="item.isPromoted && isPromotionActive(item)" class="discount-badge">
                                             -{{ item.discountPercentage }}%
                                         </span>
                                     </div>
@@ -163,6 +164,26 @@ const initializeCart = async () => {
     } finally {
         cartInitializing.value = false;
     }
+};
+
+const isPromotionActive = (item: CartItem): boolean => {
+    if (!item.isPromoted || !item.product?.promotionStartDate || !item.product?.promotionEndDate) {
+        return false;
+    }
+
+    const today = getCurrentPeruDate();
+    return today >= item.product?.promotionStartDate && today <= item.product?.promotionEndDate;
+};
+
+const getCurrentPeruDate = (): string => {
+    const date = new Date();
+    const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
+
+    const year = peruDate.getFullYear();
+    const month = String(peruDate.getMonth() + 1).padStart(2, '0');
+    const day = String(peruDate.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
 };
 
 const updateProductDetails = () => {

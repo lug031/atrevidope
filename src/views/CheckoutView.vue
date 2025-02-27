@@ -64,7 +64,7 @@
                                         @input="validateDocumentNumber" :class="{ 'error': errors.documentNumber }"
                                         :maxlength="getDocumentMaxLength">
                                     <span class="error-message" v-if="errors.documentNumber">{{ errors.documentNumber
-                                        }}</span>
+                                    }}</span>
                                 </div>
                             </div>
 
@@ -148,8 +148,7 @@
                                                 <!-- <span class="payment-method-desc">Pago móvil rápido</span> -->
                                             </div>
                                             <div class="payment-option-icon yape">
-                                                <img src="/yape-icon.png" alt="Yape"
-                                                    class="payment-method-img" />
+                                                <img src="/yape-icon.png" alt="Yape" class="payment-method-img" />
                                             </div>
                                         </label>
                                     </div>
@@ -164,8 +163,7 @@
                                                 <!-- <span class="payment-method-desc">Transferencia instantánea</span> -->
                                             </div>
                                             <div class="payment-option-icon plin">
-                                                <img src="/plin-icon.png" alt="Plin"
-                                                    class="payment-method-img" />
+                                                <img src="/plin-icon.png" alt="Plin" class="payment-method-img" />
                                             </div>
                                         </label>
                                     </div>
@@ -179,8 +177,7 @@
                                                 <span class="payment-method-desc">Escanea y paga</span>
                                             </div>
                                             <div class="payment-option-icon">
-                                                <img src="/qr-icon.png" alt="QR Code"
-                                                    class="payment-method-img" />
+                                                <img src="/qr-icon.png" alt="QR Code" class="payment-method-img" />
                                             </div>
                                         </label>
                                     </div>
@@ -220,7 +217,7 @@
                                     <div class="info-item">
                                         <span class="info-label">Documento</span>
                                         <span class="info-value">{{ form.documentType }}: {{ form.documentNumber
-                                            }}</span>
+                                        }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -304,11 +301,12 @@ import { useCart } from '@/composables/useCart';
 import { useToast } from '@/composables/useToast';
 import MainLayout from '@/layouts/MainLayout.vue';
 import AdminLayout from '@/layouts/AdminLayout.vue';
-import { getUrl } from 'aws-amplify/storage';
 import type { Product } from '@/types/product.types';
 import { useAuthStore } from '@/stores/auth';
 import { useOrders } from '@/composables/useOrders';
 import type { CustomerInfo, Order } from '@/types/order.types';
+import { uploadData, getUrl } from 'aws-amplify/storage';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -534,34 +532,46 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const generateOrder = async () => {
     loadingState.value = 'generating';
     try {
-
         await sleep(2000);
-
         const userEmail = auth.userEmail ?? form.value.email;
 
         if (!auth.userEmail && form.value.email) {
             localStorage.setItem('userEmail', form.value.email);
         }
 
+        // Procesar los productos del carrito
         const processedItems = await Promise.all(validItems.value.map(async item => {
-            let imageSnapshot = '';
+            let orderImagePath = '';
 
+            // Procesar la imagen del producto
             if (item.product?.imageUrl) {
                 try {
                     // Obtener la URL de la imagen original
                     const { url } = await getUrl({ path: item.product.imageUrl });
 
-                    // Aquí puedes:
-                    // 1. Guardar la URL como base64
+                    // Fetch la imagen
                     const response = await fetch(url.toString());
                     const blob = await response.blob();
-                    const base64 = await new Promise((resolve) => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result);
-                        reader.readAsDataURL(blob);
-                    });
 
-                    imageSnapshot = base64 as string;
+                    // Redimensionar la imagen para reducir su tamaño
+                    const resizedBlob = await resizeImage(blob, 400, 400);
+
+                    // Crear una ruta única para guardar una copia de la imagen en la carpeta de pedidos
+                    const orderImagesFolder = 'order-images';
+                    const uniqueFileName = `${Date.now()}-${item.productID}`;
+                    const imagePath = `${orderImagesFolder}/${uniqueFileName}.jpg`;
+
+                    // Subir la imagen redimensionada a Storage
+                    await uploadData({
+                        data: resizedBlob as Blob,
+                        path: imagePath,
+                        options: {
+                            contentType: 'image/jpeg'
+                        }
+                    }).result;
+
+                    // Guardar la ruta de la imagen en el pedido
+                    orderImagePath = imagePath;
                 } catch (error) {
                     console.error("Error procesando imagen:", error);
                 }
@@ -580,7 +590,8 @@ const generateOrder = async () => {
                     price: item.product?.price || 0,
                     originalPrice: item.product?.originalPrice || 0,
                     discountPercentage: item.product?.discountPercentage || 0,
-                    imageUrl: imageSnapshot,
+                    // Usar la nueva ruta independiente para la imagen
+                    imageUrl: orderImagePath,
                     categories: item.product?.categories || [],
                     stock: item.product?.stock || 0,
                     active: item.product?.active || false,
@@ -592,7 +603,8 @@ const generateOrder = async () => {
             };
         }));
 
-        // Create order and update stock
+
+        // Crear orden y actualizar stock
         const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {
             customerInfo: form.value,
             userEmail,
@@ -605,39 +617,19 @@ const generateOrder = async () => {
             linkPago: '',
         };
 
-
-        //console.log("items?????: ", orderData)
         const newOrder = await createOrder(orderData);
 
+        // Resto de la función...
         if (!newOrder) {
             throw new Error('Error al crear el pedido');
         }
 
-        // Submit order to backend
-        /*const orderResponse = await fetch('/api/orders', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(order)
-        });
-
-        if (!orderResponse.ok) {
-            throw new Error('Error al crear el pedido');
-        }*/
-
-        // Format WhatsApp message and create URL
+        // Formato del mensaje de WhatsApp
         const message = formatWhatsAppMessage(orderData);
         const phoneNumber = '51934505566';
         const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
 
         whatsappLink.value = whatsappUrl;
-        // Update product stock
-        //await updateProductStock();
-        //await clearCart();
-
-        // Redirect to WhatsApp
-        //window.open(whatsappUrl, '_blank');
 
         await clearCart();
         showToast({
@@ -645,7 +637,6 @@ const generateOrder = async () => {
             message: 'Pedido registrado correctamente'
         });
 
-        //router.push('/order-confirmation');
         router.push('/my-orders');
     } catch (error) {
         console.error('Error generando orden:', error);
@@ -653,6 +644,51 @@ const generateOrder = async () => {
     } finally {
         loadingState.value = 'idle';
     }
+};
+
+const resizeImage = (blob: Blob | MediaSource, maxWidth: number, maxHeight: number, quality = 0.8) => {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            // Crear un canvas para redimensionar
+            const canvas = document.createElement('canvas');
+
+            // Calcular nuevas dimensiones manteniendo la proporción
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+                if (width > maxWidth) {
+                    height = Math.round(height * (maxWidth / width));
+                    width = maxWidth;
+                }
+            } else {
+                if (height > maxHeight) {
+                    width = Math.round(width * (maxHeight / height));
+                    height = maxHeight;
+                }
+            }
+
+            // Establecer dimensiones del canvas
+            canvas.width = width;
+            canvas.height = height;
+
+            // Dibujar imagen en el canvas
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(img, 0, 0, width, height);
+            } else {
+                console.error('Failed to get 2D context');
+            }
+
+            // Convertir a Blob con calidad reducida
+            canvas.toBlob((resizedBlob) => {
+                resolve(resizedBlob);
+            }, 'image/jpeg', quality);
+        };
+
+        img.src = URL.createObjectURL(blob);
+    });
 };
 
 const formatWhatsAppMessage = (order: any) => {

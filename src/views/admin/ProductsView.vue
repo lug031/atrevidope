@@ -134,7 +134,12 @@
 
                 <div class="form-group">
                     <label for="brand">Marca</label>
-                    <input id="brand" v-model="formData.brand" type="text" class="form-input" required />
+                    <select id="brand" v-model="formData.brandID" class="form-input" required>
+                        <option value="">Selecciona una marca</option>
+                        <option v-for="brand in brands" :key="brand.id" :value="brand.id" :disabled="!brand.active">
+                            {{ brand.name }}
+                        </option>
+                    </select>
                 </div>
 
                 <!--<div class="form-group">
@@ -405,6 +410,7 @@ import Modal from '@/components/Modal.vue'
 import { uploadData, getUrl } from 'aws-amplify/storage';
 import ImageModal from '@/components/ImageModal.vue'
 import { useToast } from '@/composables/useToast';
+import { useBrands } from '@/composables/useBrands'
 
 const imageUrls = ref<Record<string, string>>({});
 const promotionDuration = ref('single')
@@ -413,17 +419,22 @@ const markdownPreview = computed(() => {
 })
 const formError = ref('')
 const isSubmitting = ref(false)
+const { brands, loadBrands } = useBrands()
 
 const validateForm = (): boolean => {
     // Limpiamos error previo
     formError.value = ''
+
+    if (!formData.value.brandID) {
+        formError.value = 'Debes seleccionar una marca'
+        return false
+    }
 
     if (formData.value.categoryIDs.length === 0) {
         formError.value = 'Debes seleccionar al menos una categoría'
         return false
     }
 
-    // Validamos que si hay promoción, el descuento debe ser mayor a 0
     if (formData.value.isPromoted && (!formData.value.discountPercentage || formData.value.discountPercentage <= 0)) {
         formError.value = 'Cuando se aplica una promoción, el descuento debe ser mayor a 0'
         return false
@@ -616,6 +627,7 @@ const truncateDescription = (text: string, maxLength: number = 100): string => {
 const initialFormData = {
     name: '',
     brand: '',
+    brandID: '',
     description: '',
     price: 0,
     originalPrice: 0,
@@ -768,6 +780,7 @@ const handleEdit = (product: Product) => {
     formData.value = {
         name: product.name,
         brand: product.brand,
+        brandID: product.brandID || '',
         description: product.description,
         price: product.price,
         originalPrice: product.originalPrice,
@@ -781,6 +794,13 @@ const handleEdit = (product: Product) => {
         promotionEndDate: product.promotionEndDate || '',
         promotionType: product.promotionType || 'discount'
     }
+
+    if (product.imageUrl && imageUrls.value[product.id]) {
+        imagePreview.value = imageUrls.value[product.id];
+    } else {
+        imagePreview.value = null;
+    }
+
     editingId.value = product.id
     showCreateModal.value = true
 }
@@ -810,10 +830,14 @@ const handleSubmit = async () => {
 
         const imageUrl = await uploadImage();
 
+        const selectedBrand = brands.value.find(b => b.id === formData.value.brandID);
+        const brandName = selectedBrand ? selectedBrand.name : formData.value.brand;
+
         // Asegurarnos de que el productData coincida con la interfaz Product
         const productData: Omit<Product, 'id' | 'categories'> = {
             name: formData.value.name,
-            brand: formData.value.brand,
+            brand: brandName, // Usar el nombre de la marca
+            brandID: formData.value.brandID, // Agregar el ID de la marca
             description: formData.value.description,
             price: formData.value.price,
             originalPrice: formData.value.originalPrice,
@@ -889,7 +913,7 @@ const getStockClass = (stock: number) => {
 }
 
 onMounted(async () => {
-    await Promise.all([loadProducts(), loadCategories()])
+    await Promise.all([loadProducts(), loadCategories(), loadBrands()])
 })
 
 watch([
@@ -1153,8 +1177,9 @@ watch(products, loadImageUrls, { immediate: true });
 
 .image-upload-container {
     display: flex;
+    align-items: flex-start;
     gap: 1rem;
-    align-items: center;
+    margin-top: 0.5rem;
 }
 
 .upload-button {
@@ -1174,27 +1199,39 @@ watch(products, loadImageUrls, { immediate: true });
 
 .image-preview {
     position: relative;
-    width: 80px;
-    height: 80px;
+    width: 100px;
+    height: 100px;
     border-radius: 0.375rem;
     overflow: hidden;
+    border: 1px solid #e2e8f0;
+    background-color: #f8fafc;
 }
 
 .preview-image {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
 }
 
 .clear-image-button {
     position: absolute;
-    top: 0;
-    right: 0;
-    padding: 0.25rem;
-    background: rgba(0, 0, 0, 0.5);
+    top: 0.25rem;
+    right: 0.25rem;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.5);
     color: white;
+    border-radius: 50%;
     border: none;
     cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.clear-image-button:hover {
+    background-color: rgba(0, 0, 0, 0.7);
 }
 
 .upload-status {

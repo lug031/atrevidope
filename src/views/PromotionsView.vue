@@ -43,7 +43,7 @@
                             <div class="price-container">
                                 <div class="price-wrapper">
                                     <span class="current-price">S/{{ formatPrice(calculateDiscountedPrice(product))
-                                        }}</span>
+                                    }}</span>
                                     <span class="original-price">S/{{ formatPrice(product.originalPrice) }}</span>
                                 </div>
                             </div>
@@ -90,13 +90,12 @@ const cartStore = useCartStore();
 const { showToast } = useToast();
 const {
     activePromotions,
-    loading,
-    error,
     loadPromotions,
     calculateDiscountedPrice,
     formatPrice,
 } = usePromotions();
-
+const loading = ref(true);
+const error = ref<string | null>(null);
 const formatDateToSpanish = (dateStr: string): string => {
     const [year, month, day] = dateStr.split('-').map(Number);
     const date = new Date(year, month - 1, day);
@@ -202,8 +201,21 @@ const addToCart = (product: Product) => {
     });
 };
 
+const loadPromotionsMounted = async () => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+        await loadPromotions();
+    } catch (err) {
+        error.value = 'Hubo un error al cargar las promociones.';
+    } finally {
+        loading.value = false;
+    }
+};
+
 onMounted(() => {
-    loadPromotions();
+    loadPromotionsMounted();
 });
 
 watch(() => activePromotionsWithDates.value, () => {

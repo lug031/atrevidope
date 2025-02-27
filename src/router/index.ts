@@ -20,6 +20,7 @@ import ProductDetailView from "../views/ProductDetailView.vue";
 import CategoryProductsView from "@/views/CategoryProductsView.vue";
 import CheckoutView from "@/views/CheckoutView.vue";
 import MyOrdersView from "@/views/MyOrdersView.vue";
+import BrandProductsView from "@/views/BrandProductsView.vue";
 
 let authInitialized = false;
 
@@ -54,6 +55,12 @@ const router = createRouter({
       path: "/category/:categoryId",
       name: "CategoryProducts",
       component: CategoryProductsView,
+      meta: { requiresAuth: false },
+    },
+    {
+      path: "/brand/:brandId",
+      name: "BrandProducts",
+      component: BrandProductsView,
       meta: { requiresAuth: false },
     },
     {

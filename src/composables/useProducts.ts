@@ -10,6 +10,7 @@ export function useProducts() {
     productsWeb,
     allProductsWeb,
     productsByCategory,
+    productsByBrand,
     loading,
     error,
   } = storeToRefs(productStore);
@@ -23,6 +24,14 @@ export function useProducts() {
   const loadProductsByCategory = async (categoryId: string) => {
     try {
       await productStore.fetchProductsByCategory(categoryId);
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const loadProductsByBrand = async (brandId: string) => {
+    try {
+      await productStore.fetchProductsByBrand(brandId);
     } catch (error) {
       throw error;
     }
@@ -66,12 +75,14 @@ export function useProducts() {
     productsWeb,
     allProductsWeb,
     productsByCategory,
+    productsByBrand,
     loading,
     error,
     totalProducts,
     loadProducts,
     loadAllProductsWeb,
     loadProductsByCategory,
+    loadProductsByBrand,
     loadProductsWeb,
     createProduct,
     updateProduct,

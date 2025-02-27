@@ -1,9 +1,14 @@
 <template>
     <MainLayout>
-        <div class="category-products">
+        <div class="brand-products">
             <!-- Header Section -->
-            <div class="category-header">
-                <h1 class="category-title">{{ $route.query.name || 'Productos' }}</h1>
+            <div class="brand-header">
+                <div class="brand-header-content">
+                    <div v-if="currentBrand && currentBrand.logo" class="brand-logo">
+                        <img :src="brandLogoUrl" :alt="currentBrand.name" />
+                    </div>
+                    <h1 class="brand-title">{{ currentBrand?.name || 'Productos' }}</h1>
+                </div>
             </div>
 
             <!-- Filter Section -->
@@ -29,7 +34,7 @@
             </div>
 
             <div v-else-if="sortedProducts.length === 0" class="empty-state">
-                No hay productos disponibles en esta categoría.
+                No hay productos disponibles de esta marca.
             </div>
 
             <div v-else class="products-grid">
@@ -109,10 +114,11 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import MainLayout from '@/layouts/MainLayout.vue';
 import { useProducts } from '@/composables/useProducts';
+import { useBrands } from '@/composables/useBrands';
 import { useCartStore } from '@/stores/cart';
 import { useToast } from '@/composables/useToast';
 import type { Product } from '@/types/product.types';
-import type { CartItem } from '@/types/cart.types';
+import type { Brand } from '@/types/brand.types';
 import { getUrl } from 'aws-amplify/storage';
 import { useImageCache } from '@/composables/useImageCache';
 
@@ -120,10 +126,13 @@ const { imageCache, getImageUrl, preloadImages } = useImageCache();
 const router = useRouter();
 const route = useRoute();
 const imageUrls = ref<Record<string, string>>({});
-const { productsByCategory, loadProductsByCategory } = useProducts();
+const { productsByBrand, loadProductsByBrand } = useProducts();
+const { brands, loadBrands } = useBrands();
 const cartStore = useCartStore();
 const { showToast } = useToast();
 const sortBy = ref('position');
+const currentBrand = ref<Brand | null>(null);
+const brandLogoUrl = ref<string>('');
 const loading = ref(true);
 const error = ref<string | null>(null);
 const truncateText = (text: string, maxLength: number = 100): string => {
@@ -185,10 +194,22 @@ const parseMarkdown = (text: string): string => {
         });
 };
 
-const loadImageUrls = async () => {
-    if (!productsByCategory.value) return;
+const loadBrandLogo = async () => {
+    if (currentBrand.value && currentBrand.value.logo) {
+        try {
+            const { url } = await getUrl({ path: currentBrand.value.logo });
+            brandLogoUrl.value = url.toString();
+        } catch (error) {
+            console.error("Error cargando logo de marca:", error);
+            brandLogoUrl.value = '';
+        }
+    }
+};
 
-    const productsToLoad = productsByCategory.value
+const loadImageUrls = async () => {
+    if (!productsByBrand.value) return;
+
+    const productsToLoad = productsByBrand.value
         .filter(product => product.imageUrl)
         .map(product => ({
             id: product.id,
@@ -215,7 +236,6 @@ const hasActivePromotion = (product: Product) => {
     return currentDate >= product.promotionStartDate && currentDate <= product.promotionEndDate;
 };
 
-// 2. Modificar el método calculateDiscountedPrice para que calcule correctamente el precio con descuento
 const calculateDiscountedPrice = (product: Product) => {
     if (!product.originalPrice || !product.discountPercentage) {
         return product.originalPrice || 0;
@@ -276,9 +296,9 @@ const getEffectivePrice = (product: Product): number => {
 };
 
 const sortedProducts = computed(() => {
-    if (!productsByCategory.value) return [];
+    if (!productsByBrand.value) return [];
 
-    return [...productsByCategory.value].sort((a, b) => {
+    return [...productsByBrand.value].sort((a, b) => {
         switch (sortBy.value) {
             case 'price-asc':
                 return getEffectivePrice(a) - getEffectivePrice(b);
@@ -317,49 +337,58 @@ const addToCart = (product: Product) => {
     });
 };
 
-const loadCategoryProducts = async () => {
-    const categoryId = route.params.categoryId as string;
-    if (!categoryId) {
+const loadBrandInfo = async () => {
+    await loadBrands();
+    const brandId = route.params.brandId as string;
+    currentBrand.value = brands.value.find(b => b.id === brandId) || null;
+    await loadBrandLogo();
+};
+
+const loadBrandProducts = async () => {
+    const brandId = route.params.brandId as string;
+    if (!brandId) {
         router.push('/');
         return;
     }
 
     try {
-        await loadProductsByCategory(categoryId);
+        await loadProductsByBrand(brandId);
         await loadImageUrls(); // Cargar imágenes después de obtener los productos
     } catch (err) {
-        console.error('Error al cargar productos de categoría:', err);
+        console.error('Error al cargar productos de la marca:', err);
     }
 };
 
-const loadCategoryProductsMounted = async () => {
-  loading.value = true;
-  error.value = null;
+const loadBrandProductsMounted = async () => {
+    loading.value = true;
+    error.value = null;
 
-  try {
-    await loadCategoryProducts();
-  } catch (err) {
-    error.value = 'Hubo un error al cargar productos de la categoría.';
-  } finally {
-    loading.value = false;
-  }
+    try {
+        await loadBrandProducts();
+    } catch (err) {
+        error.value = 'Hubo un error al cargar productos de la marca.';
+    } finally {
+        loading.value = false;
+    }
 };
 
-onMounted(() => {
-    loadCategoryProductsMounted();
+onMounted(async () => {
+    await loadBrandInfo();
+    await loadBrandProductsMounted();
 });
 
 watch(
-    () => route.params.categoryId,
-    (newCategoryId) => {
-        if (newCategoryId) {
-            loadCategoryProducts();
+    () => route.params.brandId,
+    async (newBrandId) => {
+        if (newBrandId) {
+            await loadBrandInfo();
+            await loadBrandProducts();
         }
     }
 );
 
 watch(
-    () => productsByCategory.value,
+    () => productsByBrand.value,
     async (newProducts) => {
         if (newProducts && newProducts.length > 0) {
             await loadImageUrls();
@@ -370,7 +399,7 @@ watch(
 </script>
 
 <style scoped>
-.category-products {
+.brand-products {
     padding: 0 20px;
 }
 
@@ -383,7 +412,7 @@ watch(
     font-size: 1.1rem;
 }
 
-.category-header {
+.brand-header {
     background: linear-gradient(to right, #1a1a1a, #2d2d2d);
     padding: 2.5rem 0;
     margin-bottom: 2rem;
@@ -391,7 +420,7 @@ watch(
     overflow: hidden;
 }
 
-.category-header::after {
+.brand-header::after {
     content: '';
     position: absolute;
     bottom: 0;
@@ -401,10 +430,34 @@ watch(
     background: linear-gradient(to right, #b6b6b6, #505050);
 }
 
-.category-title {
+.brand-header-content {
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.brand-logo {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background-color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    overflow: hidden;
+}
+
+.brand-logo img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.brand-title {
     color: white;
     font-size: 2rem;
     font-weight: 600;
@@ -776,8 +829,13 @@ watch(
 
 /* Responsive */
 @media (max-width: 768px) {
-    .category-title {
+    .brand-title {
         font-size: 1.5rem;
+    }
+
+    .brand-logo {
+        width: 60px;
+        height: 60px;
     }
 
     .products-grid {
@@ -806,12 +864,17 @@ watch(
 }
 
 @media (max-width: 480px) {
-    .category-products {
+    .brand-products {
         padding: 0 10px;
     }
 
-    .category-header {
+    .brand-header {
         padding: 2rem 0;
+    }
+
+    .brand-logo {
+        width: 50px;
+        height: 50px;
     }
 
     .products-grid {

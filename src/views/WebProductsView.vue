@@ -104,11 +104,12 @@ import { useImageCache } from '@/composables/useImageCache';
 
 const { imageCache, getImageUrl, preloadImages } = useImageCache();
 const imageUrls = ref<Record<string, string>>({});
-const { productsWeb, loading, error, loadProductsWeb } = useProducts();
+const { productsWeb, loadProductsWeb } = useProducts();
 const cartStore = useCartStore();
 const { showToast } = useToast();
 const sortBy = ref('position');
-
+const loading = ref(true);
+const error = ref<string | null>(null);
 const truncateText = (text: string, maxLength: number = 100): string => {
   if (!text) return '';
 
@@ -290,8 +291,21 @@ const addToCart = (product: Product) => {
   });
 };
 
+const loadProductsWebMounted = async () => {
+  loading.value = true;
+  error.value = null;
+
+  try {
+    await loadProductsWeb();
+  } catch (err) {
+    error.value = 'Hubo un error al cargar los productos.';
+  } finally {
+    loading.value = false;
+  }
+};
+
 onMounted(() => {
-  loadProductsWeb();
+  loadProductsWebMounted();
 });
 
 watch(() => productsWeb.value, () => {

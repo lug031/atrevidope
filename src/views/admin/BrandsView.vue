@@ -88,10 +88,12 @@
                     <input id="name" v-model="formData.name" type="text" class="form-input" required />
                 </div>
 
-                <div class="form-group">
+                <!-- <div class="form-group">
                     <label for="description">Descripción</label>
                     <textarea id="description" v-model="formData.description" class="form-input" required />
-                </div>
+                </div>  -->
+
+                <input type="hidden" v-model="formData.description" />
 
                 <div class="form-group">
                     <label>Logo de la marca</label>
@@ -363,6 +365,10 @@ onMounted(async () => {
 watch(brands, async () => {
     await loadImageUrls()
 }, { immediate: true })
+
+watch(() => formData.value.name, (nuevoValor) => {
+    formData.value.description = nuevoValor;
+});
 
 // Recarga los conteos cuando filtras la tabla
 const filteredBrandsChanged = watch(brands, async () => {

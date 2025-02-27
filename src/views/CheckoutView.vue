@@ -64,7 +64,7 @@
                                         @input="validateDocumentNumber" :class="{ 'error': errors.documentNumber }"
                                         :maxlength="getDocumentMaxLength">
                                     <span class="error-message" v-if="errors.documentNumber">{{ errors.documentNumber
-                                    }}</span>
+                                        }}</span>
                                 </div>
                             </div>
 
@@ -217,7 +217,7 @@
                                     <div class="info-item">
                                         <span class="info-label">Documento</span>
                                         <span class="info-value">{{ form.documentType }}: {{ form.documentNumber
-                                        }}</span>
+                                            }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -265,7 +265,20 @@
                                                     (Stock disponible: {{ item.product?.stock ?? 0 }})
                                                 </span>
                                             </div>
-                                            <div class="item-price">S/. {{ item.price.toFixed(2) }}</div>
+                                            <div class="price-container">
+                                                <span v-if="item.isPromoted && isPromotionActive(item)"
+                                                    class="original-price">
+                                                    S/. {{ item.originalPrice.toFixed(2) }}
+                                                </span>
+                                                <span class="item-price"
+                                                    :class="{ promotional: item.isPromoted && isPromotionActive(item) }">
+                                                    S/. {{ item.price.toFixed(2) }}
+                                                </span>
+                                                <span v-if="item.isPromoted && isPromotionActive(item)"
+                                                    class="discount-badge">
+                                                    -{{ item.discountPercentage }}%
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -525,6 +538,26 @@ const validateAndUpdateStock = async (): Promise<boolean> => {
     } finally {
         loadingState.value = 'idle';
     }
+};
+
+const isPromotionActive = (item: any) => {
+    if (!item.isPromoted || !item.product?.promotionStartDate || !item.product?.promotionEndDate) {
+        return false;
+    }
+
+    const today = getCurrentPeruDate();
+    return today >= item.product.promotionStartDate && today <= item.product.promotionEndDate;
+};
+
+const getCurrentPeruDate = () => {
+    const date = new Date();
+    const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
+
+    const year = peruDate.getFullYear();
+    const month = String(peruDate.getMonth() + 1).padStart(2, '0');
+    const day = String(peruDate.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
 };
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -903,6 +936,32 @@ onMounted(() => {
     width: 40px;
     height: 40px;
     flex-shrink: 0;
+}
+
+.price-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.original-price {
+    text-decoration: line-through;
+    color: #666;
+    font-size: 0.9em;
+}
+
+.promotional {
+    color: #e53e3e;
+}
+
+.discount-badge {
+    background-color: #e53e3e;
+    color: white;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    font-size: 0.8em;
+    font-weight: bold;
 }
 
 .payment-method-img {

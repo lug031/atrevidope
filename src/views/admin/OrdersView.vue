@@ -186,15 +186,16 @@
                                         </div>
                                         <div class="price-details">
                                             <div class="price-group">
-                                                <span class="original-price"
-                                                    v-if="item.productSnapshot?.originalPrice !== item.price">
-                                                    S/{{ formatPrice(item.productSnapshot?.originalPrice) }}
+                                                <span class="original-price" v-if="hasDiscount(item)">
+                                                    S/{{ formatPrice(getOriginalPrice(item)) }}
                                                 </span>
-                                                <span class="current-price">S/{{ formatPrice(item.price) }}</span>
+                                                <span class="current-price"
+                                                    :class="{ 'promotional': hasDiscount(item) }">
+                                                    S/{{ formatPrice(item.price) }}
+                                                </span>
                                             </div>
-                                            <span class="discount-badge"
-                                                v-if="item.productSnapshot?.discountPercentage > 0">
-                                                -{{ item.productSnapshot?.discountPercentage }}%
+                                            <span class="discount-badge" v-if="hasDiscount(item)">
+                                                -{{ getDiscountPercentage(item) }}%
                                             </span>
                                         </div>
                                     </div>
@@ -347,6 +348,48 @@ const truncateLink = (link: string, maxLength: number = 40): string => {
     if (link.length <= maxLength) return link;
 
     return link.substring(0, maxLength) + '...';
+};
+
+const isPromotionActive = (item: any) => {
+    if (!item.productSnapshot?.isPromoted ||
+        !item.productSnapshot?.promotionStartDate ||
+        !item.productSnapshot?.promotionEndDate) {
+        return false;
+    }
+
+    const today = getCurrentPeruDate();
+    return today >= item.productSnapshot.promotionStartDate &&
+        today <= item.productSnapshot.promotionEndDate;
+};
+
+const getCurrentPeruDate = () => {
+    const date = new Date();
+    const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
+
+    const year = peruDate.getFullYear();
+    const month = String(peruDate.getMonth() + 1).padStart(2, '0');
+    const day = String(peruDate.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+};
+
+const hasDiscount = (item: any) => {
+    return isPromotionActive(item) &&
+        item.productSnapshot?.discountPercentage > 0;
+};
+
+const getOriginalPrice = (item: any) => {
+    if (hasDiscount(item)) {
+        return item.productSnapshot?.originalPrice;
+    }
+    return null;
+};
+
+const getDiscountPercentage = (item: any) => {
+    if (hasDiscount(item)) {
+        return item.productSnapshot?.discountPercentage;
+    }
+    return 0;
 };
 
 const loadProductImages = async () => {
@@ -816,6 +859,10 @@ watch(
 .status-badge.processing {
     background: #dbeafe;
     color: #1e40af;
+}
+
+.current-price.promotional {
+    color: #e53e3e;
 }
 
 .status-badge.completed {

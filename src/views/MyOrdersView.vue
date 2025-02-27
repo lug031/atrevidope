@@ -55,8 +55,8 @@
                                     year: 'numeric',
                                     month: 'long',
                                     day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
+                                    hour: '2-digit',
+                                    minute: '2-digit'
                                 }) }}
                             </p>
                         </div>
@@ -84,7 +84,9 @@
                                             <span class="original-price" v-if="hasDiscount(item)">
                                                 S/. {{ getOriginalPrice(item)?.toFixed(2) }}
                                             </span>
-                                            <span class="current-price">S/. {{ item.price.toFixed(2) }}</span>
+                                            <span class="current-price" :class="{ 'promotional': hasDiscount(item) }">
+                                                S/. {{ item.price.toFixed(2) }}
+                                            </span>
                                         </div>
                                         <span class="discount-badge" v-if="hasDiscount(item)">
                                             -{{ getDiscountPercentage(item) }}%
@@ -524,13 +526,38 @@ const getProductBrand = (item: any) => {
     return item.productSnapshot?.brand || '';
 };
 
+const isPromotionActive = (item: any) => {
+    if (!item.productSnapshot?.isPromoted ||
+        !item.productSnapshot?.promotionStartDate ||
+        !item.productSnapshot?.promotionEndDate) {
+        return false;
+    }
+
+    const today = getCurrentPeruDate();
+    return today >= item.productSnapshot.promotionStartDate &&
+        today <= item.productSnapshot.promotionEndDate;
+};
+
+const getCurrentPeruDate = () => {
+    const date = new Date();
+    const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
+
+    const year = peruDate.getFullYear();
+    const month = String(peruDate.getMonth() + 1).padStart(2, '0');
+    const day = String(peruDate.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+};
+
 /*const hasDiscount = (productId: string) => {
     const product = products.value.find(p => p.id === productId);
     return product?.discountPercentage !== undefined && product.discountPercentage > 0;
 };*/
 
 const hasDiscount = (item: any) => {
-    return item.productSnapshot?.discountPercentage > 0;
+    return item.productSnapshot?.discountPercentage > 0 &&
+        item.productSnapshot?.isPromoted &&
+        isPromotionActive(item);
 };
 
 /*const getOriginalPrice = (productId: string) => {
@@ -539,7 +566,10 @@ const hasDiscount = (item: any) => {
 };*/
 
 const getOriginalPrice = (item: any) => {
-    return item.productSnapshot?.originalPrice;
+    if (hasDiscount(item)) {
+        return item.productSnapshot?.originalPrice;
+    }
+    return null;
 };
 
 /*const getDiscountPercentage = (productId: string) => {
@@ -548,7 +578,10 @@ const getOriginalPrice = (item: any) => {
 };*/
 
 const getDiscountPercentage = (item: any) => {
-    return item.productSnapshot?.discountPercentage || 0;
+    if (hasDiscount(item)) {
+        return item.productSnapshot?.discountPercentage || 0;
+    }
+    return 0;
 };
 
 // Formatea el mensaje de WhatsApp para un pedido
@@ -1224,6 +1257,7 @@ watch(selectedStatus, () => {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    margin-top: 0.25rem;
 }
 
 .price-group {
@@ -1241,6 +1275,10 @@ watch(selectedStatus, () => {
 .current-price {
     font-weight: 600;
     color: #0f172a;
+}
+
+.current-price.promotional {
+    color: #e53e3e;
 }
 
 .discount-badge {

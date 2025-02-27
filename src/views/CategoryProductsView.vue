@@ -353,7 +353,7 @@ watch(
     () => route.params.categoryId,
     (newCategoryId) => {
         if (newCategoryId) {
-            loadCategoryProducts();
+            loadCategoryProductsMounted();
         }
     }
 );

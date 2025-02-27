@@ -382,7 +382,7 @@ watch(
     async (newBrandId) => {
         if (newBrandId) {
             await loadBrandInfo();
-            await loadBrandProducts();
+            await loadBrandProductsMounted();
         }
     }
 );

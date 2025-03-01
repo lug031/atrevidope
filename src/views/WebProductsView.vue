@@ -262,8 +262,12 @@ const formatPromotionDate = (dateStr: string | undefined): string => {
 };
 
 const getEffectivePrice = (product: Product): number => {
-  // Si hay promoción futura, usar originalPrice
-  if (hasUpcomingPromotion(product)) {
+  // Si hay promoción activa, usar precio con descuento
+  if (isActivePromotion(product)) {
+    return product.price || 0; // El precio ya tiene el descuento aplicado
+  }
+  // Si hay promoción futura o expirada, usar originalPrice
+  else if (hasUpcomingPromotion(product) || hasExpiredPromotion(product)) {
     return product.originalPrice || 0;
   }
   // En cualquier otro caso, usar precio normal

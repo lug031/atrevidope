@@ -586,6 +586,11 @@ watch(() => currentProduct.value, () => {
     margin: 20px 0;
 }
 
+.product-price .original-price {
+    margin-left: 8px;
+    /* Ajusta el valor según necesites */
+}
+
 .product-description {
     margin: 30px 0;
 }

@@ -21,6 +21,10 @@ export function useProducts() {
     await productStore.fetchProducts();
   };
 
+  const loadProductsById = async (productId: string) => {
+    await productStore.getProductById(productId);
+  };
+
   const loadProductsByCategory = async (categoryId: string) => {
     try {
       await productStore.fetchProductsByCategory(categoryId);
@@ -80,6 +84,7 @@ export function useProducts() {
     error,
     totalProducts,
     loadProducts,
+    loadProductsById,
     loadAllProductsWeb,
     loadProductsByCategory,
     loadProductsByBrand,

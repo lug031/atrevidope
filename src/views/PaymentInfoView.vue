@@ -117,8 +117,8 @@
                             </div>
                             <div class="mobile-details">
                                 <h3>Yape</h3>
-                                <p><strong>Nombre:</strong> Atrevido Perfumería</p>
-                                <p><strong>Número:</strong> 934 505 566</p>
+                                <p><strong>Nombre:</strong> Chion C. Kam G.</p>
+                                <p><strong>Número:</strong> 955 463 534</p>
                             </div>
                         </div>
 
@@ -128,8 +128,8 @@
                             </div>
                             <div class="mobile-details">
                                 <h3>Plin</h3>
-                                <p><strong>Nombre:</strong> Atrevido Perfumería</p>
-                                <p><strong>Número:</strong> 934 505 566</p>
+                                <p><strong>Nombre:</strong> Chion Chui Kam Gone</p>
+                                <p><strong>Número:</strong> 955 463 534</p>
                             </div>
                         </div>
                     </div>

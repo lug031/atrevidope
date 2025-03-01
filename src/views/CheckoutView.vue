@@ -64,7 +64,7 @@
                                         @input="validateDocumentNumber" :class="{ 'error': errors.documentNumber }"
                                         :maxlength="getDocumentMaxLength">
                                     <span class="error-message" v-if="errors.documentNumber">{{ errors.documentNumber
-                                        }}</span>
+                                    }}</span>
                                 </div>
                             </div>
 
@@ -95,7 +95,7 @@
                                         <input type="radio" v-model="form.shippingMethod" value="regular">
                                         <div class="radio-content">
                                             <div class="radio-title">Envío Regular</div>
-                                            <div class="radio-description">3-5 días hábiles</div>
+                                            <div class="radio-description">1-2 días hábiles</div>
                                         </div>
                                     </label>
                                 </div>
@@ -118,7 +118,7 @@
                             <div class="form-section payment-method-section">
                                 <h3>Método de pago</h3>
                                 <div class="payment-methods-container">
-                                    <div class="payment-method-option"
+                                    <!-- <div class="payment-method-option"
                                         :class="{ active: form.paymentMethod === 'tarjeta' }">
                                         <label class="payment-option-label">
                                             <input type="radio" v-model="form.paymentMethod" value="tarjeta"
@@ -136,7 +136,7 @@
                                                 </svg>
                                             </div>
                                         </label>
-                                    </div>
+                                    </div> -->
 
                                     <div class="payment-method-option"
                                         :class="{ active: form.paymentMethod === 'yape' }">
@@ -145,7 +145,7 @@
                                                 class="payment-method-input" />
                                             <div class="payment-option-text">
                                                 <span class="payment-method-name">Yape</span>
-                                                <!-- <span class="payment-method-desc">Pago móvil rápido</span> -->
+                                                <span class="payment-method-desc">Escanea y paga</span>
                                             </div>
                                             <div class="payment-option-icon yape">
                                                 <img src="/yape-icon.png" alt="Yape" class="payment-method-img" />
@@ -160,7 +160,7 @@
                                                 class="payment-method-input" />
                                             <div class="payment-option-text">
                                                 <span class="payment-method-name">Plin</span>
-                                                <!-- <span class="payment-method-desc">Transferencia instantánea</span> -->
+                                                <span class="payment-method-desc">Escanea y paga</span>
                                             </div>
                                             <div class="payment-option-icon plin">
                                                 <img src="/plin-icon.png" alt="Plin" class="payment-method-img" />
@@ -168,7 +168,7 @@
                                         </label>
                                     </div>
 
-                                    <div class="payment-method-option" :class="{ active: form.paymentMethod === 'qr' }">
+                                    <!-- <div class="payment-method-option" :class="{ active: form.paymentMethod === 'qr' }">
                                         <label class="payment-option-label">
                                             <input type="radio" v-model="form.paymentMethod" value="qr"
                                                 class="payment-method-input" />
@@ -178,6 +178,19 @@
                                             </div>
                                             <div class="payment-option-icon">
                                                 <img src="/qr-icon.png" alt="QR Code" class="payment-method-img" />
+                                            </div>
+                                        </label>
+                                    </div> -->
+                                    <div class="payment-method-option" :class="{ active: form.paymentMethod === 'efectivo' }">
+                                        <label class="payment-option-label">
+                                            <input type="radio" v-model="form.paymentMethod" value="efectivo"
+                                                class="payment-method-input" />
+                                            <div class="payment-option-text">
+                                                <span class="payment-method-name">Pago Contra Entrega</span>
+                                                <span class="payment-method-desc">Paga al recibir el producto</span>
+                                            </div>
+                                            <div class="payment-option-icon">
+                                                <img src="/contraentrega.png" alt="QR Code" class="payment-method-img" />
                                             </div>
                                         </label>
                                     </div>
@@ -217,7 +230,7 @@
                                     <div class="info-item">
                                         <span class="info-label">Documento</span>
                                         <span class="info-value">{{ form.documentType }}: {{ form.documentNumber
-                                            }}</span>
+                                        }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -565,7 +578,7 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const generateOrder = async () => {
     loadingState.value = 'generating';
     try {
-        await sleep(2000);
+        await sleep(3000);
         const userEmail = auth.userEmail ?? form.value.email;
 
         if (!auth.userEmail && form.value.email) {
@@ -965,8 +978,8 @@ onMounted(() => {
 }
 
 .payment-method-img {
-    width: 28px;
-    height: 28px;
+    width: 38px;
+    height: 38px;
     object-fit: contain;
 }
 

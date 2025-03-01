@@ -13,7 +13,7 @@ export interface CustomerInfo {
   phone: string;
   shippingMethod: "regular";
   invoiceType: "boleta" | "factura";
-  paymentMethod: "tarjeta" | "yape" | "plin" | "qr";
+  paymentMethod: "tarjeta" | "yape" | "plin" | "qr" | "efectivo";
 }
 
 // Tipo para los items del pedido

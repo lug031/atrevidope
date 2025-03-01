@@ -144,42 +144,110 @@
                         <!-- Pending Order Payment Message -->
                         <div v-if="order.status === 'pending'" class="payment-message pending">
                             <AlertCircleIcon :size="16" class="message-icon" />
-                            <p>Su solicitud de link de pago ha sido generada. En breve nuestro equipo procesará su
-                                pedido.</p>
+                            <p>Su solicitud de pedido ha sido registrada. En breve nuestro equipo procesará su pedido.
+                            </p>
+                            <!-- <p>Su solicitud de link de pago ha sido generada. En breve nuestro equipo procesará su
+                                pedido.</p> -->
                         </div>
 
                         <!-- Processing Order Payment Message -->
+                        <!-- Processing Order Payment Message -->
                         <div v-if="order.status === 'processing'" class="payment-status">
-                            <div v-if="!order.linkPago" class="payment-message processing">
-                                <Loader2Icon :size="16" class="message-icon animate-spin" />
-                                <p>Su link de pago se está generando, pronto estará disponible.</p>
-                            </div>
-
-                            <div v-else class="payment-link-container">
-                                <div class="payment-link-ready">
-                                    <CheckCircleIcon :size="16" class="message-icon success" />
-                                    <p>¡Su link de pago está listo! Haga clic en el botón para realizar el pago.</p>
+                            <div v-if="!order.linkPago">
+                                <div v-if="order.paymentMethod === 'yape'" class="payment-message processing">
+                                    <Loader2Icon :size="16" class="message-icon animate-spin" />
+                                    <p>Por favor, para continuar con su compra, realice el pago a través de
+                                        <strong>YAPE</strong>. Una vez
+                                        realizado, su pedido sera procesado y nos comunicaremos con usted.
+                                    </p>
                                 </div>
-                                <a :href="formatPaymentLink(order.linkPago)" target="_blank" class="payment-button">
-                                    <CreditCardIcon :size="16" />
-                                    Realizar pago
-                                    <ArrowRightIcon :size="16" />
-                                </a>
+
+                                <div v-else-if="order.paymentMethod === 'plin'" class="payment-message processing">
+                                    <Loader2Icon :size="16" class="message-icon animate-spin" />
+                                    <p>Por favor, para continuar con su compra, realice el pago a través de
+                                        <strong>PLIN</strong>. Una vez
+                                        realizado, su pedido sera procesado y nos comunicaremos con usted.
+                                    </p>
+                                </div>
+
+                                <div v-else-if="order.paymentMethod === 'efectivo'" class="payment-message processing">
+                                    <Loader2Icon :size="16" class="message-icon animate-spin" />
+                                    <p>Estamos procesando su pedido. En breve nos comunicaremos con usted para coordinar
+                                        la entrega.</p>
+                                </div>
                             </div>
                         </div>
 
+                        <!-- QR Code Section (Outside payment-status) -->
+                        <div v-if="order.status === 'processing' && !order.linkPago" class="qr-payment-section">
+                            <div v-if="order.paymentMethod === 'yape'" class="qr-payment-container">
+                                <div class="qr-image-wrapper">
+                                    <img src="@/assets/qr-yape.jpg" alt="QR Yape" class="payment-qr-code" />
+                                </div>
+                                <div class="qr-payment-details">
+                                    <h4>Datos de pago Yape:</h4>
+                                    <p><strong>Nombre:</strong> Chion C. Kam G.</p>
+                                    <p><strong>Número:</strong> 955 463 534</p>
+                                    <p><strong>Monto:</strong> S/ {{ order.total.toFixed(2) }}</p>
+                                </div>
+                            </div>
+
+                            <div v-else-if="order.paymentMethod === 'plin'" class="qr-payment-container">
+                                <div class="qr-image-wrapper">
+                                    <img src="@/assets/qr-plin.jpg" alt="QR Plin" class="payment-qr-code" />
+                                </div>
+                                <div class="qr-payment-details">
+                                    <h4>Datos de pago Plin:</h4>
+                                    <p><strong>Nombre:</strong> Chion Chui Kam Gone</p>
+                                    <p><strong>Número:</strong> 955 463 534</p>
+                                    <p><strong>Monto:</strong> S/ {{ order.total.toFixed(2) }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Processing Order Payment Message - LINK PAGO -->
+                        <!-- <div v-if="order.status === 'processing'" class="payment-status">
+                            <div v-if="!order.linkPago" class="payment-message processing">
+                                <Loader2Icon :size="16" class="message-icon animate-spin" />
+                                <p>Su link de pago se está generando, pronto estará disponible.</p>
+                                </div> 
+
+                                <div v-else class="payment-link-container">
+                                    <div class="payment-link-ready">
+                                        <CheckCircleIcon :size="16" class="message-icon success" />
+                                        <p>¡Su link de pago está listo! Haga clic en el botón para realizar el pago.</p>
+                                    </div>
+                                    <a :href="formatPaymentLink(order.linkPago)" target="_blank" class="payment-button">
+                                        <CreditCardIcon :size="16" />
+                                        Realizar pago
+                                        <ArrowRightIcon :size="16" />
+                                    </a>
+                                </div>
+                        </div>-->
+
                         <!-- Completed Order Payment Message -->
                         <div v-if="order.status === 'completed'" class="payment-status">
-                            <div class="payment-message completed">
+                            <div v-if="order.paymentMethod === 'yape' || order.paymentMethod === 'plin'"
+                                class="payment-message completed">
                                 <CheckCircleIcon :size="16" class="message-icon success" />
                                 <p>Pago completado con éxito.</p>
                             </div>
 
-                            <div v-if="order.linkPago" class="inactive-payment-link">
+                            <div v-else class="payment-message completed">
+                                <CheckCircleIcon :size="16" class="message-icon success" />
+                                <p>Pedido entregado con éxito.</p>
+                            </div>
+
+                            <!--<div class="payment-message completed">
+                                <CheckCircleIcon :size="16" class="message-icon success" />
+                                <p>Pago completado con éxito.</p>
+                            </div>
+
+                             <div v-if="order.linkPago" class="inactive-payment-link">
                                 <span class="inactive-link-label">Referencia de pago:</span>
                                 <span class="inactive-link-value">{{
                                     truncatePaymentLink(formatPaymentLink(order.linkPago)) }}</span>
-                            </div>
+                            </div> -->
                         </div>
                     </div>
 
@@ -192,7 +260,7 @@
                         </div>
                         <div class="payment-message cancelled">
                             <XCircleIcon :size="16" class="message-icon" />
-                            <p>Este pedido ha sido cancelado. No se generará ningún enlace de pago.</p>
+                            <p>Este pedido ha sido cancelado.</p>
                         </div>
                     </div>
 
@@ -254,7 +322,8 @@
                         </div>
                     </div>
 
-                    <div class="whatsapp-button-container" v-if="order.status === 'pending'">
+                    <div class="whatsapp-button-container"
+                        v-if="order.status === 'pending' || order.status === 'processing'">
                         <button @click="openWhatsapp(order)" class="button primary whatsapp-button">
                             <MessageCircle class="icon" /> Enviar pedido por WhatsApp
                         </button>
@@ -320,16 +389,18 @@ const startPaymentLinkPolling = () => {
     // Detener cualquier intervalo existente
     stopPaymentLinkPolling();
 
-    // Filtrar órdenes en proceso que no tienen enlace de pago
-    const processingOrdersWithoutLink = orders.value.filter(
-        order => order.status === 'processing' && !order.linkPago && order.id
+    // Filtrar órdenes en proceso que no tienen enlace de pago Y órdenes pendientes
+    const ordersToMonitor = orders.value.filter(
+        order => ((order.status === 'processing' && !order.linkPago) ||
+            order.status === 'pending') &&
+            order.id
     );
 
     // Si no hay órdenes para consultar, no hacer nada
-    if (processingOrdersWithoutLink.length === 0) return;
+    if (ordersToMonitor.length === 0) return;
 
     // Añadir IDs al conjunto de consulta
-    processingOrdersWithoutLink.forEach(order => {
+    ordersToMonitor.forEach(order => {
         if (order.id) pollingOrderIds.value.add(order.id);
     });
 
@@ -372,17 +443,35 @@ const checkPaymentLinks = async () => {
         // Verificar si alguna orden ha recibido su enlace de pago o ha cambiado de estado
         let updatesFound = false;
 
+        const currentOrdersMap = new Map();
+        orders.value.forEach(order => {
+            if (order.id) currentOrdersMap.set(order.id, order);
+        });
+
         refreshedOrders.forEach(order => {
             if (order.id && pollingOrderIds.value.has(order.id)) {
-                // Si la orden tiene enlace de pago o ha sido cancelada, dejar de consultarla
-                if (order.linkPago || order.status === 'cancelled' || order.status === 'completed') {
-                    pollingOrderIds.value.delete(order.id);
+                const currentOrder = currentOrdersMap.get(order.id);
+
+                // Detectar cambios de estado o adición de enlace de pago
+                if (currentOrder && (
+                    currentOrder.status !== order.status ||
+                    (!currentOrder.linkPago && order.linkPago)
+                )) {
                     updatesFound = true;
 
-                    // Si fue cancelada, mostrar notificación al usuario
+                    // Mostrar notificación si corresponde
                     if (order.status === 'cancelled') {
                         showCancellationNotification(order);
+                    } else if (currentOrder.status === 'pending' && order.status === 'processing') {
+                        showStatusChangeNotification(order, 'processing');
+                    } else if (currentOrder.status === 'processing' && order.status === 'completed') {
+                        showStatusChangeNotification(order, 'completed');
                     }
+                }
+
+                // Dejar de monitorear si ya no es necesario
+                if (order.linkPago || order.status === 'cancelled' || order.status === 'completed') {
+                    pollingOrderIds.value.delete(order.id);
                 }
             }
         });
@@ -398,7 +487,24 @@ const checkPaymentLinks = async () => {
             stopPaymentLinkPolling();
         }
     } catch (error) {
-        console.error('Error al consultar enlaces de pago:', error);
+        console.error('Error al consultar estados de pedidos:', error);
+    }
+};
+
+const showStatusChangeNotification = (order: Order, newStatus: string) => {
+    const statusMessages = {
+        'processing': `El pedido #${order.id?.slice(-6)} ahora está en proceso.`,
+        'completed': `¡El pedido #${order.id?.slice(-6)} ha sido completado!`
+    };
+
+    const message = statusMessages[newStatus as keyof typeof statusMessages] ||
+        `El estado del pedido #${order.id?.slice(-6)} ha cambiado a ${newStatus}.`;
+
+    if (typeof showToast === 'function') {
+        showToast({
+            type: newStatus === 'processing' ? 'info' : 'success',
+            message: message
+        });
     }
 };
 
@@ -588,7 +694,9 @@ const getDiscountPercentage = (item: any) => {
 const formatOrderWhatsAppMessage = (order: Order) => {
     console.log("order");
     console.log(order);
-    const { customerInfo, items, subtotal, shipping, total } = order;
+    const { status, customerInfo, items, subtotal, shipping, total } = order;
+    const statusOrder = `*MI PEDIDO ESTÁ EN ESTADO:*\n` +
+        `${getStatusText(status)}`;
     const customerDetails =
         `*INFORMACIÓN DEL CLIENTE*\n` +
         `Nombre: ${customerInfo.firstName} ${customerInfo.lastName}\n` +
@@ -618,6 +726,7 @@ const formatOrderWhatsAppMessage = (order: Order) => {
         `Total: S/. ${total.toFixed(2)}`;
 
     return encodeURIComponent(
+        `${statusOrder}\n\n` +
         `${customerDetails}` +
         `*PRODUCTOS*\n${itemsDetails}\n\n` +
         `*MÉTODO DE PAGO*\n${paymentMethod}\n` +
@@ -627,7 +736,7 @@ const formatOrderWhatsAppMessage = (order: Order) => {
 
 const openWhatsapp = (order: Order) => {
     const message = formatOrderWhatsAppMessage(order);
-    const phoneNumber = '51934505566';
+    const phoneNumber = '51955463534';
     const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
     window.open(whatsappUrl, '_blank');
 };
@@ -653,8 +762,10 @@ const filterOrders = async () => {
         // Cargar imágenes de productos
         await loadProductImages();
 
-        // Si el filtro es "processing" o "all", iniciar el polling para enlaces de pago
-        if (selectedStatus.value === 'processing' || selectedStatus.value === 'all') {
+        // Si el filtro es "processing", "pending" o "all", iniciar el polling 
+        if (selectedStatus.value === 'processing' ||
+            selectedStatus.value === 'pending' ||
+            selectedStatus.value === 'all') {
             startPaymentLinkPolling();
         }
     } catch (err) {
@@ -804,6 +915,57 @@ watch(selectedStatus, () => {
     border-color: #4299e1;
     box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
 }*/
+
+.qr-payment-section {
+    margin-top: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 1.5rem;
+}
+
+.qr-payment-container {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.5rem;
+}
+
+.qr-image-wrapper {
+    flex-shrink: 0;
+}
+
+.payment-qr-code {
+    width: 150px;
+    height: auto;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.qr-payment-details {
+    flex-grow: 1;
+}
+
+.qr-payment-details h4 {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.qr-payment-details p {
+    margin: 0.5rem 0;
+    font-size: 0.95rem;
+}
+
+@media (max-width: 640px) {
+    .qr-payment-container {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .qr-payment-details {
+        text-align: center;
+        margin-top: 1rem;
+    }
+}
 
 .loading-state {
     display: flex;
@@ -1447,6 +1609,7 @@ watch(selectedStatus, () => {
     border-radius: 0.5rem;
     animation: fadeIn 0.5s ease-in-out;
     border: 1px solid #bfdbfe;
+    margin-bottom: 1rem;
 }
 
 .processing-content {

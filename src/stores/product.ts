@@ -489,6 +489,80 @@ export const useProductStore = defineStore("product", () => {
     }
   };
 
+  const getProductById = async (productId: string) => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const { data: product } = await publicClient.models.Product.get({
+        id: productId,
+      });
+
+      if (!product) {
+        throw new Error(`Producto con ID ${productId} no encontrado`);
+      }
+
+      // Obtener información de la marca si existe
+      let brandInfo = { name: product.brand as unknown as string };
+      if (product.brandID) {
+        try {
+          const { data: brand } = await publicClient.models.Brand.get({
+            id: product.brandID,
+          });
+          if (brand) {
+            brandInfo = {
+              name: brand.name ?? "",
+            };
+          }
+        } catch (e) {
+          console.error("Error al obtener la marca:", e);
+        }
+      }
+
+      // Obtener categorías del producto
+      const { data: productCategories } =
+        await publicClient.models.ProductCategory.list({
+          filter: {
+            productID: { eq: productId },
+          },
+        });
+
+      const categoriesPromises = (productCategories || [])
+        .filter((pc) => pc.categoryID !== null)
+        .map(async (pc) => {
+          if (pc.categoryID) {
+            const { data: category } = await publicClient.models.Category.get({
+              id: pc.categoryID,
+            });
+            return category;
+          }
+          return null;
+        });
+
+      const categories = await Promise.all(categoriesPromises);
+
+      // Combinar toda la información
+      const productWithDetails = {
+        ...product,
+        brand: brandInfo.name,
+        categories: categories.filter(
+          (category): category is NonNullable<typeof category> =>
+            category !== null
+        ),
+      };
+
+      return productWithDetails as unknown as Product;
+    } catch (err) {
+      console.error(`Error al obtener el producto ${productId}:`, err);
+      error.value = `Error al obtener el producto: ${
+        err instanceof Error ? err.message : "Error desconocido"
+      }`;
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
   return {
     products,
     productsWeb,
@@ -505,5 +579,6 @@ export const useProductStore = defineStore("product", () => {
     createProduct,
     updateProduct,
     deleteProduct,
+    getProductById
   };
 });

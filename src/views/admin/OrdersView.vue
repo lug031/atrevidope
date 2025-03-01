@@ -214,7 +214,7 @@
                             <span class="label">Método de Pago:</span>
                             <span class="value">{{ selectedOrder?.paymentMethod || 'No especificado' }}</span>
                         </div>
-                        <div class="payment-link-container">
+                        <!-- <div class="payment-link-container">
                             <div class="payment-link-field">
                                 <span class="label">Link de Pago:</span>
                                 <div class="link-input-group">
@@ -238,7 +238,7 @@
                                     <ExternalLinkIcon :size="14" class="external-link-icon" />
                                 </a>
                             </div>
-                        </div>
+                        </div>-->
                     </div>
 
                     <div class="order-summary">
@@ -259,6 +259,7 @@
             </div>
         </ModalOrder>
     </div>
+    <StockErrorModal :show="showStockModal" :invalidProducts="stockErrorProducts" @close="showStockModal = false" />
 </template>
 
 <script setup lang="ts">
@@ -285,11 +286,23 @@ import type { Order } from '@/types/order.types'
 import ModalOrder from '@/components/ModalOrder.vue'
 import { useToast } from '@/composables/useToast'
 import { useOrderStore } from '@/stores/order';
+import { useOrderValidation } from '@/composables/useOrderValidation';
+import StockErrorModal from '@/components/StockErrorModal.vue'
 
-const { orders, loading, error, loadOrders, updateOrderStatus, orderStats } = useOrders()
+const { orders, loading, error, loadOrders, updateOrderStatus, orderStats, getOrderDetails } = useOrders()
+const { validateOrderStock } = useOrderValidation();
 
 const { showToast } = useToast()
+const showStockModal = ref(false);
+interface StockErrorProduct {
+    id: string;
+    name: string;
+    requested: number;
+    available: number;
+    error?: string;
+}
 
+const stockErrorProducts = ref<StockErrorProduct[]>([]);
 const orderStore = useOrderStore();
 const paymentLinkInput = ref('');
 const updateLinkLoading = ref(false);
@@ -498,22 +511,56 @@ const truncateProductName = (name: string, maxLength: number = 100): string => {
     }
 }
 
-const updateStatus = async (orderId: string | undefined, newStatus: Order['status']) => {
-    if (!orderId) return
+const updateStatus = async (orderId: any, newStatus: any) => {
+    if (!orderId) return;
 
+    // Solo validar stock cuando se cambia a completado
+    if (newStatus === 'completed') {
+        try {
+            // Obtener la orden actual
+            const order = await getOrderDetails(orderId);
+
+            if (!order) {
+                showToast({
+                    type: 'error',
+                    message: 'No se pudo obtener la información del pedido'
+                });
+                return;
+            }
+
+            // Validar stock para la orden
+            const { valid, invalidProducts } = await validateOrderStock(order);
+
+            if (!valid) {
+                // Configurar y mostrar el modal
+                stockErrorProducts.value = invalidProducts;
+                showStockModal.value = true;
+                return; // Detener el proceso de actualización
+            }
+        } catch (error) {
+            console.error('Error al validar stock:', error);
+            showToast({
+                type: 'error',
+                message: 'Error al validar el stock de los productos'
+            });
+            return;
+        }
+    }
+
+    // Si todo está bien, continuar con la actualización normal
     try {
-        await updateOrderStatus(orderId, newStatus)
+        await updateOrderStatus(orderId, newStatus);
         showToast({
             type: 'success',
             message: `Orden ${orderId.slice(-6)} actualizada a ${getStatusText(newStatus)}`
-        })
+        });
     } catch (error) {
         showToast({
             type: 'error',
             message: 'Error al actualizar el estado de la orden'
-        })
+        });
     }
-}
+};
 
 onMounted(async () => {
     await loadOrders()

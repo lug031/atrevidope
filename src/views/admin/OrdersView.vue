@@ -209,7 +209,7 @@
                     </div>
 
                     <h3>Detalles de Pago</h3>
-                    <div class="payment-info">
+                    <div class="pago-info">
                         <div class="detail-item">
                             <span class="label">Método de Pago:</span>
                             <span class="value">{{ selectedOrder?.paymentMethod || 'No especificado' }}</span>
@@ -543,7 +543,7 @@ watch(
     border-top: 1px solid #e2e8f0;
 }
 
-.payment-info {
+.pago-info {
     display: flex;
     flex-direction: column;
     gap: 1rem;

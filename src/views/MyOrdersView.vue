@@ -98,7 +98,7 @@
                     </div>
 
                     <!-- Payment Information Section -->
-                    <div class="payment-info-section" v-if="order.status !== 'cancelled'">
+                    <div class="pago-info-section" v-if="order.status !== 'cancelled'">
                         <div class="payment-header">
                             <div class="payment-title">
                                 <CreditCardIcon :size="18" />
@@ -183,7 +183,7 @@
                         </div>
                     </div>
 
-                    <div class="payment-info-section cancelled" v-else>
+                    <div class="pago-info-section cancelled" v-else>
                         <div class="payment-header">
                             <div class="payment-title">
                                 <CreditCardIcon :size="18" />
@@ -854,7 +854,7 @@ watch(selectedStatus, () => {
     gap: 24px;
 }
 
-.payment-info-section {
+.pago-info-section {
     margin-top: 1.5rem;
     padding: 1.25rem;
     background-color: #f9fafb;
@@ -868,12 +868,12 @@ watch(selectedStatus, () => {
     border: 1px solid #fecaca;
 }
 
-.payment-info-section.cancelled {
+.pago-info-section.cancelled {
     background-color: #fef2f2;
     border-color: #fecaca;
 }
 
-.payment-info-section {
+.pago-info-section {
     margin-top: 1.5rem;
     padding: 1.25rem;
     background-color: #f9fafb;

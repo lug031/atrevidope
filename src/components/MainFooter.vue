@@ -1,17 +1,10 @@
+<!-- Archivo principal (por ejemplo, AppFooter.vue) -->
 <template>
     <div>
-        <!-- Botón flotante de WhatsApp con tooltip -->
-        <!-- <div class="whatsapp-container">
-            <div class="whatsapp-tooltip" :class="{ 'show-tooltip': showTooltipAuto }">¿Buscas algún producto o
-                necesitas ayuda? ¡Escríbenos!</div>
-            <a href="https://wa.me/51934505566" class="whatsapp-button" target="_blank" rel="noopener noreferrer"
-                aria-label="Contactar por WhatsApp">
-                <svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor">
-                    <path
-                        d="M17.498 14.382c-.301-.15-1.767-.867-2.04-.966-.273-.101-.473-.15-.673.15-.197.295-.771.964-.944 1.162-.175.195-.349.21-.646.075-.3-.15-1.263-.465-2.403-1.485-.888-.795-1.484-1.77-1.66-2.07-.174-.3-.019-.465.13-.615.136-.135.301-.345.451-.523.146-.181.194-.301.297-.496.1-.21.049-.375-.025-.524-.075-.15-.672-1.62-.922-2.206-.24-.584-.487-.51-.672-.51-.172-.015-.371-.015-.571-.015-.2 0-.523.074-.797.359-.273.3-1.045 1.02-1.045 2.475s1.07 2.865 1.219 3.075c.149.195 2.105 3.195 5.1 4.485.714.3 1.27.48 1.704.629.714.227 1.365.195 1.88.121.574-.091 1.767-.721 2.016-1.426.255-.705.255-1.29.18-1.425-.074-.135-.27-.21-.57-.345m-5.446 7.443h-.016c-1.77 0-3.524-.48-5.055-1.38l-.36-.214-3.75.975 1.005-3.645-.239-.375c-.99-1.576-1.516-3.391-1.516-5.26 0-5.445 4.455-9.885 9.942-9.885 2.654 0 5.145 1.035 7.021 2.91 1.875 1.859 2.909 4.35 2.909 6.99-.004 5.444-4.46 9.885-9.935 9.885M20.52 3.449C18.24 1.245 15.24 0 12.045 0 5.463 0 .104 5.334.101 11.893c0 2.096.549 4.14 1.595 5.945L0 24l6.335-1.652c1.746.943 3.71 1.444 5.71 1.447h.006c6.585 0 11.946-5.336 11.949-11.896 0-3.176-1.24-6.165-3.495-8.411" />
-                </svg>
-            </a>
-        </div> -->
+        <!-- Agregamos el nuevo componente WhatsAppChatButton -->
+        <WhatsAppChatButton phoneNumber="51934505566" welcomeMessage="Hola 👋 ¿Cómo podemos ayudarte?"
+            agentName="Atrevido" agentStatus="Soporte" agentAvatar="/atrevido_logo.png" :autoOpen="true"
+            :autoOpenDelay="3000" :useLocalStorage="true" storageKey="atrevido_whatsapp_shown" :hideDuration="2/60" />
 
         <footer class="footer">
             <div class="footer-content">
@@ -72,23 +65,10 @@
 
 <script setup lang="ts">
 import { InstagramIcon } from 'lucide-vue-next'
-import { onMounted, ref } from 'vue'
+import { ref } from 'vue'
+import WhatsAppChatButton from './WhatsAppChatButton.vue'
 
-// Para mostrar tooltip automáticamente después de unos segundos
-const showTooltipAuto = ref(false)
 const currentYear = ref(new Date().getFullYear())
-
-onMounted(() => {
-    // Mostrar el tooltip automáticamente después de 3 segundos en la página
-    setTimeout(() => {
-        showTooltipAuto.value = true
-
-        // Ocultarlo después de 5 segundos
-        setTimeout(() => {
-            showTooltipAuto.value = false
-        }, 5000)
-    }, 3000)
-})
 </script>
 
 <style scoped>
@@ -163,17 +143,6 @@ onMounted(() => {
     justify-content: center;
 }
 
-.whatsapp-tooltip:after {
-    content: '';
-    position: absolute;
-    right: -10px;
-    top: 50%;
-    transform: translateY(-50%);
-    border-width: 10px 0 10px 10px;
-    border-style: solid;
-    border-color: transparent transparent transparent white;
-}
-
 .info-section {
     display: flex;
     flex-direction: column;
@@ -213,90 +182,6 @@ onMounted(() => {
     padding: 2px;
 }
 
-/* Botón de WhatsApp flotante con tooltip */
-.whatsapp-container {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 1000;
-}
-
-.whatsapp-button {
-    background-color: #25D366;
-    color: white;
-    border-radius: 50%;
-    width: 60px;
-    height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-    transition: all 0.3s ease;
-}
-
-.whatsapp-button:hover {
-    transform: scale(1.1);
-    background-color: #20ba5a;
-}
-
-.whatsapp-tooltip {
-    position: absolute;
-    right: 75px;
-    bottom: 12px;
-    background: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
-    color: #333;
-    padding: 10px 14px;
-    border-radius: 12px;
-    font-size: 14px;
-    font-weight: 500;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
-    width: 220px;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    transform: translateX(10px) scale(0.95);
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    text-align: left;
-    line-height: 1.4;
-}
-
-.whatsapp-tooltip:after {
-    content: '';
-    position: absolute;
-    right: -8px;
-    top: 50%;
-    transform: translateY(-50%);
-    border-width: 8px 0 8px 8px;
-    border-style: solid;
-    border-color: transparent transparent transparent #ffffff;
-    filter: drop-shadow(2px 0px 1px rgba(0, 0, 0, 0.05));
-}
-
-.whatsapp-tooltip.show-tooltip,
-.whatsapp-container:hover .whatsapp-tooltip {
-    opacity: 1;
-    visibility: visible;
-    transform: translateX(0) scale(1);
-}
-
-.whatsapp-tooltip.show-tooltip~.whatsapp-button {
-    animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-    0% {
-        box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.5);
-    }
-
-    70% {
-        box-shadow: 0 0 0 10px rgba(37, 211, 102, 0);
-    }
-
-    100% {
-        box-shadow: 0 0 0 0 rgba(37, 211, 102, 0);
-    }
-}
-
 .footer-bottom {
     text-align: center;
     margin-top: 3rem;
@@ -307,16 +192,6 @@ onMounted(() => {
 .footer-bottom p {
     color: #999;
     font-size: 0.875rem;
-}
-
-@media (max-width: 768px) {
-    .whatsapp-tooltip {
-        width: 180px;
-        font-size: 13px;
-        padding: 8px 12px;
-        bottom: 8px;
-        right: 70px;
-    }
 }
 
 @media (max-width: 768px) {

@@ -11,17 +11,17 @@
                 <div class="footer-section">
                     <h3 class="footer-title">Atención al Cliente</h3>
                     <ul>
-                        <li><a href="#">Preguntas Frecuentes</a></li>
-                        <li><a href="#">Métodos de Pago</a></li>
-                        <li><a href="#">Envíos</a></li>
+                        <li><router-link to="/faq">Preguntas Frecuentes</router-link></li>
+                        <li><router-link to="/pago-info">Métodos de Pago</router-link></li>
+                        <li><router-link to="/envio-info">Envíos</router-link></li>
                     </ul>
                 </div>
 
                 <div class="footer-section">
                     <h3 class="footer-title">Nosotros</h3>
                     <ul>
-                        <li><a href="#">Quiénes Somos</a></li>
-                        <li><a href="#">Contáctanos</a></li>
+                        <li><router-link to="/nosotros">Quiénes Somos</router-link></li>
+                        <li><router-link to="/contacto">Contáctanos</router-link></li>
                     </ul>
                 </div>
 

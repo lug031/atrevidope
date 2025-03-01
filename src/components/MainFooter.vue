@@ -4,7 +4,7 @@
         <!-- Agregamos el nuevo componente WhatsAppChatButton -->
         <WhatsAppChatButton phoneNumber="51934505566" welcomeMessage="Hola 👋 ¿Cómo podemos ayudarte?"
             agentName="Atrevido" agentStatus="Soporte" agentAvatar="/atrevido_logo.png" :autoOpen="true"
-            :autoOpenDelay="3000" :useLocalStorage="true" storageKey="atrevido_whatsapp_shown" :hideDuration="2/60" />
+            :autoOpenDelay="500" :useLocalStorage="true" storageKey="atrevido_whatsapp_shown" :hideDuration="2/60" />
 
         <footer class="footer">
             <div class="footer-content">

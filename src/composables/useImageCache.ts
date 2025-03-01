@@ -5,7 +5,7 @@ import { getUrl } from "aws-amplify/storage";
 interface ImageCache {
   url: string;
   timestamp: number;
-  version: string; // Para control de versiones de imagen
+  version: string;
 }
 
 interface StoredCache {

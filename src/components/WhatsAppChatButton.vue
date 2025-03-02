@@ -56,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { setLocalStorage, getLocalStorage, isLocalStorageValid, removeLocalStorage } from '@/utils/localStorage';
 
 // Propiedades del componente
@@ -112,12 +112,17 @@ const props = defineProps({
     hideDuration: {
         type: Number,
         default: 2 / 60 // Horas (2 minutos)
+    },
+    checkInterval: {
+        type: Number,
+        default: 10000 // Comprobar cada 10 segundos
     }
 });
 
 // Estados reactivos
 const showChat = ref(false);
 const userMessage = ref('');
+let checkExpirationTimer: number | null = null;
 
 // Valores computados
 const currentTime = computed(() => {
@@ -147,6 +152,13 @@ const wasChatShownRecently = (): boolean => {
     return isLocalStorageValid(props.storageKey);
 };
 
+// Comprobar regularmente si ha expirado el tiempo de ocultamiento
+const checkExpiration = () => {
+    if (!wasChatShownRecently() && !showChat.value) {
+        showChat.value = true;
+    }
+};
+
 // Métodos para manejo de eventos
 const handleMouseEnter = () => {
     if (!wasChatShownRecently()) {
@@ -166,7 +178,7 @@ const toggleChat = () => {
 const hideChat = () => {
     showChat.value = false;
 
-    // Guardar en localStorage con tiempo de expiración fijo de 2 minutos
+    // Guardar en localStorage con tiempo de expiración fijo
     // Primero eliminamos cualquier entrada anterior para evitar problemas de expiración acumulada
     removeLocalStorage(props.storageKey);
     setLocalStorage(props.storageKey, true, props.hideDuration);
@@ -196,6 +208,20 @@ onMounted(() => {
             showChat.value = true;
         }, props.autoOpenDelay);
     }
+
+    // Configurar el intervalo para comprobar periódicamente si ha expirado
+    checkExpirationTimer = window.setInterval(checkExpiration, props.checkInterval);
+
+    // También comprobamos cuando el documento vuelve a tener foco (cuando el usuario vuelve a la pestaña)
+    window.addEventListener('focus', checkExpiration);
+});
+
+// Limpieza
+onUnmounted(() => {
+    if (checkExpirationTimer !== null) {
+        clearInterval(checkExpirationTimer);
+    }
+    window.removeEventListener('focus', checkExpiration);
 });
 </script>
 

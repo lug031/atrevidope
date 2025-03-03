@@ -1317,19 +1317,6 @@ watch(selectedStatus, () => {
     background-color: #272727;
 }
 
-/* Secciones de contenido */
-.section-title {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 1rem;
-    font-weight: 600;
-    color: #111827;
-    margin: 0 0 1rem 0;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid #F3F4F6;
-}
-
 /* Sección de productos */
 .products-section {
     margin-bottom: 1.5rem;
@@ -1535,7 +1522,7 @@ watch(selectedStatus, () => {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    margin-bottom: 0.5rem;
+    margin-top: 0.5rem;
 }
 
 .method-label {
@@ -1581,6 +1568,7 @@ watch(selectedStatus, () => {
     gap: 0.75rem;
     padding: 0.875rem;
     border-radius: 0.375rem;
+    margin-top: 0.5rem;
     font-size: 0.875rem;
     line-height: 1.4;
 }

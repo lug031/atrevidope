@@ -14,6 +14,7 @@ const authClient = generateClient<Schema>({
 
 export const useBrandStore = defineStore("brand", () => {
   const brands = ref<Brand[]>([]);
+  const brandsCarousel = ref<Brand[]>([]);
   const loading = ref(false);
   const error = ref<string | null>(null);
 
@@ -22,6 +23,23 @@ export const useBrandStore = defineStore("brand", () => {
     try {
       const { data: items } = await publicClient.models.Brand.list();
       brands.value = items as unknown as Brand[];
+    } catch (err) {
+      error.value = "Error al cargar marcas";
+      console.error(err);
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const fetchBrandsCarousel = async () => {
+    loading.value = true;
+    try {
+      const { data: items } = await publicClient.models.Brand.list({
+        filter: {
+          active: { eq: true },
+        },
+      });
+      brandsCarousel.value = items as unknown as Brand[];
     } catch (err) {
       error.value = "Error al cargar marcas";
       console.error(err);
@@ -103,9 +121,11 @@ export const useBrandStore = defineStore("brand", () => {
 
   return {
     brands,
+    brandsCarousel,
     loading,
     error,
     fetchBrands,
+    fetchBrandsCarousel,
     createBrand,
     updateBrand,
     deleteBrand,

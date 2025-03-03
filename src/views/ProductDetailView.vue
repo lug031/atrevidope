@@ -37,7 +37,7 @@
                         <template v-if="isValidPromotion">
                             <p class="product-price">
                                 <span class="current-price">S/{{ formatPrice(calculateDiscountedPrice(currentProduct))
-                                    }}</span>
+                                }}</span>
                                 <span class="original-price">S/{{ formatPrice(currentProduct.originalPrice) }}</span>
                             </p>
                             <div class="discount-badge">-{{ currentProduct.discountPercentage }}%</div>
@@ -354,6 +354,20 @@ const breadcrumbItems = computed(() => {
                 const formattedCategoryName = decodeURIComponent(categoryName).replace(/\+/g, ' ');
                 baseItems.push({
                     text: formattedCategoryName,
+                    to: previousRoute
+                });
+            }
+        } catch (error) {
+            console.error('Error parsing category URL:', error);
+        }
+    } else if (typeof previousRoute === 'string' && previousRoute.includes('/brand/')) {
+        try {
+            const brandName = currentProduct.value.brand;
+
+            if (brandName) {
+                const formattedBrandName = decodeURIComponent(brandName).replace(/\+/g, ' ');
+                baseItems.push({
+                    text: formattedBrandName,
                     to: previousRoute
                 });
             }

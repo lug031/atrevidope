@@ -5,12 +5,16 @@ import type { Brand } from "@/types/brand.types";
 
 export function useBrands() {
   const brandStore = useBrandStore();
-  const { brands, loading, error } = storeToRefs(brandStore);
+  const { brands, brandsCarousel, loading, error } = storeToRefs(brandStore);
 
   const totalBrands = computed(() => brands.value.length);
 
   const loadBrands = async () => {
     await brandStore.fetchBrands();
+  };
+
+  const loadBrandsCarousel = async () => {
+    await brandStore.fetchBrandsCarousel();
   };
 
   const createBrand = async (data: Omit<Brand, "id">) => {
@@ -31,10 +35,12 @@ export function useBrands() {
 
   return {
     brands,
+    brandsCarousel,
     loading,
     error,
     totalBrands,
     loadBrands,
+    loadBrandsCarousel,
     createBrand,
     updateBrand,
     deleteBrand,

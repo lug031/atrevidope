@@ -7,13 +7,13 @@
         <div v-else-if="error" class="error-message">
             No se pudieron cargar las marcas
         </div>
-        <div v-else-if="brands.length > 0" class="carousel-container">
+        <div v-else-if="brandsCarousel.length > 0" class="carousel-container">
             <button @click="prevSlide" class="nav-button prev">
                 <ChevronLeftIcon />
             </button>
 
             <div class="brands-carousel" :style="{ transform: `translateX(-${currentSlide * slideWidth}px)` }">
-                <div v-for="brand in brands" :key="brand.id" class="brand-item" :style="{ width: slideWidth + 'px' }">
+                <div v-for="brand in brandsCarousel" :key="brand.id" class="brand-item" :style="{ width: slideWidth + 'px' }">
                     <router-link :to="{ name: 'BrandProducts', params: { brandId: brand.id } }" class="brand-link">
                         <img v-if="brandLogos[brand.id]" :src="brandLogos[brand.id]" :alt="brand.name"
                             class="brand-logo" />
@@ -27,7 +27,7 @@
             </button>
         </div>
 
-        <!-- <div v-if="brands.length > 0" class="carousel-dots">
+        <!-- <div v-if="brandsCarousel.length > 0" class="carousel-dots">
             <button v-for="index in totalDots" :key="index" @click="goToSlide(index - 1)"
                 :class="['dot', { active: Math.floor(currentSlide / brandsPerSlide) === index - 1 }]">
             </button>
@@ -42,7 +42,7 @@ import { useBrands } from '@/composables/useBrands';
 import { getUrl } from 'aws-amplify/storage';
 
 // Usar el composable de marcas
-const { brands, loading, error, loadBrands } = useBrands();
+const { brandsCarousel, loading, error, loadBrandsCarousel } = useBrands();
 const brandLogos = ref<Record<string, string>>({});
 
 const currentSlide = ref(0);
@@ -51,19 +51,19 @@ const slideWidth = ref(200);
 const autoplayInterval = ref<number | null>(null);
 
 const totalSlides = computed(() => {
-    if (!brands.value || brands.value.length === 0) return 0;
-    return Math.max(1, Math.ceil(brands.value.length - brandsPerSlide.value + 1));
+    if (!brandsCarousel.value || brandsCarousel.value.length === 0) return 0;
+    return Math.max(1, Math.ceil(brandsCarousel.value.length - brandsPerSlide.value + 1));
 });
 
 const totalDots = computed(() => {
-    if (!brands.value || brands.value.length === 0) return 0;
-    return Math.ceil(brands.value.length / brandsPerSlide.value);
+    if (!brandsCarousel.value || brandsCarousel.value.length === 0) return 0;
+    return Math.ceil(brandsCarousel.value.length / brandsPerSlide.value);
 });
 
 const nextSlide = () => {
-    if (brands.value.length <= brandsPerSlide.value) return;
+    if (brandsCarousel.value.length <= brandsPerSlide.value) return;
 
-    if (currentSlide.value >= brands.value.length - brandsPerSlide.value) {
+    if (currentSlide.value >= brandsCarousel.value.length - brandsPerSlide.value) {
         currentSlide.value = 0; // Volver al inicio cuando llegamos al final
     } else {
         currentSlide.value++;
@@ -71,17 +71,17 @@ const nextSlide = () => {
 };
 
 const prevSlide = () => {
-    if (brands.value.length <= brandsPerSlide.value) return;
+    if (brandsCarousel.value.length <= brandsPerSlide.value) return;
 
     if (currentSlide.value === 0) {
-        currentSlide.value = brands.value.length - brandsPerSlide.value; // Ir al final cuando estamos al inicio
+        currentSlide.value = brandsCarousel.value.length - brandsPerSlide.value; // Ir al final cuando estamos al inicio
     } else {
         currentSlide.value--;
     }
 };
 
 const goToSlide = (index: number) => {
-    const maxSlide = Math.max(0, brands.value.length - brandsPerSlide.value);
+    const maxSlide = Math.max(0, brandsCarousel.value.length - brandsPerSlide.value);
     currentSlide.value = Math.min(maxSlide, index * brandsPerSlide.value);
 };
 
@@ -100,7 +100,7 @@ const stopAutoplay = () => {
 // Cargar los logos de las marcas
 const loadBrandLogos = async () => {
     try {
-        for (const brand of brands.value) {
+        for (const brand of brandsCarousel.value) {
             if (brand.logo) {
                 try {
                     const { url } = await getUrl({ path: brand.logo });
@@ -138,7 +138,7 @@ let resizeListener: EventListener;
 
 onMounted(async () => {
     // Cargar las marcas
-    await loadBrands();
+    await loadBrandsCarousel();
 
     // Cargar los logos
     await loadBrandLogos();
@@ -150,8 +150,8 @@ onMounted(async () => {
     resizeListener = () => {
         adjustBrandsPerSlide();
         // Asegurar que el currentSlide no exceda el máximo
-        if (brands.value.length > brandsPerSlide.value) {
-            const maxSlide = brands.value.length - brandsPerSlide.value;
+        if (brandsCarousel.value.length > brandsPerSlide.value) {
+            const maxSlide = brandsCarousel.value.length - brandsPerSlide.value;
             currentSlide.value = Math.min(currentSlide.value, maxSlide);
         } else {
             currentSlide.value = 0;
@@ -172,8 +172,8 @@ onBeforeUnmount(() => {
 });
 
 // Observar cambios en las marcas para cargar sus logos
-watch(brands, async () => {
-    if (brands.value.length > 0) {
+watch(brandsCarousel, async () => {
+    if (brandsCarousel.value.length > 0) {
         await loadBrandLogos();
     }
 }, { immediate: true });

@@ -1,13 +1,26 @@
 <template>
     <MainLayout>
-        <div class="brand-products">
+        <div v-if="brandsCarousel && brandsCarousel.length > 0" class="brand-products">
             <!-- Header Section -->
             <div class="brand-header">
                 <div class="brand-header-content">
                     <div v-if="currentBrand && currentBrand.logo" class="brand-logo">
                         <img :src="brandLogoUrl" :alt="currentBrand.name" />
                     </div>
-                    <h1 class="brand-title">{{ currentBrand?.name || 'Productos' }}</h1>
+                    <!-- <h1 class="brand-title">{{ currentBrand?.name || 'Productos' }}</h1> -->
+
+                    <h1 class="brand-title">
+                        <template v-if="loadingBrandName">
+                            <span class="brand-title-loader">
+                                <span class="dot"></span>
+                                <span class="dot"></span>
+                                <span class="dot"></span>
+                            </span>
+                        </template>
+                        <template v-else>
+                            {{ currentBrand?.name || 'Productos' }}
+                        </template>
+                    </h1>
                 </div>
             </div>
 
@@ -107,6 +120,12 @@
                 </div>
             </div>
         </div>
+
+        <div v-else class="empty-brands-container">
+            <div class="empty-brands-message">
+                Esta marca no esta disponible en este momento.
+            </div>
+        </div>
     </MainLayout>
 </template>
 
@@ -128,7 +147,7 @@ const router = useRouter();
 const route = useRoute();
 const imageUrls = ref<Record<string, string>>({});
 const { productsByBrand, loadProductsByBrand } = useProducts();
-const { brands, loadBrands } = useBrands();
+const { brandsCarousel, loadBrandsCarousel } = useBrands();
 const cartStore = useCartStore();
 const { showToast } = useToast();
 const sortBy = ref('position');
@@ -136,6 +155,8 @@ const currentBrand = ref<Brand | null>(null);
 const brandLogoUrl = ref<string>('');
 const loading = ref(true);
 const error = ref<string | null>(null);
+const loadingBrandName = ref(true);
+
 const truncateText = (text: string, maxLength: number = 100): string => {
     if (!text) return '';
 
@@ -348,10 +369,12 @@ const addToCart = (product: Product) => {
 };
 
 const loadBrandInfo = async () => {
-    await loadBrands();
+    loadingBrandName.value = true;
+    await loadBrandsCarousel();
     const brandId = route.params.brandId as string;
-    currentBrand.value = brands.value.find(b => b.id === brandId) || null;
+    currentBrand.value = brandsCarousel.value.find(b => b.id === brandId) || null;
     await loadBrandLogo();
+    loadingBrandName.value = false;
 };
 
 const loadBrandProducts = async () => {
@@ -836,6 +859,63 @@ watch(
     border-radius: 50%;
     display: inline-block;
     animation: rotation 1s linear infinite;
+}
+
+.empty-brands-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 50vh;
+    padding: 2rem;
+}
+
+.empty-brands-message {
+    text-align: center;
+    padding: 3rem;
+    background-color: #f9fafb;
+    border-radius: 8px;
+    color: #6b7280;
+    font-size: 1.1rem;
+    height: 100%;
+    width: 100%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.brand-title-loader {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dot {
+    width: 8px;
+    height: 8px;
+    background-color: white;
+    border-radius: 50%;
+    display: inline-block;
+    animation: pulse 1.5s infinite ease-in-out;
+}
+
+.dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+    }
+
+    50% {
+        transform: scale(1.2);
+        opacity: 1;
+    }
 }
 
 @keyframes rotation {

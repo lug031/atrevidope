@@ -690,12 +690,24 @@ const getDiscountPercentage = (item: any) => {
     return 0;
 };
 
+const formatDate = (date?: string | Date) => {
+    if (!date) return ''
+    return new Date(date).toLocaleDateString('es-PE', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    })
+}
+
 // Formatea el mensaje de WhatsApp para un pedido
 const formatOrderWhatsAppMessage = (order: Order) => {
-    console.log("order");
-    console.log(order);
+    /*console.log("order");
+    console.log(order);*/
     const { status, customerInfo, items, subtotal, shipping, total } = order;
-    const statusOrder = `*MI PEDIDO ESTÁ EN ESTADO:*\n` +
+    const idPedido = `*MI ID PEDIDO ES:*\n` +
+        `#` + order.id?.slice(-6);
+
+    const statusOrder = `*ESTADO:*\n` +
         `${getStatusText(status)}`;
     const customerDetails =
         `*INFORMACIÓN DEL CLIENTE*\n` +
@@ -726,6 +738,7 @@ const formatOrderWhatsAppMessage = (order: Order) => {
         `Total: S/. ${total.toFixed(2)}`;
 
     return encodeURIComponent(
+        `${idPedido}\n\n` +
         `${statusOrder}\n\n` +
         `${customerDetails}` +
         `*PRODUCTOS*\n${itemsDetails}\n\n` +

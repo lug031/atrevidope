@@ -268,7 +268,7 @@ const toggleAuth = () => {
 .auth-button {
     width: 100%;
     padding: 0.75rem;
-    background-color: #092114;
+    background-color: #292929;
     color: white;
     border: none;
     border-radius: 4px;

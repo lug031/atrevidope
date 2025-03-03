@@ -102,7 +102,7 @@
                             </button>
 
                             <div v-if="isUserMenuOpen" class="dropdown-menu">
-                                <!-- <div class="user-email">{{ userEmail }}</div> -->
+                                <div class="user-email mobile-only">{{ userEmail }}</div>
                                 <RouterLink to="/profile" class="menu-item">
                                     <UserIcon :size="16" />
                                     Perfil
@@ -757,6 +757,16 @@ body {
 .search-loading {
     padding: 2rem;
     text-align: center;
+}
+
+.mobile-only {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .mobile-only {
+        display: block;
+    }
 }
 
 .no-results {

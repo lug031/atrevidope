@@ -40,7 +40,7 @@
                         </div>
                     </div>-->
 
-                    <!--<div class="method-card">
+                    <div class="method-card">
                         <div class="method-icon">
                             <i class="fa-solid fa-building-columns"></i>
                         </div>
@@ -49,7 +49,7 @@
                             <p>Realiza una transferencia a nuestras cuentas bancarias en BCP, Interbank o BBVA.</p>
                             <p class="method-note">Tu pedido se procesará una vez confirmado el pago (24-48 horas).</p>
                         </div>
-                    </div>-->
+                    </div>
 
                     <div class="method-card">
                         <div class="method-icon">
@@ -63,7 +63,7 @@
                         </div>
                     </div>
 
-                    <div class="method-card">
+                    <!-- <div class="method-card">
                         <div class="method-icon">
                             <i class="fa-solid fa-money-bill-wave"></i>
                         </div>
@@ -72,7 +72,7 @@
                             <p>Paga en efectivo al momento de recibir tu pedido (Lima y Provincias).</p>
                             <p class="method-note">Se requiere un adelanto del 20% para reservar el producto.</p>
                         </div>
-                    </div>
+                    </div>-->
                 </section>
 
                 <!-- Bank Account Information -->

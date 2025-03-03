@@ -114,11 +114,11 @@
                                     <td>3-5 días hábiles</td>
                                     <td>S/. 22.00</td>
                                 </tr>
-                                <tr class="highlight">
+                                <!-- <tr class="highlight">
                                     <td>Envío GRATIS</td>
                                     <td>Para compras mayores a S/. 200</td>
                                     <td>S/. 0.00</td>
-                                </tr>
+                                </tr> -->
                             </tbody>
                         </table>
                     </div>

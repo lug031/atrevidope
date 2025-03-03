@@ -43,7 +43,7 @@
                             <Mail class="icon" />
                         </div>
                         <h3>Correo Electrónico</h3>
-                        <p class="contact-value">contacto@atrevido.pe</p>
+                        <p class="contact-value">atrevido.peru1@gmail.com</p>
                         <div class="contact-details">
                             <p>
                                 <HelpCircle class="mini-icon" /> Para consultas generales
@@ -124,7 +124,7 @@
                         <HelpCircle class="faq-icon" />
                         <h4>¿Qué métodos de pago aceptan?</h4>
                         <p>Aceptamos las siguientes formas de pago: Tarjeta de crédito, débito,
-                            transferencia bancaria, YAPE, PLIN y pago contra entrega.</p>
+                            transferencia bancaria, YAPE y PLIN.</p>
                     </div>
                 </div>
                 <router-link to="/faq" class="see-more-button">

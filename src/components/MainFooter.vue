@@ -51,7 +51,7 @@
                     <div class="contact-info">
                         <p><strong>Horario de atención:</strong> Lun - Dom: 9am - 10pm</p>
                         <p><strong>Teléfono:</strong> +51 934 505 566</p>
-                        <p><strong>Email:</strong> contacto@atrevido.pe</p>
+                        <p><strong>Email:</strong>atrevido.peru1@gmail.com</p>
                     </div>
                 </div>
             </div>

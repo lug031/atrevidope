@@ -130,7 +130,7 @@ const faqs = ref([
         id: '5',
         category: 'payments',
         question: '¿Qué métodos de pago aceptan?',
-        answer: 'Aceptamos las siguientes formas de pago:\n\n* Tarjetas de crédito y débito (Visa, Mastercard, American Express)\n* Transferencia bancaria\n* Yape\n* Plin\n* Efectivo contra entrega (Lima y Provincias)'
+        answer: 'Aceptamos las siguientes formas de pago:\n\n* Tarjetas de crédito y débito (Visa, Mastercard, American Express)\n* Transferencia bancaria\n* Yape\n* Plin.'
     },
     {
         id: '6',

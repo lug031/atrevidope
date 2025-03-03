@@ -1,55 +1,79 @@
 <template>
     <MainLayout>
         <div class="orders-container">
+            <!-- Encabezado con título y filtros -->
             <div class="orders-header">
                 <div class="header-content">
-                    <h1>Mis Pedidos</h1>
+                    <h1 class="page-title">Mis Pedidos</h1>
                     <p v-if="!isAuthenticated" class="auth-message">
                         Para filtrar y ver tu historial completo de pedidos, inicia sesión o regístrate
                     </p>
                 </div>
-                <div v-if="isAuthenticated" class="filter-container">
-                    <select v-model="selectedStatus" class="status-filter" @change="filterOrders" :disabled="loading">
-                        <option value="all">Todos los pedidos</option>
-                        <option value="pending">Pendientes</option>
-                        <option value="processing">En proceso</option>
-                        <option value="completed">Completados</option>
-                        <option value="cancelled">Cancelados</option>
-                    </select>
-                    <div v-if="loading" class="filter-loading">
-                        <Loader2Icon :size="16" class="animate-spin" />
+
+                <div v-if="isAuthenticated" class="filter-section">
+                    <div class="filter-container">
+                        <label for="status-filter" class="filter-label">Filtrar por:</label>
+                        <div class="select-wrapper">
+                            <select id="status-filter" v-model="selectedStatus" class="status-filter"
+                                @change="filterOrders" :disabled="loading">
+                                <option value="all">Todos los pedidos</option>
+                                <option value="pending">Pendientes</option>
+                                <option value="processing">En proceso</option>
+                                <option value="completed">Completados</option>
+                                <option value="cancelled">Cancelados</option>
+                            </select>
+                            <ChevronDownIcon :size="16" class="select-icon" />
+                        </div>
+                        <div v-if="loading" class="filter-loading">
+                            <Loader2Icon :size="16" class="animate-spin" />
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Loading State -->
+            <!-- Estados de la interfaz -->
+            <!-- Estado de carga -->
             <div v-if="loading && !filteredOrders.length" class="loading-state">
-                <div class="loading-spinner"></div>
-                <span>Cargando pedidos...</span>
+                <div class="spinner-container">
+                    <div class="loading-spinner"></div>
+                </div>
+                <span>Cargando tus pedidos...</span>
             </div>
 
-            <!-- Error State -->
+            <!-- Estado de error -->
             <div v-else-if="error" class="error-message">
-                {{ error }}
+                <AlertCircleIcon :size="24" />
+                <p>{{ error }}</p>
+                <button @click="loadOrders" class="retry-button">
+                    <RefreshCwIcon :size="16" />
+                    Reintentar
+                </button>
             </div>
 
-            <!-- Empty State -->
+            <!-- Estado vacío -->
             <div v-else-if="!loading && !filteredOrders.length" class="empty-state">
-                <p>No tienes pedidos {{ getEmptyStateMessage }}</p>
+                <div class="empty-icon">
+                    <PackageIcon :size="48" />
+                </div>
+                <h3>No hay pedidos {{ getEmptyStateMessage }}</h3>
+                <p>Parece que aún no tienes pedidos en esta categoría</p>
                 <router-link v-if="selectedStatus === 'pending' || selectedStatus === 'all'" to="/web-products"
                     class="button-primary">
-                    Ir a comprar
+                    Explorar productos
                 </router-link>
             </div>
 
-            <!-- Orders List -->
+            <!-- Lista de pedidos -->
             <div v-else class="orders-list">
-                <div v-for="order in filteredOrders" :key="order.id" class="order-card"
-                    :class="getOrderCardClass(order.status)">
-                    <!-- Order Header -->
-                    <div class="order-header">
-                        <div class="order-info">
-                            <h3>Pedido #{{ order.id?.slice(-6) }}</h3>
+                <!-- Pedido colapsable -->
+                <div v-for="order in filteredOrders" :key="order.id" class="order-card">
+                    <!-- Cabecera del pedido (siempre visible) con toggle de colapso -->
+                    <div class="order-card-header" @click="toggleOrderVisible(order.id!)">
+                        <div class="order-identifier">
+                            <div class="order-number-container">
+                                <ShoppingBagIcon :size="20" />
+                                <h3 class="order-number">Pedido #{{ order.id?.slice(-6) }}</h3>
+                            </div>
                             <p class="order-date">
                                 {{ new Date(order.createdAt!).toLocaleString('es-PE', {
                                     year: 'numeric',
@@ -60,273 +84,295 @@
                                 }) }}
                             </p>
                         </div>
-                        <div class="status-tag" :class="getStatusClass(order.status)">
-                            {{ getStatusText(order.status) }}
+                        <div class="order-status-section">
+                            <div class="status-tag" :class="getStatusClass(order.status)">
+                                <span class="status-dot"></span>
+                                {{ getStatusText(order.status) }}
+                            </div>
+                            <button class="toggle-button order-toggle">
+                                <ChevronDownIcon :size="18" :class="{ 'rotate-icon': !orderVisible[order.id!] }" />
+                            </button>
                         </div>
                     </div>
 
-                    <!-- Order Items -->
-                    <div class="order-items">
-                        <div v-for="item in order.items" :key="item.productID" class="order-item">
-                            <div class="item-container">
-                                <div class="item-image">
-                                    <img :src="productImages[item.productID] || '/api/placeholder/60/60'"
-                                        :alt="getProductName(item)" class="product-img" />
-                                </div>
-                                <div class="quantity-badge">
-                                    {{ item.quantity }}
-                                </div>
-                                <div class="item-details">
-                                    <span class="item-name" v-html="truncateProductName(getProductName(item))"></span>
-                                    <span class="item-brand">{{ getProductBrand(item) }}</span>
-                                    <div class="price-info">
-                                        <div class="price-group">
-                                            <span class="original-price" v-if="hasDiscount(item)">
-                                                S/. {{ getOriginalPrice(item)?.toFixed(2) }}
-                                            </span>
-                                            <span class="current-price" :class="{ 'promotional': hasDiscount(item) }">
-                                                S/. {{ item.price.toFixed(2) }}
-                                            </span>
-                                        </div>
-                                        <span class="discount-badge" v-if="hasDiscount(item)">
-                                            -{{ getDiscountPercentage(item) }}%
-                                        </span>
+                    <!-- Contenido del pedido (colapsable) -->
+                    <div class="order-content" v-show="order.id && orderVisible[order.id!]">
+                        <!-- Progreso del pedido para pedidos en proceso 
+                        <div v-if="order.status === 'processing'" class="order-progress">
+                            <div class="progress-track">
+                                <div class="progress-step completed">
+                                    <div class="step-icon">
+                                        <CheckIcon :size="16" />
                                     </div>
+                                    <div class="step-label">Pedido recibido</div>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Payment Information Section -->
-                    <div class="pago-info-section" v-if="order.status !== 'cancelled'">
-                        <div class="payment-header">
-                            <div class="payment-title">
-                                <CreditCardIcon :size="18" />
-                                <h4>Información de pago</h4>
-                            </div>
-                            <div class="payment-method" v-if="order.paymentMethod">
-                                <span class="method-label">Método:</span>
-                                <div class="payment-method-display">
-                                    <!-- Para tarjeta, mostrar nombre e icono -->
-                                    <template v-if="order.paymentMethod === 'tarjeta'">
-                                        <span class="method-value">Tarjeta</span>
-                                        <div class="method-icon">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                                stroke-linecap="round" stroke-linejoin="round">
-                                                <rect x="2" y="5" width="20" height="14" rx="2" />
-                                                <line x1="2" y1="10" x2="22" y2="10" />
-                                            </svg>
-                                        </div>
-                                    </template>
-
-                                    <!-- Para Yape, mostrar solo imagen -->
-                                    <div v-else-if="order.paymentMethod === 'yape'" class="method-icon-container yape">
-                                        <img src="/yape-icon.png" alt="Yape" class="method-icon-img" />
+                                <div class="progress-line active"></div>
+                                <div class="progress-step active">
+                                    <div class="step-icon">
+                                        <PackageIcon :size="16" />
                                     </div>
-
-                                    <!-- Para Plin, mostrar solo imagen -->
-                                    <div v-else-if="order.paymentMethod === 'plin'" class="method-icon-container plin">
-                                        <img src="/plin-icon.png" alt="Plin" class="method-icon-img" />
+                                    <div class="step-label">En proceso</div>
+                                </div>
+                                <div class="progress-line"></div>
+                                <div class="progress-step">
+                                    <div class="step-icon">
+                                        <TruckIcon :size="16" />
                                     </div>
-
-                                    <!-- Para QR, mostrar solo imagen -->
-                                    <div v-else-if="order.paymentMethod === 'qr'" class="method-icon-container qr">
-                                        <img src="/qr-icon.png" alt="QR" class="method-icon-img" />
+                                    <div class="step-label">En camino</div>
+                                </div>
+                                <div class="progress-line"></div>
+                                <div class="progress-step">
+                                    <div class="step-icon">
+                                        <HomeIcon :size="16" />
                                     </div>
-
-                                    <!-- Para otros métodos no contemplados, mostrar nombre -->
-                                    <span v-else class="method-value">{{ order.paymentMethod }}</span>
+                                    <div class="step-label">Entregado</div>
                                 </div>
-                            </div>
-                        </div>
-
-                        <!-- Pending Order Payment Message -->
-                        <div v-if="order.status === 'pending'" class="payment-message pending">
-                            <AlertCircleIcon :size="16" class="message-icon" />
-                            <p>Su solicitud de pedido ha sido registrada. En breve nuestro equipo procesará su pedido.
-                            </p>
-                            <!-- <p>Su solicitud de link de pago ha sido generada. En breve nuestro equipo procesará su
-                                pedido.</p> -->
-                        </div>
-
-                        <!-- Processing Order Payment Message -->
-                        <!-- Processing Order Payment Message -->
-                        <div v-if="order.status === 'processing'" class="payment-status">
-                            <div v-if="!order.linkPago">
-                                <div v-if="order.paymentMethod === 'yape'" class="payment-message processing">
-                                    <Loader2Icon :size="16" class="message-icon animate-spin" />
-                                    <p>Por favor, para continuar con su compra, realice el pago a través de
-                                        <strong>YAPE</strong>. Una vez
-                                        realizado, su pedido sera procesado y nos comunicaremos con usted.
-                                    </p>
-                                </div>
-
-                                <div v-else-if="order.paymentMethod === 'plin'" class="payment-message processing">
-                                    <Loader2Icon :size="16" class="message-icon animate-spin" />
-                                    <p>Por favor, para continuar con su compra, realice el pago a través de
-                                        <strong>PLIN</strong>. Una vez
-                                        realizado, su pedido sera procesado y nos comunicaremos con usted.
-                                    </p>
-                                </div>
-
-                                <div v-else-if="order.paymentMethod === 'efectivo'" class="payment-message processing">
-                                    <Loader2Icon :size="16" class="message-icon animate-spin" />
-                                    <p>Estamos procesando su pedido. En breve nos comunicaremos con usted para coordinar
-                                        la entrega.</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- QR Code Section (Outside payment-status) -->
-                        <div v-if="order.status === 'processing' && !order.linkPago" class="qr-payment-section">
-                            <div v-if="order.paymentMethod === 'yape'" class="qr-payment-container">
-                                <div class="qr-image-wrapper">
-                                    <img src="@/assets/qr-yape.jpg" alt="QR Yape" class="payment-qr-code" />
-                                </div>
-                                <div class="qr-payment-details">
-                                    <h4>Datos de pago Yape:</h4>
-                                    <p><strong>Nombre:</strong> Chion C. Kam G.</p>
-                                    <p><strong>Número:</strong> 955 463 534</p>
-                                    <p><strong>Monto:</strong> S/ {{ order.total.toFixed(2) }}</p>
-                                </div>
-                            </div>
-
-                            <div v-else-if="order.paymentMethod === 'plin'" class="qr-payment-container">
-                                <div class="qr-image-wrapper">
-                                    <img src="@/assets/qr-plin.jpg" alt="QR Plin" class="payment-qr-code" />
-                                </div>
-                                <div class="qr-payment-details">
-                                    <h4>Datos de pago Plin:</h4>
-                                    <p><strong>Nombre:</strong> Chion Chui Kam Gone</p>
-                                    <p><strong>Número:</strong> 955 463 534</p>
-                                    <p><strong>Monto:</strong> S/ {{ order.total.toFixed(2) }}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Processing Order Payment Message - LINK PAGO -->
-                        <!-- <div v-if="order.status === 'processing'" class="payment-status">
-                            <div v-if="!order.linkPago" class="payment-message processing">
-                                <Loader2Icon :size="16" class="message-icon animate-spin" />
-                                <p>Su link de pago se está generando, pronto estará disponible.</p>
-                                </div> 
-
-                                <div v-else class="payment-link-container">
-                                    <div class="payment-link-ready">
-                                        <CheckCircleIcon :size="16" class="message-icon success" />
-                                        <p>¡Su link de pago está listo! Haga clic en el botón para realizar el pago.</p>
-                                    </div>
-                                    <a :href="formatPaymentLink(order.linkPago)" target="_blank" class="payment-button">
-                                        <CreditCardIcon :size="16" />
-                                        Realizar pago
-                                        <ArrowRightIcon :size="16" />
-                                    </a>
-                                </div>
-                        </div>-->
-
-                        <!-- Completed Order Payment Message -->
-                        <div v-if="order.status === 'completed'" class="payment-status">
-                            <div v-if="order.paymentMethod === 'yape' || order.paymentMethod === 'plin'"
-                                class="payment-message completed">
-                                <CheckCircleIcon :size="16" class="message-icon success" />
-                                <p>Pago completado con éxito.</p>
-                            </div>
-
-                            <div v-else class="payment-message completed">
-                                <CheckCircleIcon :size="16" class="message-icon success" />
-                                <p>Pedido entregado con éxito.</p>
-                            </div>
-
-                            <!--<div class="payment-message completed">
-                                <CheckCircleIcon :size="16" class="message-icon success" />
-                                <p>Pago completado con éxito.</p>
-                            </div>
-
-                             <div v-if="order.linkPago" class="inactive-payment-link">
-                                <span class="inactive-link-label">Referencia de pago:</span>
-                                <span class="inactive-link-value">{{
-                                    truncatePaymentLink(formatPaymentLink(order.linkPago)) }}</span>
-                            </div> -->
-                        </div>
-                    </div>
-
-                    <div class="pago-info-section cancelled" v-else>
-                        <div class="payment-header">
-                            <div class="payment-title">
-                                <CreditCardIcon :size="18" />
-                                <h4>Información de pago</h4>
-                            </div>
-                        </div>
-                        <div class="payment-message cancelled">
-                            <XCircleIcon :size="16" class="message-icon" />
-                            <p>Este pedido ha sido cancelado.</p>
-                        </div>
-                    </div>
-
-                    <!-- Order Summary -->
-                    <div class="order-summary">
-                        <div class="summary-row">
-                            <span>Subtotal</span>
-                            <span>S/. {{ order.subtotal.toFixed(2) }}</span>
-                        </div>
-                        <div class="summary-row">
-                            <span>Envío</span>
-                            <span>{{ order.shipping > 0 ? `S/. ${order.shipping.toFixed(2)}` : 'Gratis' }}</span>
-                        </div>
-                        <div class="summary-row total">
-                            <span>Total</span>
-                            <span>S/. {{ order.total.toFixed(2) }}</span>
-                        </div>
-                    </div>
-
-                    <div v-if="order.status === 'completed'" class="completion-message">
-                        <div class="completion-main">
-                            <span class="completion-icon">✨</span>
-                            <p>¡Gracias por tu compra! Esperamos que disfrutes tus productos</p>
-                        </div>
-                        <div class="social-message">
-                            <p>No olvides seguirnos en nuestras redes sociales</p>
-                            <div class="social-links">
-                                <a href="https://www.instagram.com/atrevido.pe" target="_blank"
-                                    rel="noopener noreferrer" class="social-link">
-                                    <InstagramIcon :size="20" />
-                                </a>
-                                <a href="https://www.tiktok.com/@atrevido.pe" target="_blank" rel="noopener noreferrer"
-                                    class="social-link">
-                                    <div class="tiktok-icon">
-                                        <svg viewBox="0 0 24 24" width="20" height="20">
-                                            <g fill="currentColor">
-                                                <path
-                                                    d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" />
-                                            </g>
-                                        </svg>
-                                    </div>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div v-else-if="order.status === 'processing'" class="processing-message">
-                        <!-- <div class="processing-content">
-                            <Loader2Icon :size="24" class="processing-icon" />
-                            <div class="message-content">
-                                <h4>¡Hemos recibido tu orden!</h4>
-                                <p>Estamos preparando tu orden, nos comunicaremos contigo al numero/correo que
-                                    ingresaste.</p>
                             </div>
                         </div> -->
-                        <div class="estimated-time">
-                            <ClockIcon :size="16" />
-                            <span>Tiempo estimado de respuesta: 30min - 1hora</span>
-                        </div>
-                    </div>
 
-                    <div class="whatsapp-button-container"
-                        v-if="order.status === 'pending' || order.status === 'processing'">
-                        <button @click="openWhatsapp(order)" class="button primary whatsapp-button">
-                            <MessageCircle class="icon" /> Enviar pedido por WhatsApp
-                        </button>
+                        <!-- Sección de productos colapsable -->
+                        <div class="products-section">
+                            <div class="section-header" @click.stop="toggleProductsVisible(order.id!)">
+                                <h4 class="section-title">
+                                    <ShoppingCartIcon :size="18" />
+                                    Productos ({{ order.items.length }})
+                                </h4>
+                                <button class="toggle-button">
+                                    <ChevronDownIcon :size="18"
+                                        :class="{ 'rotate-icon': !productsVisible[order.id!] }" />
+                                </button>
+                            </div>
+
+                            <!-- Lista de productos colapsable -->
+                            <div class="order-items" v-show="order.id && productsVisible[order.id!]">
+                                <div v-for="item in order.items" :key="item.productID" class="order-item">
+                                    <!-- Indicador de cantidad movido a la izquierda -->
+                                    <div class="quantity-indicator">
+                                        <span class="quantity-value">{{ item.quantity }}</span>
+                                    </div>
+
+                                    <div class="item-image">
+                                        <img :src="productImages[item.productID] || '/api/placeholder/80/80'"
+                                            :alt="getProductName(item)" class="product-img" />
+                                    </div>
+
+                                    <div class="item-details">
+                                        <div class="item-info">
+                                            <span class="item-brand">{{ getProductBrand(item) }}</span>
+                                            <h3 class="item-name" v-html="truncateProductName(getProductName(item))">
+                                            </h3>
+                                        </div>
+                                        <div class="item-price">
+                                            <div class="price-display">
+                                                <span class="original-price" v-if="hasDiscount(item)">
+                                                    S/. {{ getOriginalPrice(item)?.toFixed(2) }}
+                                                </span>
+                                                <span class="current-price"
+                                                    :class="{ 'promotional': hasDiscount(item) }">
+                                                    S/. {{ item.price.toFixed(2) }}
+                                                </span>
+                                            </div>
+                                            <div class="discount-tag" v-if="hasDiscount(item)">
+                                                -{{ getDiscountPercentage(item) }}%
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sección de información de pago -->
+                        <div class="payment-section" :class="{ 'cancelled': order.status === 'cancelled' }">
+                            <h4 class="section-title">
+                                <CreditCardIcon :size="18" />
+                                Información de pago
+                            </h4>
+
+                            <div class="payment-content">
+                                <!-- Método de pago -->
+                                <div v-if="order.paymentMethod && order.status !== 'cancelled'"
+                                    class="payment-method-display">
+                                    <span class="method-label">Método:</span>
+
+                                    <!-- Tarjeta -->
+                                    <div v-if="order.paymentMethod === 'tarjeta'" class="method-tag">
+                                        <CreditCardIcon :size="16" />
+                                        <span>Tarjeta</span>
+                                    </div>
+
+                                    <!-- Yape -->
+                                    <div v-else-if="order.paymentMethod === 'yape'" class="method-tag method-yape">
+                                        <img src="/yape-icon.png" alt="Yape" class="method-icon" />
+                                        <span>Yape</span>
+                                    </div>
+
+                                    <!-- Plin -->
+                                    <div v-else-if="order.paymentMethod === 'plin'" class="method-tag method-plin">
+                                        <img src="/plin-icon.png" alt="Plin" class="method-icon" />
+                                        <span>Plin</span>
+                                    </div>
+
+                                    <!-- QR -->
+                                    <div v-else-if="order.paymentMethod === 'qr'" class="method-tag method-qr">
+                                        <img src="/qr-icon.png" alt="QR" class="method-icon" />
+                                        <span>QR</span>
+                                    </div>
+
+                                    <!-- Otros métodos -->
+                                    <div v-else class="method-tag">
+                                        <span>{{ order.paymentMethod }}</span>
+                                    </div>
+                                </div>
+
+                                <!-- Mensajes según estado -->
+                                <!-- Pedido pendiente -->
+                                <div v-if="order.status === 'pending'" class="payment-message pending">
+                                    <AlertCircleIcon :size="20" class="message-icon" />
+                                    <p>Su solicitud de pedido ha sido registrada. En breve nuestro equipo procesará su
+                                        pedido.</p>
+                                </div>
+
+                                <!-- Pedido en proceso -->
+                                <div v-else-if="order.status === 'processing'" class="payment-status">
+                                    <div v-if="!order.linkPago">
+                                        <div v-if="order.paymentMethod === 'yape' || order.paymentMethod === 'plin'"
+                                            class="payment-message processing">
+                                            <Loader2Icon :size="20" class="message-icon animate-spin" />
+                                            <p>Por favor, para continuar con su compra, realice el pago a través de
+                                                <strong>{{ order.paymentMethod === 'yape' ? 'YAPE' : 'PLIN' }}</strong>.
+                                                Una vez realizado, su pedido será procesado y nos comunicaremos con
+                                                usted.
+                                            </p>
+                                        </div>
+
+                                        <div v-else-if="order.paymentMethod === 'efectivo'"
+                                            class="payment-message processing">
+                                            <Loader2Icon :size="20" class="message-icon animate-spin" />
+                                            <p>Estamos procesando su pedido. En breve nos comunicaremos con usted para
+                                                coordinar la entrega.</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- QR de pago -->
+                                    <div v-if="(order.paymentMethod === 'yape' || order.paymentMethod === 'plin') && !order.linkPago"
+                                        class="qr-payment-section">
+                                        <div class="qr-container">
+                                            <div class="qr-image-wrapper">
+                                                <img :src="order.paymentMethod === 'yape' ? '/qr-yape.jpg' : '/qr-plin.jpg'"
+                                                    :alt="`QR ${order.paymentMethod}`" class="payment-qr-code" />
+                                            </div>
+                                            <div class="qr-payment-details">
+                                                <h5 class="qr-title">Datos de pago {{ order.paymentMethod === 'yape' ?
+                                                    'Yape' : 'Plin' }}:</h5>
+                                                <div class="payment-info-rows">
+                                                    <div class="info-row">
+                                                        <span class="info-label">Nombre:</span>
+                                                        <span class="info-value">{{ order.paymentMethod === 'yape' ?
+                                                            'Chion C. Kam G.' : 'Chion Chui Kam Gone' }}</span>
+                                                    </div>
+                                                    <div class="info-row">
+                                                        <span class="info-label">Número:</span>
+                                                        <span class="info-value">955 463 534</span>
+                                                    </div>
+                                                    <div class="info-row">
+                                                        <span class="info-label">Monto:</span>
+                                                        <span class="info-value highlight">S/ {{ order.total.toFixed(2)
+                                                            }}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Pedido completado -->
+                                <div v-else-if="order.status === 'completed'" class="payment-message completed">
+                                    <CheckCircleIcon :size="20" class="message-icon success" />
+                                    <p>
+                                        {{ order.paymentMethod === 'yape' || order.paymentMethod === 'plin'
+                                            ? 'Pago completado con éxito.'
+                                            : 'Pedido entregado con éxito.' }}
+                                    </p>
+                                </div>
+
+                                <!-- Pedido cancelado -->
+                                <div v-else-if="order.status === 'cancelled'" class="payment-message cancelled">
+                                    <XCircleIcon :size="20" class="message-icon" />
+                                    <p>Este pedido ha sido cancelado.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Resumen del pedido -->
+                        <div class="order-summary-section">
+                            <h4 class="section-title">
+                                <ReceiptIcon :size="18" />
+                                Resumen
+                            </h4>
+                            <div class="summary-content">
+                                <div class="summary-rows">
+                                    <div class="summary-row">
+                                        <span class="summary-label">Subtotal</span>
+                                        <span class="summary-value">S/. {{ order.subtotal.toFixed(2) }}</span>
+                                    </div>
+                                    <div class="summary-row">
+                                        <span class="summary-label">Envío</span>
+                                        <span class="summary-value">{{ order.shipping > 0 ? `S/.
+                                            ${order.shipping.toFixed(2)}` : 'Gratis' }}</span>
+                                    </div>
+                                    <div class="summary-row total">
+                                        <span class="summary-label">Total</span>
+                                        <span class="summary-value">S/. {{ order.total.toFixed(2) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Mensaje de pedido completado -->
+                        <div v-if="order.status === 'completed'" class="completion-message">
+                            <div class="completion-content">
+                                <div class="completion-icon">✨</div>
+                                <div class="completion-text">
+                                    <h5>¡Gracias por tu compra!</h5>
+                                    <p>Esperamos que disfrutes tus productos</p>
+                                </div>
+                            </div>
+                            <div class="social-section">
+                                <p>No olvides seguirnos en nuestras redes sociales</p>
+                                <div class="social-links">
+                                    <a href="https://www.instagram.com/atrevido.pe" target="_blank"
+                                        rel="noopener noreferrer" class="social-link instagram">
+                                        <InstagramIcon :size="20" />
+                                    </a>
+                                    <a href="https://www.tiktok.com/@atrevido.pe" target="_blank"
+                                        rel="noopener noreferrer" class="social-link tiktok">
+                                        <div class="tiktok-icon">
+                                            <svg viewBox="0 0 24 24" width="20" height="20">
+                                                <g fill="currentColor">
+                                                    <path
+                                                        d="M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" />
+                                                </g>
+                                            </svg>
+                                        </div>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Información de tiempo estimado para pedidos en proceso -->
+                        <div v-else-if="order.status === 'processing'" class="processing-info">
+                            <div class="estimated-time">
+                                <ClockIcon :size="16" />
+                                <span>Tiempo estimado de respuesta: 30min - 1hora</span>
+                            </div>
+                        </div>
+
+                        <!-- Botón de WhatsApp -->
+                        <div class="order-actions" v-if="order.status === 'pending' || order.status === 'processing'">
+                            <button @click="openWhatsapp(order)" class="action-button whatsapp">
+                                <MessageCircle :size="18" /> Enviar pedido por WhatsApp
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -345,10 +391,17 @@ import MainLayout from '@/layouts/MainLayout.vue';
 import {
     MessageCircle,
     Instagram as InstagramIcon,
-    Facebook as FacebookIcon,
-    Youtube as YoutubeIcon,
-    Twitter as TwitterIcon,
-    Loader2Icon, ClockIcon,
+    ShoppingBag as ShoppingBagIcon,
+    ShoppingCart as ShoppingCartIcon,
+    Package as PackageIcon,
+    Truck as TruckIcon,
+    Home as HomeIcon,
+    Check as CheckIcon,
+    Receipt as ReceiptIcon,
+    ChevronDown as ChevronDownIcon,
+    RefreshCw as RefreshCwIcon,
+    Loader2Icon,
+    ClockIcon,
     CreditCardIcon,
     AlertCircleIcon,
     CheckCircleIcon,
@@ -370,6 +423,41 @@ const productImages = ref<Record<string, string>>({});
 const orderProducts = ref<Record<string, Product>>({});
 const loading = ref(true);
 const error = ref<string | null>(null);
+const productsVisible = ref<Record<string, boolean>>({});
+const orderVisible = ref<Record<string, boolean>>({});
+
+const initCollapseState = (orders: Order[]) => {
+    orders.forEach(order => {
+        if (order.id) {
+            // Si es un pedido nuevo, configurar visibilidad por defecto
+            if (!(order.id in productsVisible.value)) {
+                productsVisible.value[order.id] = true; // Productos visibles por defecto
+            }
+
+            if (!(order.id in orderVisible.value)) {
+                // Por defecto, mostrar contenido del pedido solo para pedidos pendientes o en proceso
+                orderVisible.value[order.id] = (order.status === 'pending' || order.status === 'processing');
+            }
+        }
+    });
+};
+
+// Función para alternar la visibilidad de productos para un pedido específico
+const toggleProductsVisible = (orderId: string) => {
+    if (orderId in productsVisible.value) {
+        productsVisible.value[orderId] = !productsVisible.value[orderId];
+    } else {
+        productsVisible.value[orderId] = true;
+    }
+};
+
+const toggleOrderVisible = (orderId: string) => {
+    if (orderId in orderVisible.value) {
+        orderVisible.value[orderId] = !orderVisible.value[orderId];
+    } else {
+        orderVisible.value[orderId] = true;
+    }
+};
 
 const truncatePaymentLink = (link: string, maxLength: number = 30): string => {
     if (!link) return '';
@@ -509,8 +597,6 @@ const showStatusChangeNotification = (order: Order, newStatus: string) => {
 };
 
 const showCancellationNotification = (order: Order) => {
-    // Si tienes un sistema de notificaciones, úsalo aquí
-    // Por ejemplo, usando el hook useToast que ya parece estar en uso
     if (typeof showToast === 'function') {
         showToast({
             type: 'warning',
@@ -549,8 +635,18 @@ const currentUserEmail = computed(() => {
     return localStorage.getItem('userEmail') || '';
 });
 
-const getOrderCardClass = (status: OrderStatus) => {
-    return `order-card-${status}`;
+const getStatusClass = (status: OrderStatus) => {
+    return `status-tag-${status}`;
+};
+
+const getStatusText = (status: OrderStatus) => {
+    const statusText: Record<OrderStatus, string> = {
+        pending: 'Pendiente',
+        processing: 'En proceso',
+        completed: 'Completado',
+        cancelled: 'Cancelado'
+    };
+    return statusText[status];
 };
 
 const loadProductImages = async () => {
@@ -600,33 +696,9 @@ const truncateProductName = (name: string, maxLength: number = 45): string => {
     }
 };
 
-const getStatusClass = (status: OrderStatus) => {
-    return `status-tag-${status}`;
-};
-
-const getStatusText = (status: OrderStatus) => {
-    const statusText: Record<OrderStatus, string> = {
-        pending: 'Pendiente',
-        processing: 'En proceso',
-        completed: 'Completado',
-        cancelled: 'Cancelado'
-    };
-    return statusText[status];
-};
-
-/*const getProductName = (productId: string) => {
-    const product = products.value.find(p => p.id === productId);
-    return product?.name || 'Producto no encontrado';
-};*/
-
 const getProductName = (item: any) => {
     return item.productSnapshot?.name || 'Producto no encontrado';
 };
-
-/*const getProductBrand = (productId: string) => {
-    const product = products.value.find(p => p.id === productId);
-    return product?.brand || '';
-};*/
 
 const getProductBrand = (item: any) => {
     return item.productSnapshot?.brand || '';
@@ -655,21 +727,11 @@ const getCurrentPeruDate = () => {
     return `${year}-${month}-${day}`;
 };
 
-/*const hasDiscount = (productId: string) => {
-    const product = products.value.find(p => p.id === productId);
-    return product?.discountPercentage !== undefined && product.discountPercentage > 0;
-};*/
-
 const hasDiscount = (item: any) => {
     return item.productSnapshot?.discountPercentage > 0 &&
         item.productSnapshot?.isPromoted &&
         isPromotionActive(item);
 };
-
-/*const getOriginalPrice = (productId: string) => {
-    const product = products.value.find(p => p.id === productId);
-    return product?.originalPrice;
-};*/
 
 const getOriginalPrice = (item: any) => {
     if (hasDiscount(item)) {
@@ -677,11 +739,6 @@ const getOriginalPrice = (item: any) => {
     }
     return null;
 };
-
-/*const getDiscountPercentage = (productId: string) => {
-    const product = products.value.find(p => p.id === productId);
-    return product?.discountPercentage || 0;
-};*/
 
 const getDiscountPercentage = (item: any) => {
     if (hasDiscount(item)) {
@@ -701,8 +758,6 @@ const formatDate = (date?: string | Date) => {
 
 // Formatea el mensaje de WhatsApp para un pedido
 const formatOrderWhatsAppMessage = (order: Order) => {
-    /*console.log("order");
-    console.log(order);*/
     const { status, customerInfo, items, subtotal, shipping, total } = order;
     const idPedido = `*MI ID PEDIDO ES:*\n` +
         `#` + order.id?.slice(-6);
@@ -756,26 +811,19 @@ const openWhatsapp = (order: Order) => {
 
 // Función para filtrar órdenes y refrescar datos
 const filterOrders = async () => {
-    // Detener cualquier consulta anterior en curso
     stopPaymentLinkPolling();
-
-    // Resetear mensaje de error si existe
     error.value = null;
-
-    // Mostrar estado de carga
     loading.value = true;
 
     try {
-        // Obtener todos los pedidos actualizados
         const userOrders = await getUserOrders(currentUserEmail.value || '');
-
-        // Actualizar la lista completa de órdenes
         orders.value = userOrders;
 
-        // Cargar imágenes de productos
+        // Inicializar estados para cualquier pedido nuevo
+        initCollapseState(userOrders);
+
         await loadProductImages();
 
-        // Si el filtro es "processing", "pending" o "all", iniciar el polling 
         if (selectedStatus.value === 'processing' ||
             selectedStatus.value === 'pending' ||
             selectedStatus.value === 'all') {
@@ -803,10 +851,12 @@ const loadOrders = async () => {
         orders.value = userOrders;
         await loadProductImages();
 
+        // Inicializar estados de colapso
+        initCollapseState(userOrders);
+
         // Iniciar el polling para las órdenes en proceso
         startPaymentLinkPolling();
     } catch (err) {
-        //console.error('Error cargando órdenes:', err);
         error.value = 'Hubo un error al cargar los pedidos';
         orders.value = [];
     } finally {
@@ -830,52 +880,41 @@ watch(selectedStatus, () => {
 </script>
 
 <style scoped>
+/* Contenedor principal */
 .orders-container {
-    padding: 1.5rem;
     max-width: 1200px;
     margin: 0 auto;
+    padding: 2rem 1.5rem;
 }
 
-.auth-message {
-    color: #6B7280;
-    font-size: 0.875rem;
-    margin-top: 0.5rem;
-}
-
-.tiktok-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.whatsapp-button {
-    background-color: #23ad56;
-    border: none;
-    color: #fff;
-    padding: 10px 20px;
-    font-size: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-}
-
-.whatsapp-button:hover {
-    background-color: #1c8844;
-}
-
-.whatsapp-button .icon {
-    width: 20px;
-    height: 20px;
-}
-
+/* Encabezado de la página */
 .orders-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.page-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 0.25rem 0;
+}
+
+.auth-message {
+    font-size: 0.875rem;
+    color: #6B7280;
+    margin-top: 0.25rem;
+}
+
+/* Filtros */
+.filter-section {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
 }
 
 .filter-container {
@@ -885,259 +924,652 @@ watch(selectedStatus, () => {
     position: relative;
 }
 
+.filter-label {
+    font-size: 0.875rem;
+    color: #4B5563;
+    margin-right: 0.25rem;
+}
+
+.select-wrapper {
+    position: relative;
+}
+
 .status-filter {
-    padding: 0.5rem 1rem;
-    border: 1px solid #e2e8f0;
+    padding: 0.6rem 2.5rem 0.6rem 1rem;
+    border: 1px solid #E5E7EB;
     border-radius: 0.375rem;
     background-color: white;
     font-size: 0.875rem;
-    color: #4a5568;
+    color: #111827;
     cursor: pointer;
-    outline: none;
-    transition: all 0.2s;
     min-width: 180px;
+    appearance: none;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.status-filter:hover:not(:disabled) {
+    border-color: #D1D5DB;
+}
+
+.status-filter:focus:not(:disabled) {
+    border-color: #272727;
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
 }
 
 .status-filter:disabled {
-    background-color: #f8fafc;
+    background-color: #F9FAFB;
     cursor: not-allowed;
     opacity: 0.7;
 }
 
-.status-filter:hover:not(:disabled) {
-    border-color: #cbd5e0;
-}
-
-.status-filter:focus:not(:disabled) {
-    border-color: #4299e1;
-    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+.select-icon {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6B7280;
+    pointer-events: none;
 }
 
 .filter-loading {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #4a5568;
+    color: #6B7280;
 }
 
-/*.status-filter:hover {
-    border-color: #cbd5e0;
-}
-
-.status-filter:focus {
-    border-color: #4299e1;
-    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
-}*/
-
-.qr-payment-section {
-    margin-top: 1.5rem;
-    border-top: 1px solid #e5e7eb;
-    padding-top: 1.5rem;
-}
-
-.qr-payment-container {
-    display: flex;
-    align-items: flex-start;
-    gap: 1.5rem;
-}
-
-.qr-image-wrapper {
-    flex-shrink: 0;
-}
-
-.payment-qr-code {
-    width: 150px;
-    height: auto;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-.qr-payment-details {
-    flex-grow: 1;
-}
-
-.qr-payment-details h4 {
-    margin-top: 0;
-    margin-bottom: 0.75rem;
-    font-size: 1rem;
-    font-weight: 600;
-}
-
-.qr-payment-details p {
-    margin: 0.5rem 0;
-    font-size: 0.95rem;
-}
-
-@media (max-width: 640px) {
-    .qr-payment-container {
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .qr-payment-details {
-        text-align: center;
-        margin-top: 1rem;
-    }
-}
-
+/* Estado de carga */
 .loading-state {
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: 32px 0;
+    padding: 3rem 0;
+    color: #6B7280;
+    text-align: center;
 }
 
-.loading-state span {
-    margin-left: 12px;
-    color: #666;
+.spinner-container {
+    margin-bottom: 1rem;
 }
 
 .loading-spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid #f3f4f6;
-    border-top: 3px solid #3b82f6;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 3px solid #E5E7EB;
+    border-top: 3px solid #272727;
     border-radius: 50%;
     animation: spin 1s linear infinite;
 }
 
-.error-message {
-    background-color: #fef2f2;
-    border: 1px solid #fee2e2;
-    color: #dc2626;
-    padding: 16px;
-    border-radius: 8px;
+@keyframes fadeIn {
+    0% {
+        opacity: 0;
+    }
+
+    100% {
+        opacity: 1;
+    }
 }
 
-.empty-state {
+.order-content {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Estado de error */
+.error-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: #FEF2F2;
+    border: 1px solid #FEE2E2;
+    color: #B91C1C;
+    padding: 2rem;
+    border-radius: 0.5rem;
     text-align: center;
-    padding: 64px 0;
-    background: white;
-    border-radius: 8px;
+    gap: 1rem;
+}
+
+.error-message p {
+    margin: 0.5rem 0;
+}
+
+.retry-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background-color: white;
+    border: 1px solid #E5E7EB;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    color: #4B5563;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.retry-button:hover {
+    background-color: #F9FAFB;
+    border-color: #D1D5DB;
+}
+
+/* Estado vacío */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: white;
+    padding: 4rem 2rem;
+    border-radius: 0.5rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.empty-icon {
+    color: #9CA3AF;
+    margin-bottom: 1.5rem;
+}
+
+.empty-state h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 0.5rem 0;
 }
 
 .empty-state p {
-    color: #6b7280;
-    margin-bottom: 16px;
-    font-size: 16px;
+    color: #6B7280;
+    margin-bottom: 1.5rem;
 }
 
+.button-primary {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    background-color: #272727;
+    color: white;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background-color 0.2s ease;
+    border: none;
+    cursor: pointer;
+}
+
+.button-primary:hover {
+    background-color: #4338CA;
+    transform: translateY(-1px);
+}
+
+/* Lista de pedidos */
 .orders-list {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 1.5rem;
 }
 
-.pago-info-section {
-    margin-top: 1.5rem;
-    padding: 1.25rem;
-    background-color: #f9fafb;
-    border-radius: 0.5rem;
-    border: 1px solid #e5e7eb;
+.order-card {
+    background: white;
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+    transition: all 0.3s ease;
+    border: 1px solid #E5E7EB;
 }
 
-.payment-message.cancelled {
-    background-color: #fee2e2;
-    color: #991b1b;
-    border: 1px solid #fecaca;
+.order-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
-.pago-info-section.cancelled {
-    background-color: #fef2f2;
-    border-color: #fecaca;
-}
-
-.pago-info-section {
-    margin-top: 1.5rem;
-    padding: 1.25rem;
-    background-color: #f9fafb;
-    border-radius: 0.5rem;
-    border: 1px solid #e5e7eb;
-}
-
-.payment-header {
+/* Cabecera del pedido */
+.order-card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1rem;
+    padding: 1.25rem 1.5rem;
+    cursor: pointer;
+    user-select: none;
+    background-color: #F9FAFB;
+    transition: background-color 0.2s ease;
+    border-bottom: 1px solid #E5E7EB;
 }
 
-.payment-title {
+.order-card-header:hover {
+    background-color: #F3F4F6;
+}
+
+.order-identifier {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.order-number-container {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     color: #111827;
 }
 
-.payment-title h4 {
-    font-size: 1rem;
+.order-number {
+    font-size: 1.125rem;
     font-weight: 600;
     margin: 0;
 }
 
-.payment-method {
+.order-date {
+    font-size: 0.875rem;
+    color: #6B7280;
+    margin: 0;
+}
+
+.order-status-section {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.order-toggle {
+    margin-left: 0.5rem;
+}
+
+.order-content {
+    padding: 1.5rem;
+    transition: max-height 0.5s ease;
+}
+
+.status-tag {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.status-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+}
+
+.status-tag-pending {
+    background-color: #FEF3C7;
+    color: #92400E;
+}
+
+.status-tag-pending .status-dot {
+    background-color: #F59E0B;
+}
+
+.status-tag-processing {
+    background-color: #DBEAFE;
+    color: #1E40AF;
+}
+
+.status-tag-processing .status-dot {
+    background-color: #3B82F6;
+}
+
+.status-tag-completed {
+    background-color: #D1FAE5;
+    color: #065F46;
+}
+
+.status-tag-completed .status-dot {
+    background-color: #10B981;
+}
+
+.status-tag-cancelled {
+    background-color: #FEE2E2;
+    color: #991B1B;
+}
+
+.status-tag-cancelled .status-dot {
+    background-color: #EF4444;
+}
+
+/* Progress track */
+.order-progress {
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: #F9FAFB;
+    border-radius: 0.5rem;
+}
+
+.progress-track {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.progress-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    z-index: 1;
+    flex: 0 0 auto;
+}
+
+.step-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background-color: #F3F4F6;
+    color: #9CA3AF;
+    border: 2px solid #E5E7EB;
+}
+
+.step-label {
+    font-size: 0.75rem;
+    color: #6B7280;
+    text-align: center;
+    font-weight: 500;
+    max-width: 5rem;
+}
+
+.progress-line {
+    flex: 1;
+    height: 2px;
+    background-color: #E5E7EB;
+    margin: 0 0.25rem;
+    position: relative;
+    top: -0.75rem;
+}
+
+.progress-step.active .step-icon {
+    background-color: #EEF2FF;
+    color: #272727;
+    border-color: #C7D2FE;
+}
+
+.progress-step.active .step-label {
+    color: #272727;
+    font-weight: 600;
+}
+
+.progress-step.completed .step-icon {
+    background-color: #272727;
+    color: white;
+    border-color: #272727;
+}
+
+.progress-line.active {
+    background-color: #272727;
+}
+
+/* Secciones de contenido */
+.section-title {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 1rem 0;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #F3F4F6;
 }
 
-.method-label {
+/* Sección de productos */
+.products-section {
+    margin-bottom: 1.5rem;
+    border: 1px solid #E5E7EB;
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    background-color: #F9FAFB;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s ease;
+}
+
+.section-header:hover {
+    background-color: #F3F4F6;
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0;
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.toggle-button {
+    background: none;
+    border: none;
+    color: #6B7280;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.toggle-button:hover {
+    background-color: #E5E7EB;
+    color: #4B5563;
+}
+
+.rotate-icon {
+    transform: rotate(-180deg);
+    transition: transform 0.3s ease;
+}
+
+.order-items {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.order-item {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    background-color: #F9FAFB;
+    border-radius: 0.5rem;
+    transition: background-color 0.2s ease;
+    align-items: center;
+}
+
+.order-item:hover {
+    background-color: #F3F4F6;
+}
+
+.item-image {
+    position: relative;
+    width: 5rem;
+    height: 5rem;
+    flex-shrink: 0;
+    border-radius: 0.375rem;
+    overflow: hidden;
+    background-color: white;
+}
+
+.product-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.quantity-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    min-width: 2rem;
+    height: 2rem;
+    background-color: #272727;
+    color: white;
+    border-radius: 50%;
+    font-weight: 600;
     font-size: 0.875rem;
-    color: #6b7280;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.item-details {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex: 1;
+}
+
+.item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.item-brand {
+    font-size: 0.75rem;
+    color: #6B7280;
+}
+
+.item-name {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #111827;
+    margin: 0;
+}
+
+.item-name :deep(strong) {
+    font-weight: 600;
+}
+
+.item-price {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.75rem;
+}
+
+.price-display {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.original-price {
+    font-size: 0.75rem;
+    color: #9CA3AF;
+    text-decoration: line-through;
+}
+
+.current-price {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #111827;
+}
+
+.current-price.promotional {
+    color: #DC2626;
+}
+
+.discount-tag {
+    background-color: #FEE2E2;
+    color: #B91C1B;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+/* Sección de pago */
+.payment-section {
+    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+    background-color: #F9FAFB;
+    border: 1px solid #E5E7EB;
+    border-radius: 0.5rem;
+}
+
+.payment-section.cancelled {
+    background-color: #FEF2F2;
+    border-color: #FECACA;
+}
+
+.payment-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 }
 
 .payment-method-display {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    margin-bottom: 0.5rem;
 }
 
-.method-value {
+.method-label {
     font-size: 0.875rem;
-    font-weight: 500;
+    color: #6B7280;
+}
+
+.method-tag {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    background-color: #F3F4F6;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    color: #4B5563;
+}
+
+.method-tag.method-yape {
+    background-color: #F5F3FF;
+    color: #5B21B6;
+}
+
+.method-tag.method-plin {
+    background-color: #EFF6FF;
+    color: #1E40AF;
+}
+
+.method-tag.method-qr {
+    background-color: #F3F4F6;
     color: #111827;
-    background-color: #e5e7eb;
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.25rem;
 }
 
 .method-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    color: #4b5563;
-}
-
-.method-icon-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 0.25rem;
-    background-color: #f3f4f6;
-    padding: 0.25rem;
-    overflow: hidden;
-}
-
-.method-icon-container.yape {
-    background-color: #f5f3ff;
-}
-
-.method-icon-container.plin {
-    background-color: #eff6ff;
-}
-
-.method-icon-container.qr {
-    background-color: #f3f4f6;
-}
-
-.method-icon-img {
-    width: 24px;
-    height: 24px;
+    width: 1rem;
+    height: 1rem;
     object-fit: contain;
 }
 
@@ -1152,386 +1584,170 @@ watch(selectedStatus, () => {
 }
 
 .payment-message.pending {
-    background-color: #fef3c7;
-    color: #92400e;
-    border: 1px solid #fde68a;
+    background-color: #FEF3C7;
+    color: #92400E;
+    border: 1px solid #FDE68A;
 }
 
 .payment-message.processing {
-    background-color: #dbeafe;
-    color: #1e40af;
-    border: 1px solid #bfdbfe;
+    background-color: #DBEAFE;
+    color: #1E40AF;
+    border: 1px solid #BFDBFE;
 }
 
 .payment-message.completed {
-    background-color: #d1fae5;
-    color: #065f46;
-    border: 1px solid #a7f3d0;
+    background-color: #D1FAE5;
+    color: #065F46;
+    border: 1px solid #A7F3D0;
+}
+
+.payment-message.cancelled {
+    background-color: #FEE2E2;
+    color: #991B1B;
+    border: 1px solid #FECACA;
 }
 
 .message-icon {
     margin-top: 0.125rem;
+    flex-shrink: 0;
 }
 
 .message-icon.success {
-    color: #10b981;
+    color: #10B981;
 }
 
 .animate-spin {
     animation: spin 2s linear infinite;
 }
 
-.payment-status {
+/* QR de pago */
+.qr-payment-section {
+    margin-top: 1rem;
+}
+
+.qr-container {
     display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.payment-link-container {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.payment-link-ready {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    padding: 0.875rem;
-    border-radius: 0.375rem;
-    background-color: #d1fae5;
-    color: #065f46;
-    border: 1px solid #a7f3d0;
-    font-size: 0.875rem;
-    line-height: 1.4;
-}
-
-.payment-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.25rem;
-    background-color: #4f46e5;
-    color: white;
-    border-radius: 0.375rem;
-    font-weight: 500;
-    text-align: center;
-    text-decoration: none;
-    transition: all 0.2s ease;
-    border: none;
-    cursor: pointer;
-}
-
-.payment-button:hover {
-    background-color: #4338ca;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-}
-
-.inactive-payment-link {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    padding: 0.75rem;
-    background-color: #f3f4f6;
-    border-radius: 0.375rem;
-    border: 1px dashed #d1d5db;
-}
-
-.inactive-link-label {
-    font-size: 0.75rem;
-    color: #6b7280;
-}
-
-.inactive-link-value {
-    font-family: monospace;
-    font-size: 0.875rem;
-    color: #9ca3af;
-}
-
-@media (max-width: 640px) {
-    .payment-method {
-        margin-top: 0.5rem;
-    }
-
-    .payment-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.5rem;
-    }
-
-    .payment-button {
-        width: 100%;
-    }
-}
-
-.order-card {
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-left-width: 6px;
-    border-radius: 8px;
-    padding: 32px;
-    transition: all 0.3s ease;
-    width: 100%;
-}
-
-.order-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
-}
-
-.order-card-pending {
-    border-left-color: #fbbf24;
-}
-
-.order-card-processing {
-    border-left-color: #60a5fa;
-}
-
-.order-card-completed {
-    border-left-color: #34d399;
-}
-
-.order-card-cancelled {
-    border-left-color: #ef4444;
-}
-
-.order-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 32px;
-}
-
-.order-info h3 {
-    font-size: 20px;
-    font-weight: 600;
-    color: #1a1a1a;
-    margin-bottom: 8px;
-}
-
-.order-date {
-    font-size: 14px;
-    color: #6b7280;
-}
-
-.status-tag {
-    padding: 8px 20px;
-    border-radius: 9999px;
-    font-size: 14px;
-    font-weight: 500;
-    border: 1px solid;
-}
-
-.status-tag-pending {
-    background-color: #fef3c7;
-    color: #92400e;
-    border-color: #fde68a;
-}
-
-.status-tag-processing {
-    background-color: #dbeafe;
-    color: #1e40af;
-    border-color: #bfdbfe;
-}
-
-.status-tag-completed {
-    background-color: #d1fae5;
-    color: #065f46;
-    border-color: #a7f3d0;
-}
-
-.status-tag-cancelled {
-    background-color: #fee2e2;
-    color: #991b1b;
-    border-color: #fecaca;
-}
-
-.order-items {
-    border-top: 1px solid #f3f4f6;
-    border-bottom: 1px solid #f3f4f6;
-    margin: 24px 0;
-    padding: 24px 0;
-}
-
-.order-item {
-    padding: 16px;
-    border-radius: 8px;
-    transition: background-color 0.2s;
-}
-
-.order-item:hover {
-    background-color: #f9fafb;
-}
-
-.item-container {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    background: white;
+    gap: 1.5rem;
+    background-color: white;
     border-radius: 0.5rem;
+    padding: 1rem;
+    border: 1px solid #E5E7EB;
 }
 
-.item-image {
-    position: relative;
-    width: 60px;
-    height: 60px;
-    border-radius: 0.375rem;
-    overflow: hidden;
+.qr-image-wrapper {
+    width: 8rem;
+    height: 8rem;
+    flex-shrink: 0;
 }
 
-.quantity-badge {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 40px;
-    height: 40px;
-    background-color: #f3f4f6;
-    border-radius: 8px;
-    font-weight: 600;
-    color: #4b5563;
-}
-
-.product-img {
+.payment-qr-code {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    border-radius: 0.25rem;
+    border: 1px solid #E5E7EB;
 }
 
-.item-details {
+.qr-payment-details {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
-    flex: 1;
-}
-
-.item-name {
-    font-weight: 500;
-    color: #0f172a;
-    font-size: 1rem;
-}
-
-.item-name :deep(strong) {
-    font-weight: 600;
-}
-
-.item-brand {
-    color: #64748b;
-    font-size: 0.875rem;
-}
-
-.item-price {
-    font-weight: 600;
-    color: #1f2937;
-    font-size: 16px;
-}
-
-.price-info {
-    display: flex;
-    align-items: center;
     gap: 0.75rem;
-    margin-top: 0.25rem;
 }
 
-.price-group {
+.qr-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0;
+}
+
+.payment-info-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.info-row {
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
 
-.original-price {
+.info-label {
     font-size: 0.875rem;
-    color: #94a3b8;
-    text-decoration: line-through;
+    color: #6B7280;
+    min-width: 5rem;
 }
 
-.current-price {
+.info-value {
+    font-size: 0.875rem;
+    color: #111827;
+    font-weight: 500;
+}
+
+.info-value.highlight {
+    color: #272727;
     font-weight: 600;
-    color: #0f172a;
 }
 
-.current-price.promotional {
-    color: #e53e3e;
+/* Resumen del pedido */
+.order-summary-section {
+    margin-bottom: 1.5rem;
 }
 
-.discount-badge {
-    padding: 0.25rem 0.5rem;
-    background: #fee2e2;
-    color: #991b1b;
-    border-radius: 0.25rem;
-    font-size: 0.75rem;
-    font-weight: 500;
+.summary-content {
+    background-color: #F9FAFB;
+    border-radius: 0.5rem;
+    padding: 1rem;
 }
 
-.quantity-badge {
+.summary-rows {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 24px;
-    height: 24px;
-    background: #e0e7ff;
-    color: #4f46e5;
-    border-radius: 9999px;
-    font-size: 0.875rem;
-    font-weight: 500;
-}
-
-.order-summary {
-    padding-top: 24px;
+    flex-direction: column;
+    gap: 0.75rem;
 }
 
 .summary-row {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 12px;
-    font-size: 15px;
-    color: #6b7280;
+    font-size: 0.875rem;
+    color: #4B5563;
 }
 
 .summary-row.total {
-    font-size: 18px;
+    font-size: 1rem;
     font-weight: 600;
     color: #111827;
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid #f3f4f6;
+    margin-top: 0.5rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #E5E7EB;
 }
 
-.button-primary {
-    display: inline-block;
-    padding: 12px 32px;
-    background-color: #000000;
-    color: white;
-    border-radius: 8px;
+.summary-label {
+    color: #6B7280;
+}
+
+.summary-value {
     font-weight: 500;
-    text-decoration: none;
-    transition: background-color 0.2s;
 }
 
-.button-primary:hover {
-    background-color: #1f2937;
-}
-
+/* Mensaje de finalización */
 .completion-message {
-    margin-top: 1rem;
-    padding: 1.5rem;
-    background: linear-gradient(to right, #f0fdf4, #dcfce7);
+    background: linear-gradient(to right, #F0FDF4, #DCFCE7);
     border-radius: 0.5rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
     text-align: center;
-    animation: fadeIn 0.5s ease-in-out;
-    border: 1px solid #bbf7d0;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
+    border: 1px solid #BBF7D0;
 }
 
-.completion-main {
+.completion-content {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0.5rem;
+    margin-bottom: 1rem;
 }
 
 .completion-icon {
@@ -1539,15 +1755,28 @@ watch(selectedStatus, () => {
     animation: sparkle 1.5s infinite;
 }
 
-.social-message {
-    padding-top: 1rem;
-    border-top: 1px dashed #86efac;
+.completion-text h5 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #065F46;
+    margin: 0 0 0.25rem 0;
 }
 
-.social-message p {
+.completion-text p {
+    font-size: 0.875rem;
+    color: #047857;
+    margin: 0;
+}
+
+.social-section {
+    padding-top: 1rem;
+    border-top: 1px dashed #86EFAC;
+}
+
+.social-section p {
     color: #059669;
-    font-size: 0.9rem;
-    margin-bottom: 0.75rem;
+    font-size: 0.875rem;
+    margin: 0 0 0.75rem 0;
 }
 
 .social-links {
@@ -1560,9 +1789,9 @@ watch(selectedStatus, () => {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 9999px;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
     background: white;
     color: #059669;
     transition: all 0.2s ease;
@@ -1570,20 +1799,16 @@ watch(selectedStatus, () => {
 
 .social-link:hover {
     transform: translateY(-2px);
-    background: #059669;
+}
+
+.social-link.instagram:hover {
+    background: #E1306C;
     color: white;
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.social-link.tiktok:hover {
+    background: #000000;
+    color: white;
 }
 
 @keyframes sparkle {
@@ -1600,94 +1825,131 @@ watch(selectedStatus, () => {
     }
 }
 
-@media (max-width: 640px) {
-    .completion-message {
-        padding: 1rem;
-    }
-
-    .social-links {
-        gap: 0.75rem;
-    }
-
-    .social-link {
-        width: 32px;
-        height: 32px;
-    }
-}
-
-.processing-message {
-    margin-top: 1rem;
-    padding: 1.5rem;
-    background: linear-gradient(to right, #eff6ff, #dbeafe);
-    border-radius: 0.5rem;
-    animation: fadeIn 0.5s ease-in-out;
-    border: 1px solid #bfdbfe;
-    margin-bottom: 1rem;
-}
-
-.processing-content {
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    margin-bottom: 1rem;
-}
-
-.processing-icon {
-    color: #3b82f6;
-    animation: spin 2s linear infinite;
-}
-
-.message-content {
-    flex: 1;
-}
-
-.message-content h4 {
-    color: #1e40af;
-    font-size: 1.1rem;
-    margin-bottom: 0.5rem;
-}
-
-.message-content p {
-    color: #3b82f6;
-    font-size: 0.95rem;
-    line-height: 1.4;
+/* Información de procesamiento */
+.processing-info {
+    padding: 0.875rem;
+    background-color: #EFF6FF;
+    border-radius: 0.375rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid #BFDBFE;
 }
 
 .estimated-time {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    /*padding-top: 0.75rem;
-    border-top: 1px dashed #bfdbfe;*/
-    color: #6b7280;
-    font-size: 0.9rem;
+    color: #1E40AF;
+    font-size: 0.875rem;
 }
 
-@keyframes spin {
-    from {
-        transform: rotate(0deg);
+/* Acciones de pedido */
+.order-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+}
+
+.action-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.action-button.whatsapp {
+    background-color: #25D366;
+    color: white;
+}
+
+.action-button.whatsapp:hover {
+    background-color: #128C7E;
+    transform: translateY(-1px);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .orders-header {
+        flex-direction: column;
+        align-items: flex-start;
     }
 
-    to {
-        transform: rotate(360deg);
+    .filter-section {
+        width: 100%;
+    }
+
+    .filter-container {
+        width: 100%;
+    }
+
+    .status-filter {
+        width: 100%;
+    }
+
+    .order-card {
+        padding: 1.25rem;
+    }
+
+    .order-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .order-status-section {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .progress-track {
+        overflow-x: auto;
+        padding: 0.5rem 0;
+        justify-content: flex-start;
+        min-width: 500px;
+    }
+
+    .qr-container {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .qr-payment-details {
+        text-align: center;
+    }
+
+    .info-row {
+        justify-content: center;
+    }
+
+    .order-actions {
+        justify-content: center;
     }
 }
 
 @media (max-width: 640px) {
-    .processing-message {
-        padding: 1rem;
+    .order-item {
+        flex-wrap: wrap;
     }
 
-    .processing-content {
-        gap: 0.75rem;
+    .quantity-indicator {
+        order: 1;
     }
 
-    .message-content h4 {
-        font-size: 1rem;
+    .item-image {
+        order: 2;
+        width: 4rem;
+        height: 4rem;
     }
 
-    .message-content p {
-        font-size: 0.9rem;
+    .item-details {
+        order: 3;
+        width: 100%;
+        margin-top: 0.75rem;
     }
 }
 </style>

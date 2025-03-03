@@ -69,10 +69,10 @@
                             <span>Subtotal</span>
                             <span>S/. {{ subtotal.toFixed(2) }}</span>
                         </div>
-                        <div class="summary-row">
+                        <!-- <div class="summary-row">
                             <span>Envío</span>
                             <span>{{ shippingCost > 0 ? `S/. ${shippingCost.toFixed(2)}` : 'Gratis' }}</span>
-                        </div>
+                        </div>-->
                         <div class="summary-row total">
                             <span>Total</span>
                             <span>S/. {{ total.toFixed(2) }}</span>

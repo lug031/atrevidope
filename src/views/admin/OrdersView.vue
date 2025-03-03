@@ -246,10 +246,10 @@
                             <span>Subtotal</span>
                             <span>S/{{ formatPrice(selectedOrder?.subtotal) }}</span>
                         </div>
-                        <div class="summary-item">
+                        <!-- <div class="summary-item">
                             <span>Envío</span>
                             <span>S/{{ formatPrice(selectedOrder?.shipping) }}</span>
-                        </div>
+                        </div>-->
                         <div class="summary-item total">
                             <span>Total</span>
                             <span>S/{{ formatPrice(selectedOrder?.total) }}</span>

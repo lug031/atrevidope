@@ -30,7 +30,7 @@ export function useCart() {
   );
 
   const total = computed(() => {
-    return subtotal.value + shippingCost.value;
+    return subtotal.value; /* + shippingCost.value;*/
   });
 
   const shippingCost = computed(() => {

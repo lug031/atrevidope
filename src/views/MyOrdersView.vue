@@ -315,11 +315,11 @@
                                         <span class="summary-label">Subtotal</span>
                                         <span class="summary-value">S/. {{ order.subtotal.toFixed(2) }}</span>
                                     </div>
-                                    <div class="summary-row">
+                                    <!-- <div class="summary-row">
                                         <span class="summary-label">Envío</span>
                                         <span class="summary-value">{{ order.shipping > 0 ? `S/.
                                             ${order.shipping.toFixed(2)}` : 'Gratis' }}</span>
-                                    </div>
+                                    </div> -->
                                     <div class="summary-row total">
                                         <span class="summary-label">Total</span>
                                         <span class="summary-value">S/. {{ order.total.toFixed(2) }}</span>
@@ -789,7 +789,7 @@ const formatOrderWhatsAppMessage = (order: Order) => {
     const totalsDetails =
         `\n*TOTALES*\n` +
         `Subtotal: S/. ${subtotal.toFixed(2)}\n` +
-        `Envío: ${shipping > 0 ? `S/. ${shipping.toFixed(2)}` : 'Gratis'}\n` +
+        /*`Envío: ${shipping > 0 ? `S/. ${shipping.toFixed(2)}` : 'Gratis'}\n` +*/
         `Total: S/. ${total.toFixed(2)}`;
 
     return encodeURIComponent(

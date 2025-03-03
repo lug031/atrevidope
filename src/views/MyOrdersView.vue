@@ -277,7 +277,7 @@
                                                     <div class="info-row">
                                                         <span class="info-label">Monto:</span>
                                                         <span class="info-value highlight">S/ {{ order.total.toFixed(2)
-                                                            }}</span>
+                                                        }}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1346,6 +1346,8 @@ watch(selectedStatus, () => {
     background-color: #F9FAFB;
     cursor: pointer;
     user-select: none;
+    position: relative;
+    z-index: 2;
     transition: background-color 0.2s ease;
 }
 

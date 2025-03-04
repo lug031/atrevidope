@@ -79,7 +79,7 @@
                                 </div>
                                 <div class="testimonial-content">
                                     <div class="testimonial-image">
-                                        <img src="@/assets/cliente-2.jpg" alt="Lattafa Oud for Glory" />
+                                        <img src="@/assets/cliente-2.jpg" alt="Armaf Odyssey Mandarin Sky" />
                                     </div>
                                     <p class="testimonial-text">Siempre compro mis perfumes árabes en ATREVIDO. La
                                         calidad
@@ -89,8 +89,8 @@
                                 <div class="testimonial-author">
                                     <img src="@/assets/user.png" alt="Foto de cliente" class="author-image" />
                                     <div class="author-info">
-                                        <h4>Juan Saona</h4>
-                                        <p>Compra: Lattafa Oud for Glory</p>
+                                        <h4>Jan Saona</h4>
+                                        <p>Compra: Armaf Odyssey Mandarin Sky</p>
                                         <div class="rating">
                                             <i class="fa-solid fa-star"></i>
                                             <i class="fa-solid fa-star"></i>

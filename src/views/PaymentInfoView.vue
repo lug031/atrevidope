@@ -28,18 +28,6 @@
 
                 <!-- Payment Methods Section -->
                 <section class="methods-section">
-                    <!--<div class="method-card">
-                        <div class="method-icon">
-                            <i class="fa-solid fa-credit-card"></i>
-                        </div>
-                        <div class="method-details">
-                            <h3>Tarjetas de Crédito y Débito</h3>
-                            <p>Aceptamos las principales tarjetas de crédito y débito: Visa, MasterCard, American
-                                Express y Diners Club.</p>
-                            <p class="method-note">El cargo se realiza inmediatamente al confirmar tu pedido.</p>
-                        </div>
-                    </div>-->
-
                     <div class="method-card">
                         <div class="method-icon">
                             <i class="fa-solid fa-building-columns"></i>
@@ -63,52 +51,66 @@
                         </div>
                     </div>
 
-                    <!-- <div class="method-card">
+                    <div class="method-card">
                         <div class="method-icon">
-                            <i class="fa-solid fa-money-bill-wave"></i>
+                            <img src="@/assets/izipay.png" alt="Izipay" class="izipay-icon" />
                         </div>
                         <div class="method-details">
-                            <h3>Contra Entrega</h3>
-                            <p>Paga en efectivo al momento de recibir tu pedido (Lima y Provincias).</p>
-                            <p class="method-note">Se requiere un adelanto del 20% para reservar el producto.</p>
+                            <h3>Link de Pago Izipay</h3>
+                            <p>Paga de forma segura con tarjetas de crédito/débito a través de nuestro link de pago
+                                Izipay.</p>
+                            <p class="method-note">Tu pedido se procesará inmediatamente después de la confirmación del
+                                pago.</p>
                         </div>
-                    </div>-->
+                    </div>
                 </section>
 
                 <!-- Bank Account Information -->
-                <!--<section class="bank-accounts-section">
+                <section class="bank-accounts-section">
                     <h2>Nuestras Cuentas Bancarias</h2>
 
                     <div class="bank-accounts">
                         <div class="bank-card">
                             <div class="bank-logo">
-                                <img src="@/assets/cut_logo.png" alt="BCP" />
+                                <img src="@/assets/bcp-logo.png" alt="BCP" />
                             </div>
                             <div class="bank-details">
                                 <h3>Banco de Crédito BCP</h3>
-                                <p><strong>Cuenta Corriente:</strong> 123-456789-0-01</p>
-                                <p><strong>Titular:</strong> Atrevido S.A.C.</p>
-                                <p><strong>CCI:</strong> 002-123-000456789001-95</p>
+                                <p><strong>Titular:</strong> Chion Kam</p>
+                                <p><strong>Ahorro Soles:</strong> 19102848201069</p>
+                                <p><strong>CCI Soles:</strong> 00219110284820106951</p>
                             </div>
                         </div>
 
                         <div class="bank-card">
                             <div class="bank-logo">
-                                <img src="@/assets/cut_logo.png" alt="Interbank" />
+                                <img src="@/assets/interbank-logo.png" alt="Interbank" />
                             </div>
                             <div class="bank-details">
                                 <h3>Interbank</h3>
-                                <p><strong>Cuenta Corriente:</strong> 200-3002567894</p>
-                                <p><strong>Titular:</strong> Atrevido S.A.C.</p>
-                                <p><strong>CCI:</strong> 003-200-003002567894-37</p>
+                                <p><strong>Titular:</strong> Chion Kam</p>
+                                <p><strong>Ahorro Soles:</strong> 8983446586566</p>
+                                <p><strong>CCI Soles:</strong> 00389801344658656642</p>
+                            </div>
+                        </div>
+
+                        <div class="bank-card">
+                            <div class="bank-logo">
+                                <img src="@/assets/bbva-logo.png" alt="BBVA" />
+                            </div>
+                            <div class="bank-details">
+                                <h3>BBVA</h3>
+                                <p><strong>Titular:</strong> Jan Saona</p>
+                                <p><strong>Ahorro Soles:</strong> 0011-0814-0268366550</p>
+                                <p><strong>CCI Soles:</strong> 01181400026836655015</p>
                             </div>
                         </div>
                     </div>
-                </section> -->
+                </section>
 
                 <!-- Mobile Payment Information -->
                 <section class="mobile-payment-section">
-                    <!--<h2>Pagos Móviles</h2> -->
+                    <h2>Pagos Móviles</h2>
 
                     <div class="mobile-payments">
                         <div class="mobile-card">
@@ -277,6 +279,11 @@ import MainLayout from '@/layouts/MainLayout.vue';
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.izipay-icon {
+    width: 40px;
+    height: auto;
 }
 
 .method-details h3 {

@@ -9,6 +9,7 @@ export function useProducts() {
     products,
     productsWeb,
     allProductsWeb,
+    allProductsCarousel,
     productsByCategory,
     productsByBrand,
     loading,
@@ -49,6 +50,10 @@ export function useProducts() {
     await productStore.fetchAllProductsWeb();
   };
 
+  const loadAllProductsCarousel = async () => {
+    await productStore.fetchAllProductsCarousel();
+  };
+
   const createProduct = async (
     data: Omit<Product, "id">,
     categoryIds: string[]
@@ -78,6 +83,7 @@ export function useProducts() {
     products,
     productsWeb,
     allProductsWeb,
+    allProductsCarousel,
     productsByCategory,
     productsByBrand,
     loading,
@@ -86,6 +92,7 @@ export function useProducts() {
     loadProducts,
     loadProductsById,
     loadAllProductsWeb,
+    loadAllProductsCarousel,
     loadProductsByCategory,
     loadProductsByBrand,
     loadProductsWeb,

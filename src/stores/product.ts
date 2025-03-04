@@ -16,6 +16,7 @@ const authClient = generateClient<Schema>({
 export const useProductStore = defineStore("product", () => {
   const products = ref<Product[]>([]);
   const allProductsWeb = ref<Product[]>([]);
+  const allProductsCarousel = ref<Product[]>([]);
   const productsWeb = ref<Product[]>([]);
   const productsByCategory = ref<Product[]>([]);
   const productsByBrand = ref<Product[]>([]); // Nueva referencia para productos por marca
@@ -255,7 +256,6 @@ export const useProductStore = defineStore("product", () => {
       const { data: items } = await publicClient.models.Product.list({
         filter: {
           active: { eq: true },
-          carousel: { eq: true },
         },
       });
 
@@ -325,6 +325,47 @@ export const useProductStore = defineStore("product", () => {
     const day = String(peruDate.getDate()).padStart(2, "0");
 
     return `${year}-${month}-${day}`;
+  };
+
+  const fetchAllProductsCarousel = async () => {
+    loading.value = true;
+    try {
+      const { data: items } = await publicClient.models.Product.list({
+        filter: {
+          and: [{ active: { eq: true } }, { carousel: { eq: true } }],
+        },
+      });
+
+      // Actualizar los datos de marca para cada producto
+      const productsWithBrands = await Promise.all(
+        items.map(async (product) => {
+          if (product.brandID) {
+            try {
+              const { data: brand } = await publicClient.models.Brand.get({
+                id: product.brandID,
+              });
+              if (brand) {
+                return {
+                  ...product,
+                  brand: brand.name,
+                  brandLogo: brand.logo,
+                };
+              }
+            } catch (e) {
+              console.error("Error al obtener la marca:", e);
+            }
+          }
+          return product;
+        })
+      );
+
+      allProductsCarousel.value = productsWithBrands as unknown as Product[];
+    } catch (err) {
+      error.value = "Error al cargar productos web";
+      console.error(err);
+    } finally {
+      loading.value = false;
+    }
   };
 
   const fetchAllProductsWeb = async () => {
@@ -568,6 +609,7 @@ export const useProductStore = defineStore("product", () => {
     products,
     productsWeb,
     allProductsWeb,
+    allProductsCarousel,
     productsByCategory,
     productsByBrand, // Exportar la nueva referencia
     loading,
@@ -577,9 +619,10 @@ export const useProductStore = defineStore("product", () => {
     fetchProductsByBrand, // Exportar la nueva función
     fetchProductsWeb,
     fetchAllProductsWeb,
+    fetchAllProductsCarousel,
     createProduct,
     updateProduct,
     deleteProduct,
-    getProductById
+    getProductById,
   };
 });

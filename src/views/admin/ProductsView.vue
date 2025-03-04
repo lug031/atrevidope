@@ -1374,6 +1374,59 @@ watch(products, loadImageUrls, { immediate: true });
     border-radius: 0.375rem;
 }
 
+.carousel-toggle {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.carousel-checkbox {
+    position: absolute;
+    opacity: 0;
+    height: 0;
+    width: 0;
+}
+
+.carousel-label {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+    background-color: #ccc;
+    border-radius: 20px;
+    transition: background-color 0.3s;
+    cursor: pointer;
+}
+
+.carousel-label::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: white;
+    transition: 0.3s;
+}
+
+.carousel-checkbox:checked+.carousel-label {
+    background-color: #4CAF50;
+}
+
+.carousel-checkbox:checked+.carousel-label::after {
+    transform: translateX(20px);
+}
+
+.carousel-checkbox:focus+.carousel-label {
+    box-shadow: 0 0 1px #4CAF50;
+}
+
+/* Para la animación al hacer cambios */
+.carousel-label:active::after {
+    width: 22px;
+}
+
 @media (max-width: 768px) {
     .search-filter {
         flex-direction: column;

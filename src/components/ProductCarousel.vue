@@ -1,9 +1,8 @@
-//CarouselComponent.vue
 <template>
     <div class="carousel-container">
         <!-- Slides -->
         <div class="slides-container" :style="{ transform: `translateX(-${currentSlide * 100}%)` }">
-            <div v-for="(product, index) in allProductsWeb" :key="product.id" class="slide"
+            <div v-for="(product, index) in allProductsCarousel" :key="product.id" class="slide"
                 :style="{ left: `${index * 100}%` }">
                 <div class="slide-content">
                     <img :src="imageCache[product.id] || '/api/placeholder/800/500'" :alt="product.name"
@@ -30,7 +29,7 @@
 
         <!-- Dots Navigation -->
         <div class="carousel-dots">
-            <button v-for="(_, index) in allProductsWeb" :key="index" @click="goToSlide(index)"
+            <button v-for="(_, index) in allProductsCarousel" :key="index" @click="goToSlide(index)"
                 :class="['dot', { active: index === currentSlide }]" :aria-label="`Go to slide ${index + 1}`">
             </button>
         </div>
@@ -48,14 +47,14 @@ const router = useRouter();
 const currentSlide = ref(0);
 const autoplayInterval = ref<number | null>(null);
 
-const { allProductsWeb, loadAllProductsWeb } = useProducts();
+const { allProductsCarousel, loadAllProductsCarousel } = useProducts();
 const { imageCache, preloadImages } = useImageCache();
 
 // Optimizada la función de carga de imágenes
 const loadImageUrls = async () => {
-    if (!allProductsWeb.value) return;
+    if (!allProductsCarousel.value) return;
 
-    const productsToLoad = allProductsWeb.value
+    const productsToLoad = allProductsCarousel.value
         .filter(product => product.imageUrl)
         .map(product => ({
             id: product.id,
@@ -67,10 +66,10 @@ const loadImageUrls = async () => {
 
 // Función para precargar la siguiente imagen
 const preloadNextImage = () => {
-    if (!allProductsWeb.value) return;
+    if (!allProductsCarousel.value) return;
 
-    const nextIndex = (currentSlide.value + 1) % allProductsWeb.value.length;
-    const nextProduct = allProductsWeb.value[nextIndex];
+    const nextIndex = (currentSlide.value + 1) % allProductsCarousel.value.length;
+    const nextProduct = allProductsCarousel.value[nextIndex];
 
     if (nextProduct && nextProduct.imageUrl) {
         preloadImages([{
@@ -81,14 +80,14 @@ const preloadNextImage = () => {
 };
 
 const nextSlide = () => {
-    if (!allProductsWeb.value) return;
-    currentSlide.value = (currentSlide.value + 1) % allProductsWeb.value.length;
+    if (!allProductsCarousel.value) return;
+    currentSlide.value = (currentSlide.value + 1) % allProductsCarousel.value.length;
     preloadNextImage(); // Precargar la siguiente imagen
 };
 
 const prevSlide = () => {
-    if (!allProductsWeb.value) return;
-    currentSlide.value = currentSlide.value === 0 ? allProductsWeb.value.length - 1 : currentSlide.value - 1;
+    if (!allProductsCarousel.value) return;
+    currentSlide.value = currentSlide.value === 0 ? allProductsCarousel.value.length - 1 : currentSlide.value - 1;
 };
 
 const goToSlide = (index: number) => {
@@ -109,7 +108,7 @@ const stopAutoplay = () => {
 };
 
 onMounted(async () => {
-    await loadAllProductsWeb();
+    await loadAllProductsCarousel();
     await loadImageUrls();
     startAutoplay();
 });
@@ -119,7 +118,7 @@ onBeforeUnmount(() => {
 });
 
 // Observar cambios en los productos
-watch(() => allProductsWeb.value, async (newProducts) => {
+watch(() => allProductsCarousel.value, async (newProducts) => {
     if (newProducts && newProducts.length > 0) {
         await loadImageUrls();
     }

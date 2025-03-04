@@ -214,7 +214,7 @@
                             <span class="label">Método de Pago:</span>
                             <span class="value">{{ selectedOrder?.paymentMethod || 'No especificado' }}</span>
                         </div>
-                        <!-- <div class="payment-link-container">
+                        <div v-if="selectedOrder?.paymentMethod === 'izipay'" class="payment-link-container">
                             <div class="payment-link-field">
                                 <span class="label">Link de Pago:</span>
                                 <div class="link-input-group">
@@ -238,7 +238,7 @@
                                     <ExternalLinkIcon :size="14" class="external-link-icon" />
                                 </a>
                             </div>
-                        </div>-->
+                        </div>
                     </div>
 
                     <div class="order-summary">

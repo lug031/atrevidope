@@ -194,14 +194,14 @@
                                     class="payment-method-display">
                                     <span class="method-label">Método:</span>
 
-                                    <!-- Tarjeta -->
+                                    <!-- Tarjeta 
                                     <div v-if="order.paymentMethod === 'tarjeta'" class="method-tag">
                                         <CreditCardIcon :size="16" />
                                         <span>Tarjeta</span>
-                                    </div>
+                                    </div> -->
 
                                     <!-- Yape -->
-                                    <div v-else-if="order.paymentMethod === 'yape'" class="method-tag method-yape">
+                                    <div v-if="order.paymentMethod === 'yape'" class="method-tag method-yape">
                                         <img src="/yape-icon.png" alt="Yape" class="method-icon" />
                                         <span>Yape</span>
                                     </div>
@@ -212,10 +212,10 @@
                                         <span>Plin</span>
                                     </div>
 
-                                    <!-- QR -->
-                                    <div v-else-if="order.paymentMethod === 'qr'" class="method-tag method-qr">
-                                        <img src="/qr-icon.png" alt="QR" class="method-icon" />
-                                        <span>QR</span>
+                                    <!-- IziPay -->
+                                    <div v-else-if="order.paymentMethod === 'izipay'" class="method-tag method-izipay">
+                                        <img src="/izipay.png" alt="izipay" class="method-icon" />
+                                        <span>izipay</span>
                                     </div>
 
                                     <!-- Otros métodos -->
@@ -234,24 +234,53 @@
 
                                 <!-- Pedido en proceso -->
                                 <div v-else-if="order.status === 'processing'" class="payment-status">
-                                    <div v-if="!order.linkPago">
-                                        <div v-if="order.paymentMethod === 'yape' || order.paymentMethod === 'plin'"
-                                            class="payment-message processing">
-                                            <Loader2Icon :size="20" class="message-icon animate-spin" />
-                                            <p>Por favor, para continuar con su compra, realice el pago a través de
-                                                <strong>{{ order.paymentMethod === 'yape' ? 'YAPE' : 'PLIN' }}</strong>.
-                                                Una vez realizado, su pedido será procesado y nos comunicaremos con
-                                                usted.
+                                    <!-- Mensaje de espera -->
+                                    <div v-if="order.paymentMethod === 'yape' || order.paymentMethod === 'plin'"
+                                        class="payment-message processing">
+                                        <Loader2Icon :size="20" class="message-icon animate-spin" />
+                                        <p>Por favor, para continuar con su compra, realice el pago a través de
+                                            <strong>{{ order.paymentMethod === 'yape' ? 'YAPE' : 'PLIN' }}</strong>.
+                                            Una vez realizado, su pedido será procesado y nos comunicaremos con
+                                            usted.
+                                        </p>
+                                    </div>
+
+                                    <div v-else-if="order.paymentMethod === 'transferencia'"
+                                        class="payment-message processing">
+                                        <Loader2Icon :size="20" class="message-icon animate-spin" />
+                                        <p>Por favor, para continuar con su compra, realice el pago a los siguientes
+                                            numeros de cuenta.
+                                            Una vez realizado, su pedido será procesado y nos comunicaremos con
+                                            usted.
+                                        </p>
+                                    </div>
+
+                                    <div v-else-if="order.paymentMethod === 'izipay' && !order.linkPago"
+                                        class="payment-message processing">
+                                        <Loader2Icon :size="16" class="message-icon animate-spin" />
+                                        <p>Su link de pago se está generando, pronto estará disponible.</p>
+                                    </div>
+
+                                    <div v-else class="payment-link-container">
+                                        <div class="payment-link-ready">
+                                            <CheckCircleIcon :size="16" class="message-icon success" />
+                                            <p>¡Su link de pago está listo! Haga clic en el botón para realizar el pago.
                                             </p>
                                         </div>
+                                        <a :href="formatPaymentLink(order.linkPago || '')" target="_blank"
+                                            class="payment-button">
+                                            <CreditCardIcon :size="16" />
+                                            Realizar pago
+                                            <ArrowRightIcon :size="16" />
+                                        </a>
+                                    </div>
 
-                                        <div v-else-if="order.paymentMethod === 'efectivo'"
+                                    <!-- <div v-else-if="order.paymentMethod === 'efectivo'"
                                             class="payment-message processing">
                                             <Loader2Icon :size="20" class="message-icon animate-spin" />
                                             <p>Estamos procesando su pedido. En breve nos comunicaremos con usted para
                                                 coordinar la entrega.</p>
-                                        </div>
-                                    </div>
+                                        </div> -->
 
                                     <!-- QR de pago -->
                                     <div v-if="(order.paymentMethod === 'yape' || order.paymentMethod === 'plin') && !order.linkPago"
@@ -277,9 +306,97 @@
                                                     <div class="info-row">
                                                         <span class="info-label">Monto:</span>
                                                         <span class="info-value highlight">S/ {{ order.total.toFixed(2)
-                                                        }}</span>
+                                                            }}</span>
                                                     </div>
                                                 </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Trasnferencia -->
+                                    <div v-if="order.paymentMethod === 'transferencia' && !order.linkPago"
+                                        class="bank-transfer-section">
+                                        <div class="bank-transfer-container">
+                                            <h5 class="transfer-title">Numeros de Cuenta Bancaria:</h5>
+
+                                            <div class="bank-account-list">
+                                                <!-- Interbank -->
+                                                <div class="bank-account-card">
+                                                    <div class="bank-header">
+                                                        <img src="/interbank-logo.png" alt="Interbank"
+                                                            class="bank-logo" />
+                                                        <h6>Interbank</h6>
+                                                    </div>
+                                                    <div class="bank-details">
+                                                        <div class="info-row">
+                                                            <span class="info-label">Titular:</span>
+                                                            <span class="info-value">Chion Kam</span>
+                                                        </div>
+                                                        <div class="info-row">
+                                                            <span class="info-label">Ahorro soles:</span>
+                                                            <span class="info-value">8983446586566</span>
+                                                        </div>
+                                                        <div class="info-row">
+                                                            <span class="info-label">CCI soles:</span>
+                                                            <span class="info-value">00389801344658656642</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- BCP -->
+                                                <div class="bank-account-card">
+                                                    <div class="bank-header">
+                                                        <img src="/bcp-logo.png" alt="BCP" class="bank-logo" />
+                                                        <h6>BCP</h6>
+                                                    </div>
+                                                    <div class="bank-details">
+                                                        <div class="info-row">
+                                                            <span class="info-label">Titular:</span>
+                                                            <span class="info-value">Chion Kam</span>
+                                                        </div>
+                                                        <div class="info-row">
+                                                            <span class="info-label">Ahorro soles:</span>
+                                                            <span class="info-value">19102848201069</span>
+                                                        </div>
+                                                        <div class="info-row">
+                                                            <span class="info-label">CCI soles:</span>
+                                                            <span class="info-value">00219110284820106951</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- BBVA -->
+                                                <div class="bank-account-card">
+                                                    <div class="bank-header">
+                                                        <img src="/bbva-logo.png" alt="BBVA" class="bank-logo" />
+                                                        <h6>BBVA</h6>
+                                                    </div>
+                                                    <div class="bank-details">
+                                                        <div class="info-row">
+                                                            <span class="info-label">Titular:</span>
+                                                            <span class="info-value">Jan Saona</span>
+                                                        </div>
+                                                        <div class="info-row">
+                                                            <span class="info-label">Ahorro soles:</span>
+                                                            <span class="info-value">0011-0814-0268366550</span>
+                                                        </div>
+                                                        <div class="info-row">
+                                                            <span class="info-label">CCI soles:</span>
+                                                            <span class="info-value">01181400026836655015</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="transfer-instructions">
+                                                <p class="instruction-text">
+                                                    <span class="highlight">Monto a transferir: S/ {{
+                                                        order.total.toFixed(2) }}</span>
+                                                </p>
+                                                <p class="instruction-note">
+                                                    Después de realizar la transferencia, envíanos un screenshot del
+                                                    comprobante al WhatsApp 934 505 566 y tu número de pedido.
+                                                </p>
                                             </div>
                                         </div>
                                     </div>
@@ -289,7 +406,8 @@
                                 <div v-else-if="order.status === 'completed'" class="payment-message completed">
                                     <CheckCircleIcon :size="20" class="message-icon success" />
                                     <p>
-                                        {{ order.paymentMethod === 'yape' || order.paymentMethod === 'plin'
+                                        {{ order.paymentMethod === 'yape' || order.paymentMethod === 'plin' ||
+                                            order.paymentMethod === 'izipay' || order.paymentMethod === 'transferencia'
                                             ? 'Pago completado con éxito.'
                                             : 'Pedido entregado con éxito.' }}
                                     </p>
@@ -775,13 +893,14 @@ const formatOrderWhatsAppMessage = (order: Order) => {
         return `- ${item.productSnapshot.name} (${item.quantity}x) : S/. ${item.price.toFixed(2)}`;
     }).join('\n');
 
-    type PaymentMethod = 'tarjeta' | 'qr' | 'plin' | 'yape';
+    type PaymentMethod = 'izipay' | 'transferencia' | 'plin' | 'yape' | 'efectivo';
 
     const paymentMethodMap: Record<PaymentMethod, string> = {
-        tarjeta: 'Tarjeta de crédito/débito',
-        qr: 'QR',
+        izipay: 'Link de Pago izipay',
+        transferencia: 'Transferencia bancaria',
         plin: 'Plin',
         yape: 'Yape',
+        efectivo: 'Efectivo',
     };
 
     const paymentMethod = paymentMethodMap[order.paymentMethod as PaymentMethod] || order.paymentMethod;
@@ -1123,7 +1242,7 @@ watch(selectedStatus, () => {
 .order-card {
     background: white;
     border-radius: 0.75rem;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    /*box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);*/
     overflow: hidden;
     transition: all 0.3s ease;
     border: 1px solid #E5E7EB;
@@ -1409,6 +1528,48 @@ watch(selectedStatus, () => {
     background-color: white;
 }
 
+.payment-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background-color: #4f46e5;
+    color: white;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    text-align: center;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border: none;
+    cursor: pointer;
+}
+
+.payment-button:hover {
+    background-color: #4338ca;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+.payment-link-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.payment-link-ready {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.875rem;
+    border-radius: 0.375rem;
+    background-color: #d1fae5;
+    color: #065f46;
+    border: 1px solid #a7f3d0;
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
 .product-img {
     width: 100%;
     height: 100%;
@@ -1551,7 +1712,7 @@ watch(selectedStatus, () => {
     color: #1E40AF;
 }
 
-.method-tag.method-qr {
+.method-tag.method-izipay {
     background-color: #F3F4F6;
     color: #111827;
 }
@@ -1860,6 +2021,88 @@ watch(selectedStatus, () => {
 .action-button.whatsapp:hover {
     background-color: #128C7E;
     transform: translateY(-1px);
+}
+
+.bank-transfer-section {
+    margin-top: 1.5rem;
+    background-color: #f9fafb;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    border: 1px solid #e5e7eb;
+}
+
+.transfer-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #1a1a1a;
+}
+
+.bank-account-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.bank-account-card {
+    background-color: white;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.bank-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.bank-logo {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+
+.bank-header h6 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+    color: #1a1a1a;
+}
+
+.bank-details {
+    font-size: 0.875rem;
+}
+
+.transfer-instructions {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+.instruction-text {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.instruction-note {
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.highlight {
+    color: #53565b;
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .bank-account-list {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Responsive */

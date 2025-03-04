@@ -64,7 +64,7 @@
                                         @input="validateDocumentNumber" :class="{ 'error': errors.documentNumber }"
                                         :maxlength="getDocumentMaxLength">
                                     <span class="error-message" v-if="errors.documentNumber">{{ errors.documentNumber
-                                    }}</span>
+                                        }}</span>
                                 </div>
                             </div>
 
@@ -118,26 +118,6 @@
                             <div class="form-section payment-method-section">
                                 <h3>Método de pago</h3>
                                 <div class="payment-methods-container">
-                                    <!-- <div class="payment-method-option"
-                                        :class="{ active: form.paymentMethod === 'tarjeta' }">
-                                        <label class="payment-option-label">
-                                            <input type="radio" v-model="form.paymentMethod" value="tarjeta"
-                                                class="payment-method-input" />
-                                            <div class="payment-option-text">
-                                                <span class="payment-method-name">Tarjeta</span>
-                                                <span class="payment-method-desc">Crédito o débito</span>
-                                            </div>
-                                            <div class="payment-option-icon">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                                    <rect x="2" y="5" width="20" height="14" rx="2" />
-                                                    <line x1="2" y1="10" x2="22" y2="10" />
-                                                </svg>
-                                            </div>
-                                        </label>
-                                    </div> -->
-
                                     <div class="payment-method-option"
                                         :class="{ active: form.paymentMethod === 'yape' }">
                                         <label class="payment-option-label">
@@ -168,19 +148,7 @@
                                         </label>
                                     </div>
 
-                                    <!-- <div class="payment-method-option" :class="{ active: form.paymentMethod === 'qr' }">
-                                        <label class="payment-option-label">
-                                            <input type="radio" v-model="form.paymentMethod" value="qr"
-                                                class="payment-method-input" />
-                                            <div class="payment-option-text">
-                                                <span class="payment-method-name">Código QR</span>
-                                                <span class="payment-method-desc">Escanea y paga</span>
-                                            </div>
-                                            <div class="payment-option-icon">
-                                                <img src="/qr-icon.png" alt="QR Code" class="payment-method-img" />
-                                            </div>
-                                        </label>
-                                    </div> -->
+                                    <!-- Comentado el método de pago contra entrega
                                     <div class="payment-method-option" :class="{ active: form.paymentMethod === 'efectivo' }">
                                         <label class="payment-option-label">
                                             <input type="radio" v-model="form.paymentMethod" value="efectivo"
@@ -191,6 +159,40 @@
                                             </div>
                                             <div class="payment-option-icon">
                                                 <img src="/contraentrega.png" alt="QR Code" class="payment-method-img" />
+                                            </div>
+                                        </label>
+                                    </div>
+                                    -->
+
+                                    <div class="payment-method-option"
+                                        :class="{ active: form.paymentMethod === 'transferencia' }">
+                                        <label class="payment-option-label">
+                                            <input type="radio" v-model="form.paymentMethod" value="transferencia"
+                                                class="payment-method-input" />
+                                            <div class="payment-option-text">
+                                                <span class="payment-method-name">Transferencias</span>
+                                                <span class="payment-method-desc">Transfiere a nuestras cuentas bancarias</span>
+                                            </div>
+                                            <div class="payment-option-icon">
+                                                <img src="/transfer.png" alt="Transferencia"
+                                                    class="payment-method-img" />
+                                            </div>
+                                        </label>
+                                    </div>
+
+                                    <!-- Nuevo método de pago Izipay -->
+                                    <div class="payment-method-option"
+                                        :class="{ active: form.paymentMethod === 'izipay' }">
+                                        <label class="payment-option-label">
+                                            <input type="radio" v-model="form.paymentMethod" value="izipay"
+                                                class="payment-method-input" />
+                                            <div class="payment-option-text">
+                                                <span class="payment-method-name">Izipay</span>
+                                                <span class="payment-method-desc">Link de Pago</span>
+                                            </div>
+                                            <div class="payment-option-icon">
+                                                <img src="@/assets/izipay.png" alt="Izipay"
+                                                    class="payment-method-img" />
                                             </div>
                                         </label>
                                     </div>
@@ -230,7 +232,7 @@
                                     <div class="info-item">
                                         <span class="info-label">Documento</span>
                                         <span class="info-value">{{ form.documentType }}: {{ form.documentNumber
-                                        }}</span>
+                                            }}</span>
                                     </div>
                                 </div>
                             </div>

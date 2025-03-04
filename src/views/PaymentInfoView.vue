@@ -35,7 +35,7 @@
                         <div class="method-details">
                             <h3>Transferencia Bancaria</h3>
                             <p>Realiza una transferencia a nuestras cuentas bancarias en BCP, Interbank o BBVA.</p>
-                            <p class="method-note">Tu pedido se procesará una vez confirmado el pago (24-48 horas).</p>
+                            <p class="method-note">Tu pedido se procesará una vez confirmado el pago.</p>
                         </div>
                     </div>
 
@@ -386,8 +386,8 @@ import MainLayout from '@/layouts/MainLayout.vue';
 }
 
 .mobile-logo {
-    width: 300px;
-    height: 300px;
+    width: 200px;
+    height: 200px;
     margin-bottom: 20px;
     display: flex;
     align-items: center;

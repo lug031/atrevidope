@@ -12,6 +12,7 @@ export interface Product {
   discountPercentage: number;
   stock: number;
   active: boolean;
+  carousel: boolean;
   isPromoted: boolean;
   categories?: Category[];
   imageUrl: string;

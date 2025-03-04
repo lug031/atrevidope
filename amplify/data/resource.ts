@@ -37,6 +37,7 @@ const schema = a.schema({
       discountPercentage: a.integer(),
       stock: a.integer(),
       active: a.boolean(),
+      carousel: a.boolean(),
       isPromoted: a.boolean(),
       categories: a.hasMany("ProductCategory", "productID"),
       brandID: a.string(),

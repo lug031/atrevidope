@@ -43,6 +43,7 @@
                             <th>Stock</th>
                             <th>Promoción</th>
                             <th>Estado</th>
+                            <th>Carousel</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -94,6 +95,13 @@
                                 <span :class="['status-badge', product.active ? 'active' : 'inactive']">
                                     {{ product.active ? 'Activo' : 'Inactivo' }}
                                 </span>
+                            </td>
+                            <td>
+                                <div class="carousel-toggle">
+                                    <input type="checkbox" :id="'carousel-' + product.id" :checked="product.carousel"
+                                        @change="toggleCarousel(product)" class="carousel-checkbox" />
+                                    <label :for="'carousel-' + product.id" class="carousel-label"></label>
+                                </div>
                             </td>
                             <td>
                                 <div class="action-buttons">
@@ -364,6 +372,11 @@
                         <input type="checkbox" v-model="formData.active" />
                         Producto activo
                     </label>
+
+                    <label class="checkbox-label">
+                        <input type="checkbox" v-model="formData.carousel" />
+                        Producto carousel
+                    </label>
                 </div>
 
                 <div class="modal-footer">
@@ -571,6 +584,31 @@ const decreaseStock = async (product: Product) => {
     }
 };
 
+const toggleCarousel = async (product: Product) => {
+    try {
+        const updatedProduct = {
+            ...product,
+            carousel: !product.carousel
+        };
+
+        // Obtener los IDs de las categorías actuales del producto
+        const categoryIds = product.categories?.map(cat => cat.id) || [];
+
+        await updateProduct(product.id, updatedProduct, categoryIds);
+
+        showToast({
+            type: 'success',
+            message: `Producto ${updatedProduct.carousel ? 'agregado al' : 'removido del'} carousel`
+        });
+    } catch (error) {
+        console.error('Error al actualizar el estado del carousel:', error);
+        showToast({
+            type: 'error',
+            message: 'Error al actualizar el estado del carousel'
+        });
+    }
+};
+
 const increaseStock = async (product: Product) => {
     try {
         const updatedProduct = {
@@ -634,6 +672,7 @@ const initialFormData = {
     discountPercentage: 0,
     stock: 0,
     active: true,
+    carousel: true,
     isPromoted: false,
     categoryIDs: [] as string[],
     imageUrl: '',
@@ -787,6 +826,7 @@ const handleEdit = (product: Product) => {
         discountPercentage: product.discountPercentage,
         stock: product.stock,
         active: product.active,
+        carousel: product.carousel,
         isPromoted: product.isPromoted,
         categoryIDs: product.categories?.map(cat => cat.id) || [],
         imageUrl: product.imageUrl || '',
@@ -844,6 +884,7 @@ const handleSubmit = async () => {
             discountPercentage: formData.value.discountPercentage,
             stock: formData.value.stock,
             active: formData.value.active,
+            carousel: formData.value.carousel,
             isPromoted: formData.value.isPromoted,
             imageUrl: imageUrl || formData.value.imageUrl,
             promotionStartDate: formData.value.promotionStartDate || '',

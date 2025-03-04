@@ -255,6 +255,7 @@ export const useProductStore = defineStore("product", () => {
       const { data: items } = await publicClient.models.Product.list({
         filter: {
           active: { eq: true },
+          carousel: { eq: true },
         },
       });
 

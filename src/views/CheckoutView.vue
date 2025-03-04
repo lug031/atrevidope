@@ -64,7 +64,7 @@
                                         @input="validateDocumentNumber" :class="{ 'error': errors.documentNumber }"
                                         :maxlength="getDocumentMaxLength">
                                     <span class="error-message" v-if="errors.documentNumber">{{ errors.documentNumber
-                                        }}</span>
+                                    }}</span>
                                 </div>
                             </div>
 
@@ -171,7 +171,8 @@
                                                 class="payment-method-input" />
                                             <div class="payment-option-text">
                                                 <span class="payment-method-name">Transferencias</span>
-                                                <span class="payment-method-desc">Transfiere a nuestras cuentas bancarias</span>
+                                                <span class="payment-method-desc">Transfiere a nuestras cuentas
+                                                    bancarias</span>
                                             </div>
                                             <div class="payment-option-icon">
                                                 <img src="/transfer.png" alt="Transferencia"
@@ -232,7 +233,7 @@
                                     <div class="info-item">
                                         <span class="info-label">Documento</span>
                                         <span class="info-value">{{ form.documentType }}: {{ form.documentNumber
-                                            }}</span>
+                                        }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -651,7 +652,6 @@ const generateOrder = async () => {
                 }
             };
         }));
-
 
         // Crear orden y actualizar stock
         const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {

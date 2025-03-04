@@ -115,6 +115,7 @@ export const useCartStore = defineStore("cart", () => {
             discountPercentage: product.discountPercentage,
             stock: product.stock,
             active: product.active,
+            carousel: product.carousel,
             isPromoted: product.isPromoted,
             imageUrl: product.imageUrl,
             promotionStartDate: product.promotionStartDate,

@@ -643,6 +643,7 @@ const generateOrder = async () => {
                     categories: item.product?.categories || [],
                     stock: item.product?.stock || 0,
                     active: item.product?.active || false,
+                    carousel: item.product?.carousel || false,
                     isPromoted: item.product?.isPromoted || false,
                     promotionStartDate: item.product?.promotionStartDate || '',
                     promotionEndDate: item.product?.promotionEndDate || '',

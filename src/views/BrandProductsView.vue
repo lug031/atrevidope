@@ -1,13 +1,23 @@
 <template>
     <MainLayout>
-        <div v-if="brandsCarousel && brandsCarousel.length > 0" class="brand-products">
+        <!-- Loading state for the entire component -->
+        <div v-if="loading" class="loading-state">
+            <span class="loader"></span>
+        </div>
+
+        <!-- Error state -->
+        <div v-else-if="error" class="error-state">
+            {{ error }}
+        </div>
+
+        <!-- Content when data is loaded and brand is active -->
+        <div v-else-if="currentBrand && currentBrand.active" class="brand-products">
             <!-- Header Section -->
             <div class="brand-header">
                 <div class="brand-header-content">
                     <div v-if="currentBrand && currentBrand.logo" class="brand-logo">
                         <img :src="brandLogoUrl" :alt="currentBrand.name" />
                     </div>
-                    <!-- <h1 class="brand-title">{{ currentBrand?.name || 'Productos' }}</h1> -->
 
                     <h1 class="brand-title">
                         <template v-if="loadingBrandName">
@@ -38,15 +48,7 @@
             </div>
 
             <!-- Products Grid -->
-            <div v-if="loading" class="loading-state">
-                <span class="loader"></span>
-            </div>
-
-            <div v-else-if="error" class="error-state">
-                Lo sentimos, ha ocurrido un error al cargar los productos.
-            </div>
-
-            <div v-else-if="sortedProducts.length === 0" class="empty-state">
+            <div v-if="sortedProducts.length === 0" class="empty-state">
                 No hay productos disponibles de esta marca.
             </div>
 
@@ -112,15 +114,11 @@
                             </div>
                         </div>
                     </router-link>
-
-                    <!-- <button @click.stop="addToCart(product)" class="add-to-cart"
-                        :class="{ 'disabled': product.stock === 0 }" :disabled="product.stock === 0">
-                        {{ product.stock === 0 ? 'AGOTADO' : 'AÑADIR AL CARRITO' }}
-                    </button> -->
                 </div>
             </div>
         </div>
 
+        <!-- Not available message -->
         <div v-else class="empty-brands-container">
             <div class="empty-brands-message">
                 Esta marca no esta disponible en este momento.
@@ -397,25 +395,32 @@ const loadBrandProductsMounted = async () => {
     error.value = null;
 
     try {
-        await loadBrandProducts();
+        await loadBrandInfo();
+
+        // Verificar si la marca está activa antes de cargar productos
+        if (currentBrand.value && currentBrand.value.active) {
+            await loadBrandProducts();
+        } else {
+            // No cargar productos si la marca no está activa
+            productsByBrand.value = [];
+        }
     } catch (err) {
-        error.value = 'Hubo un error al cargar productos de la marca.';
+        console.error('Error al cargar datos de la marca:', err);
+        error.value = 'Hubo un error al cargar información de la marca.';
     } finally {
         loading.value = false;
     }
 };
 
 onMounted(async () => {
-    await loadBrandInfo();
-    await loadBrandProductsMounted();
+    loadBrandProductsMounted();
 });
 
 watch(
     () => route.params.brandId,
     async (newBrandId) => {
         if (newBrandId) {
-            await loadBrandInfo();
-            await loadBrandProductsMounted();
+            loadBrandProductsMounted();
         }
     }
 );

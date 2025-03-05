@@ -72,7 +72,11 @@
                             <th>Items</th>
                             <th>Total</th>
                             <th>Estado</th>
-                            <th>Fecha</th>
+                            <!-- Encabezado de fecha sorteable -->
+                            <th @click="toggleSort('createdAt')" class="sortable-header">
+                                Fecha
+                                <span class="sort-icon">{{ getSortIcon('createdAt') }}</span>
+                            </th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -246,6 +250,10 @@
                             <span>Subtotal</span>
                             <span>S/{{ formatPrice(selectedOrder?.subtotal) }}</span>
                         </div>
+                        <div v-if="selectedOrder?.paymentMethod === 'izipay'" class="summary-item">
+                            <span class="summary-label">Comisión Izipay (4%)</span>
+                            <span class="summary-value">S/. {{ (selectedOrder?.subtotal * 0.04).toFixed(2) }}</span>
+                        </div>
                         <!-- <div class="summary-item">
                             <span>Envío</span>
                             <span>S/{{ formatPrice(selectedOrder?.shipping) }}</span>
@@ -312,7 +320,20 @@ const selectedOrder = ref<Order | null>(null)
 //const orderProducts = ref<Record<string, Product>>({})
 const productImages = ref<Record<string, string>>({})
 
+const sortField = ref<keyof Order>('createdAt')
+const sortDirection = ref('desc')
 //const { products, loadProducts } = useProducts()
+
+const toggleSort = (field: any) => {
+    if (sortField.value === field) {
+        // Si ya estamos ordenando por este campo, cambiamos la dirección
+        sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+    } else {
+        // Si es un nuevo campo, establecemos el campo y dirección por defecto
+        sortField.value = field
+        sortDirection.value = 'desc' // Por defecto de más reciente a más antiguo
+    }
+}
 
 const loadOrderProducts = async () => {
     if (!selectedOrder.value) return
@@ -427,16 +448,53 @@ const loadProductImages = async () => {
 }
 
 const filteredOrders = computed(() => {
-    if (!searchQuery.value) return orders.value
+    let result = orders.value
 
-    const query = searchQuery.value.toLowerCase()
-    return orders.value.filter(order =>
-        order.customerInfo.firstName.toLowerCase().includes(query) ||
-        order.customerInfo.lastName.toLowerCase().includes(query) ||
-        order.customerInfo.email.toLowerCase().includes(query) ||
-        order.id?.toLowerCase().includes(query)
-    )
+    // Aplicar filtro de búsqueda
+    if (searchQuery.value) {
+        const query = searchQuery.value.toLowerCase()
+        result = result.filter(order =>
+            order.customerInfo.firstName.toLowerCase().includes(query) ||
+            order.customerInfo.lastName.toLowerCase().includes(query) ||
+            order.customerInfo.email.toLowerCase().includes(query) ||
+            order.id?.toLowerCase().includes(query)
+        )
+    }
+
+    // Aplicar ordenamiento
+    if (sortField.value) {
+        result = [...result].sort((a, b) => {
+            let valA, valB
+
+            // Manejar campos anidados como createdAt
+            if (sortField.value === 'createdAt') {
+                valA = new Date(a.createdAt || 0).getTime()
+                valB = new Date(b.createdAt || 0).getTime()
+            } else {
+                // Para otros campos si los agregas en el futuro
+                valA = a[sortField.value as keyof Order]
+                valB = b[sortField.value as keyof Order]
+            }
+
+            // Comparar valores
+            if (sortDirection.value === 'asc') {
+                if (valA === undefined || valB === undefined) return 0;
+                return valA > valB ? 1 : -1;
+            } else {
+                if (valA === undefined || valB === undefined) return 0;
+                return valA < valB ? 1 : -1;
+            }
+        })
+    }
+
+    return result
 })
+
+// Función auxiliar para mostrar el indicador de dirección de ordenamiento
+const getSortIcon = (field: string) => {
+    if (sortField.value !== field) return null
+    return sortDirection.value === 'asc' ? '↑' : '↓'
+}
 
 const formatPrice = (price?: number) => {
     return price?.toFixed(2) ?? '0.00'
@@ -920,6 +978,46 @@ watch(
 .status-badge.cancelled {
     background: #fee2e2;
     color: #991b1b;
+}
+
+/* Estilos para encabezados sorteables */
+.sortable-header {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.sortable-header:hover {
+    background-color: #e5e7eb;
+}
+
+.sort-icon {
+    margin-left: 0.5rem;
+    font-weight: bold;
+    font-size: 0.875rem;
+    color: #383838;
+}
+
+/* Opcional: añadir un indicador visual para mostrar que es sorteable */
+.sortable-header::after {
+    content: '';
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    margin-left: 0.25rem;
+    opacity: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='16' height='16' stroke='currentColor' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    transition: opacity 0.2s ease;
+}
+
+.sortable-header:hover::after {
+    opacity: 0.5;
 }
 
 /* Order Date */

@@ -306,7 +306,7 @@
                                                     <div class="info-row">
                                                         <span class="info-label">Monto:</span>
                                                         <span class="info-value highlight">S/ {{ order.total.toFixed(2)
-                                                            }}</span>
+                                                        }}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -433,6 +433,12 @@
                                         <span class="summary-label">Subtotal</span>
                                         <span class="summary-value">S/. {{ order.subtotal.toFixed(2) }}</span>
                                     </div>
+
+                                    <div v-if="order.paymentMethod === 'izipay'" class="summary-row">
+                                        <span class="summary-label">Comisión Izipay (4%)</span>
+                                        <span class="summary-value">S/. {{ (order.subtotal * 0.04).toFixed(2) }}</span>
+                                    </div>
+
                                     <!-- <div class="summary-row">
                                         <span class="summary-label">Envío</span>
                                         <span class="summary-value">{{ order.shipping > 0 ? `S/.
@@ -905,9 +911,15 @@ const formatOrderWhatsAppMessage = (order: Order) => {
 
     const paymentMethod = paymentMethodMap[order.paymentMethod as PaymentMethod] || order.paymentMethod;
 
+    const izipayCommission = order.paymentMethod === 'izipay' ?
+        (order.subtotal * 0.04).toFixed(2) : 0;
+    const izipayCommissionText = order.paymentMethod === 'izipay' ?
+        `Comisión Izipay (4%): S/. ${izipayCommission}\n` : '';
+
     const totalsDetails =
         `\n*TOTALES*\n` +
         `Subtotal: S/. ${subtotal.toFixed(2)}\n` +
+        izipayCommissionText +
         /*`Envío: ${shipping > 0 ? `S/. ${shipping.toFixed(2)}` : 'Gratis'}\n` +*/
         `Total: S/. ${total.toFixed(2)}`;
 

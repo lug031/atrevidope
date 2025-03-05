@@ -64,7 +64,7 @@
                                         @input="validateDocumentNumber" :class="{ 'error': errors.documentNumber }"
                                         :maxlength="getDocumentMaxLength">
                                     <span class="error-message" v-if="errors.documentNumber">{{ errors.documentNumber
-                                    }}</span>
+                                        }}</span>
                                 </div>
                             </div>
 
@@ -233,7 +233,7 @@
                                     <div class="info-item">
                                         <span class="info-label">Documento</span>
                                         <span class="info-value">{{ form.documentType }}: {{ form.documentNumber
-                                        }}</span>
+                                            }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -310,6 +310,10 @@
                                 <span>Envío</span>
                                 <span>{{ shippingCost > 0 ? `S/. ${shippingCost.toFixed(2)}` : 'Gratis' }}</span>
                             </div> -->
+                            <div v-if="form.paymentMethod === 'izipay'" class="summary-row izipay-commission">
+                                <span>Comisión Izipay (4%)</span>
+                                <span>S/. {{ izipayCommission.toFixed(2) }}</span>
+                            </div>
                             <div class="summary-row total">
                                 <span>Total</span>
                                 <span>S/. {{ total.toFixed(2) }}</span>
@@ -341,7 +345,7 @@ const router = useRouter();
 const auth = useAuthStore();
 const { createOrder } = useOrders();
 const { showToast } = useToast();
-const { items: cartItems, shippingCost, subtotal, total, validItems, clearCart, updateQuantity, removeFromCart } = useCart();
+const { items: cartItems, shippingCost, subtotal, izipayCommission, total, validItems, clearCart, updateQuantity, removeFromCart } = useCart({ paymentMethod: computed(() => form.value.paymentMethod) });
 
 const steps = ['Identificación', 'Entrega y Pago', 'Resumen de pago'];
 const currentStep = ref(0);
@@ -970,6 +974,40 @@ onMounted(() => {
 .promotional {
     color: #e53e3e;
 }
+
+.izipay-commission {
+    color: #e53e3e;
+    font-weight: 500;
+    animation: highlight-fade 2s ease-out;
+    /* Animación sutil cuando aparece */
+}
+
+/* Animación para destacar brevemente cuando aparece la comisión */
+@keyframes highlight-fade {
+    0% {
+        background-color: rgba(229, 62, 62, 0.1);
+    }
+
+    100% {
+        background-color: transparent;
+    }
+}
+
+/* Puedes añadir un icono informativo al lado de la comisión */
+.izipay-commission span:first-child {
+    display: flex;
+    align-items: center;
+}
+/*
+.izipay-commission span:first-child::before {
+    content: '';
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 6px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e53e3e'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z'/%3E%3C/svg%3E");
+    background-size: contain;
+}*/
 
 .discount-badge {
     background-color: #e53e3e;

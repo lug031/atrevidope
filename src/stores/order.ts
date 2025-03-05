@@ -97,6 +97,27 @@ export const useOrderStore = defineStore("order", () => {
       loading.value = false;
     }
   };
+  
+  /*const fetchOrders = async () => {
+    loading.value = true;
+    try {
+      const { data: items } = await authClient.models.Order.list();
+
+      const sortedItems = [...items].sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+
+        return dateA - dateB;
+      });
+
+      orders.value = sortedItems.map(parseOrderData);
+    } catch (err) {
+      error.value = "Error al cargar pedidos";
+      console.error(err);
+    } finally {
+      loading.value = false;
+    }
+  };*/
 
   const parseOrderData = (order: any): Order => {
     if (!order) {

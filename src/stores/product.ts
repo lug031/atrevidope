@@ -105,8 +105,20 @@ export const useProductStore = defineStore("product", () => {
   const fetchProductsByBrand = async (brandId: string) => {
     loading.value = true;
     error.value = null;
-
     try {
+      // Obtener información de la marca
+      const { data: brand } = await publicClient.models.Brand.get({
+        id: brandId,
+      });
+
+      // Si la marca no existe o no está activa, retornar lista vacía
+      if (!brand || brand.active !== true) {
+        productsByBrand.value = [];
+        return;
+      }
+
+      const brandName = brand.name ?? "";
+
       const { data: productsResult } = await publicClient.models.Product.list({
         filter: {
           brandID: { eq: brandId },
@@ -117,19 +129,6 @@ export const useProductStore = defineStore("product", () => {
       if (!productsResult) {
         productsByBrand.value = [];
         return;
-      }
-
-      // Obtener información de la marca para saber su nombre
-      let brandName = "";
-      try {
-        const { data: brand } = await publicClient.models.Brand.get({
-          id: brandId,
-        });
-        if (brand) {
-          brandName = brand.name ?? "";
-        }
-      } catch (e) {
-        console.error("Error al obtener información de la marca:", e);
       }
 
       // Obtener categorías para cada producto y asignar el nombre de la marca
@@ -145,7 +144,7 @@ export const useProductStore = defineStore("product", () => {
           if (!productCategories) {
             return {
               ...product,
-              brand: brandName, // Asignar el nombre real de la marca
+              brand: brandName,
               categories: [],
             };
           }
@@ -164,10 +163,9 @@ export const useProductStore = defineStore("product", () => {
             });
 
           const categories = await Promise.all(categoriesPromises);
-
           return {
             ...product,
-            brand: brandName, // Asignar el nombre real de la marca
+            brand: brandName,
             categories: categories.filter(
               (category): category is NonNullable<typeof category> =>
                 category !== null

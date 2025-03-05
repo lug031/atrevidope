@@ -238,14 +238,23 @@ const loadBrandLogo = async () => {
 const loadImageUrls = async () => {
     if (!productsByBrand.value) return;
 
-    const productsToLoad = productsByBrand.value
-        .filter(product => product.imageUrl)
-        .map(product => ({
-            id: product.id,
-            imageUrl: product.imageUrl || ''
-        }));
+    // Cargar primero las imágenes visibles en la pantalla
+    const visibleProducts = productsByBrand.value.slice(0, 8); // Ajusta según sea necesario
+    await preloadImages(visibleProducts.map(product => ({
+        id: product.id,
+        imageUrl: product.imageUrl || ''
+    })));
 
-    await preloadImages(productsToLoad);
+    // Luego cargar el resto de las imágenes
+    if (productsByBrand.value.length > 8) {
+        const remainingProducts = productsByBrand.value.slice(8);
+        setTimeout(() => {
+            preloadImages(remainingProducts.map(product => ({
+                id: product.id,
+                imageUrl: product.imageUrl || ''
+            })));
+        }, 300);
+    }
 };
 
 const isOneDayPromotion = (product: Product) => {
@@ -395,15 +404,12 @@ const loadBrandProductsMounted = async () => {
     error.value = null;
 
     try {
-        await loadBrandInfo();
-
-        // Verificar si la marca está activa antes de cargar productos
-        if (currentBrand.value && currentBrand.value.active) {
-            await loadBrandProducts();
-        } else {
-            // No cargar productos si la marca no está activa
-            productsByBrand.value = [];
-        }
+        // Cargar la información de la marca y los productos en paralelo
+        const [brandInfoResult] = await Promise.all([
+            loadBrandInfo(),
+            // Solo cargar productos si la marca está activa
+            currentBrand.value?.active ? loadBrandProducts() : Promise.resolve()
+        ]);
     } catch (err) {
         console.error('Error al cargar datos de la marca:', err);
         error.value = 'Hubo un error al cargar información de la marca.';

@@ -54,6 +54,12 @@ const navigationItems: NavigationItem[] = [
         label: 'Pedidos'
     },
     {
+        path: '/admin/brands',
+        icon: TagIcon,
+        label: 'Marcas',
+        disabled: false
+    },
+    {
         path: '/admin/categories',
         icon: ListIcon,
         label: 'Categorías'
@@ -76,12 +82,6 @@ const navigationItems: NavigationItem[] = [
         label: 'Usuarios',
         disabled: true
     },
-    {
-        path: '/admin/brands',
-        icon: TagIcon,
-        label: 'Marcas',
-        disabled: true
-    }
 ]
 
 defineProps<{
@@ -108,7 +108,7 @@ const handleItemClick = (item: NavigationItem) => {
     width: 100%;
     height: 100vh;
     background-color: rgba(159, 159, 159, 0.367);
-    z-index: 1000;
+    z-index: 2000;
     display: flex;
 }
 

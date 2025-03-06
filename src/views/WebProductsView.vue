@@ -45,7 +45,7 @@
             </div>
 
             <div class="product-image">
-              <img :src="imageUrls[product.id] || '/api/placeholder/40/40'" :alt="product.name" />
+              <img :src="imageCache[product.id] || '/api/placeholder/40/40'" :alt="product.name" loading="lazy" />
             </div>
 
             <div class="product-info">
@@ -55,10 +55,17 @@
               <div class="formatted-description" v-html="parseMarkdown(truncateText(product.description, 100))" />
 
               <!-- Precios -->
-              <div class="price-info" :class="{ 'has-promotion': hasUpcomingPromotion(product) }">
+              <div class="price-info" :class="{
+                'has-promotion': hasUpcomingPromotion(product),
+                'expired-promotion': hasExpiredPromotion(product)
+              }">
                 <p class="product-price">
-                  <template v-if="hasUpcomingPromotion(product)">
+                  <template v-if="hasUpcomingPromotion(product) || hasExpiredPromotion(product)">
                     <span class="current-price">S/{{ product.originalPrice.toFixed(2) }}</span>
+                  </template>
+                  <template v-else-if="isActivePromotion(product)">
+                    <span class="promotion-price">S/{{ product.price.toFixed(2) }}</span>
+                    <span class="original-price">S/{{ product.originalPrice.toFixed(2) }}</span>
                   </template>
                   <template v-else>
                     <span class="current-price">S/{{ product.price.toFixed(2) }}</span>
@@ -84,6 +91,9 @@
           </button> -->
         </div>
       </div>
+      <div v-if="!loading && !error && productsWeb.length === 0" class="empty-state">
+        No hay productos disponibles.
+      </div>
     </div>
   </MainLayout>
 </template>
@@ -97,13 +107,16 @@ import { useToast } from '../composables/useToast';
 import type { Product } from '@/types/product.types';
 import type { CartItem } from '@/types/cart.types';
 import { uploadData, getUrl } from 'aws-amplify/storage';
+import { useImageCache } from '@/composables/useImageCache';
 
+const { imageCache, getImageUrl, preloadImages } = useImageCache();
 const imageUrls = ref<Record<string, string>>({});
-const { products, loading, error, loadProducts } = useProducts();
+const { productsWeb, loadProductsWeb } = useProducts();
 const cartStore = useCartStore();
 const { showToast } = useToast();
 const sortBy = ref('position');
-
+const loading = ref(true);
+const error = ref<string | null>(null);
 const truncateText = (text: string, maxLength: number = 100): string => {
   if (!text) return '';
 
@@ -164,16 +177,15 @@ const parseMarkdown = (text: string): string => {
 };
 
 const loadImageUrls = async () => {
-  for (const product of products.value) {
-    if (product.imageUrl) {
-      try {
-        const { url } = await getUrl({ path: product.imageUrl });
-        imageUrls.value[product.id] = url.toString();
-      } catch (error) {
-        console.error("Error cargando imagen:", error);
-      }
-    }
-  }
+  if (!productsWeb.value) return;
+
+  // Precargar todas las imágenes
+  await preloadImages(
+    productsWeb.value.map(product => ({
+      id: product.id,
+      imageUrl: product.imageUrl || ''
+    }))
+  );
 };
 
 const hasUpcomingPromotion = (product: Product): boolean => {
@@ -188,6 +200,24 @@ const hasUpcomingPromotion = (product: Product): boolean => {
   }
 
   return product.promotionStartDate > currentDate;
+};
+
+const hasExpiredPromotion = (product: Product): boolean => {
+  if (!product.isPromoted || !product.promotionStartDate || !product.promotionEndDate) {
+    return false;
+  }
+
+  const currentDate = getCurrentPeruDate();
+  return currentDate > product.promotionEndDate;
+};
+
+const isActivePromotion = (product: Product): boolean => {
+  if (!product.isPromoted || !product.promotionStartDate || !product.promotionEndDate) {
+    return false;
+  }
+
+  const currentDate = getCurrentPeruDate();
+  return currentDate >= product.promotionStartDate && currentDate <= product.promotionEndDate;
 };
 
 const shouldShowProduct = (product: Product): boolean => {
@@ -231,24 +261,30 @@ const formatPromotionDate = (dateStr: string | undefined): string => {
   }).format(date);
 };
 
-const calculateDiscountedPrice = (product: Product): number => {
-  if (!product.price || !product.discountPercentage) {
-    return product.price || 0;
+const getEffectivePrice = (product: Product): number => {
+  // Si hay promoción activa, usar precio con descuento
+  if (isActivePromotion(product)) {
+    return product.price || 0; // El precio ya tiene el descuento aplicado
   }
-  return product.price * (1 - product.discountPercentage / 100);
+  // Si hay promoción futura o expirada, usar originalPrice
+  else if (hasUpcomingPromotion(product) || hasExpiredPromotion(product)) {
+    return product.originalPrice || 0;
+  }
+  // En cualquier otro caso, usar precio normal
+  return product.price || 0;
 };
 
 const sortedProducts = computed(() => {
-  if (!products.value) return [];
+  if (!productsWeb.value) return [];
 
-  const productsToShow = products.value.filter(product => shouldShowProduct(product));
+  const productsToShow = productsWeb.value.filter(product => shouldShowProduct(product));
 
   return productsToShow.sort((a, b) => {
     switch (sortBy.value) {
       case 'price-asc':
-        return (a.price || 0) - (b.price || 0);
+        return getEffectivePrice(a) - getEffectivePrice(b);
       case 'price-desc':
-        return (b.price || 0) - (a.price || 0);
+        return getEffectivePrice(b) - getEffectivePrice(a);
       case 'name':
         return (a.name || '').localeCompare(b.name || '');
       default:
@@ -284,11 +320,24 @@ const addToCart = (product: Product) => {
   });
 };
 
+const loadProductsWebMounted = async () => {
+  loading.value = true;
+  error.value = null;
+
+  try {
+    await loadProductsWeb();
+  } catch (err) {
+    error.value = 'Hubo un error al cargar los productos.';
+  } finally {
+    loading.value = false;
+  }
+};
+
 onMounted(() => {
-  loadProducts();
+  loadProductsWebMounted();
 });
 
-watch(() => products.value, () => {
+watch(() => productsWeb.value, () => {
   loadImageUrls();
 }, { immediate: true });
 </script>
@@ -370,6 +419,8 @@ watch(() => products.value, () => {
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  z-index: 10;
+  /* Add z-index to make it appear on top */
 }
 
 .promotion-date {
@@ -488,6 +539,15 @@ watch(() => products.value, () => {
   }
 }
 
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  color: #6b7280;
+  font-size: 1.1rem;
+}
+
 /* Rest of the styles remain the same */
 .filter-section {
   display: flex;
@@ -536,12 +596,31 @@ watch(() => products.value, () => {
 }
 
 .product-image {
+  position: relative;
+  width: 100%;
+  height: 400px;
+  /* Altura fija para todas las imágenes */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f8f8f8;
   margin-bottom: 15px;
+
+  overflow: hidden;
+  border-radius: 4px;
 }
 
 .product-image img {
-  max-width: 100%;
-  height: auto;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Mantiene la proporción y cubre el espacio */
+  object-position: center;
+  transition: transform 0.3s ease;
+}
+
+.product-content:hover .product-image img {
+  transform: scale(1.05);
 }
 
 .brand-name {

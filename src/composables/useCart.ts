@@ -1,10 +1,10 @@
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useCartStore } from "@/stores/cart";
 import { storeToRefs } from "pinia";
 import type { Product } from "@/types/product.types";
 import type { CartItem } from "@/types/cart.types";
 
-export function useCart() {
+export function useCart(options = { paymentMethod: ref('') }) {
   const cartStore = useCartStore();
   const { items, loading, error, showNotification } = storeToRefs(cartStore);
 
@@ -29,9 +29,22 @@ export function useCart() {
     )
   );
 
-  const total = computed(() => {
-    return subtotal.value + shippingCost.value;
+  const izipayCommissionRate = 0.04; // 4%
+
+  const izipayCommission = computed(() => {
+    return options.paymentMethod.value === "izipay"
+      ? Math.round(subtotal.value * izipayCommissionRate * 100) / 100
+      : 0;
   });
+
+  // Modificamos el cálculo del total para incluir la comisión cuando corresponda
+  const total = computed(() => {
+    return subtotal.value + izipayCommission.value;
+  });
+
+  /*const total = computed(() => {
+    return subtotal.value + shippingCost.value;
+  });*/
 
   const shippingCost = computed(() => {
     // If subtotal is 0 or greater than/equal to 200, shipping is free
@@ -119,6 +132,10 @@ export function useCart() {
     total,
     shippingCost,
     hasItems,
+
+    // Izipay
+    izipayCommission,
+    izipayCommissionRate,
 
     // Métodos
     loadCartItems,

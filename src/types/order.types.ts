@@ -1,5 +1,8 @@
 // order.types.ts
 
+import type { Category } from "./category.types";
+import type { Product } from "./product.types";
+
 // Tipo para la información del cliente
 export interface CustomerInfo {
   firstName: string;
@@ -10,6 +13,7 @@ export interface CustomerInfo {
   phone: string;
   shippingMethod: "regular";
   invoiceType: "boleta" | "factura";
+  paymentMethod: "izipay" | "yape" | "plin" | "efectivo" | "transferencia";
 }
 
 // Tipo para los items del pedido
@@ -18,6 +22,7 @@ export interface OrderItem {
   quantity: number;
   price: number;
   subtotal: number;
+  productSnapshot: Omit<Product, "id">;
 }
 
 // Tipo para el estado del pedido
@@ -33,6 +38,8 @@ export interface Order {
   shipping: number;
   total: number;
   status: OrderStatus;
+  paymentMethod: string;
+  linkPago?: string;
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }

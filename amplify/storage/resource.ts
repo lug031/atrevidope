@@ -8,5 +8,15 @@ export const storage = defineStorage({
       allow.authenticated.to(["read"]),
       allow.groups(["admin"]).to(["read", "write", "delete"]),
     ],
+    "brands/*": [
+      allow.guest.to(["read"]),
+      allow.authenticated.to(["read"]),
+      allow.groups(["admin"]).to(["read", "write", "delete"]),
+    ],
+    "order-images/*": [
+      allow.guest.to(["read", "write"]),
+      allow.authenticated.to(["read", "write"]),
+      allow.groups(["admin"]).to(["read", "write", "delete"]),
+    ],
   }),
 });

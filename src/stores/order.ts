@@ -21,12 +21,14 @@ type CreateOrderInput = {
   phone: string;
   shippingMethod: string;
   invoiceType: string;
+  paymentMethod: string;
   items: string;
   userEmail: string;
   subtotal: number;
   shipping: number;
   total: number;
   status: "pending" | "processing" | "completed" | "cancelled";
+  linkPago: string;
 };
 
 export const useOrderStore = defineStore("order", () => {
@@ -46,6 +48,7 @@ export const useOrderStore = defineStore("order", () => {
       phone,
       shippingMethod,
       invoiceType,
+      paymentMethod,
     } = orderData.customerInfo;
 
     // Preparar los datos según el schema exacto
@@ -59,6 +62,7 @@ export const useOrderStore = defineStore("order", () => {
       phone,
       shippingMethod,
       invoiceType,
+      paymentMethod,
 
       // Order items como string
       items: Array.isArray(orderData.items)
@@ -75,6 +79,9 @@ export const useOrderStore = defineStore("order", () => {
 
       // Status
       status: "pending",
+
+      // Link de pago
+      linkPago: "",
     };
   };
 
@@ -84,12 +91,33 @@ export const useOrderStore = defineStore("order", () => {
       const { data: items } = await authClient.models.Order.list();
       orders.value = items.map(parseOrderData);
     } catch (err) {
-      error.value = "Error al cargar órdenes";
+      error.value = "Error al cargar pedidos";
       console.error(err);
     } finally {
       loading.value = false;
     }
   };
+  
+  /*const fetchOrders = async () => {
+    loading.value = true;
+    try {
+      const { data: items } = await authClient.models.Order.list();
+
+      const sortedItems = [...items].sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+
+        return dateA - dateB;
+      });
+
+      orders.value = sortedItems.map(parseOrderData);
+    } catch (err) {
+      error.value = "Error al cargar pedidos";
+      console.error(err);
+    } finally {
+      loading.value = false;
+    }
+  };*/
 
   const parseOrderData = (order: any): Order => {
     if (!order) {
@@ -110,6 +138,7 @@ export const useOrderStore = defineStore("order", () => {
         phone: order.phone,
         shippingMethod: order.shippingMethod,
         invoiceType: order.invoiceType,
+        paymentMethod: order.paymentMethod || "",
       };
 
       return {
@@ -121,6 +150,8 @@ export const useOrderStore = defineStore("order", () => {
         shipping: order.shipping,
         total: order.total,
         status: order.status,
+        paymentMethod: order.paymentMethod || "",
+        linkPago: order.linkPago || "",
         createdAt: new Date(order.createdAt),
         updatedAt: new Date(order.updatedAt),
       };
@@ -141,7 +172,7 @@ export const useOrderStore = defineStore("order", () => {
     loading.value = true;
     try {
       const preparedData = prepareOrderData(orderData);
-      //console.log("Prepared order data:", preparedData);
+      console.log("Prepared order data:", preparedData);
 
       const { data: newOrder } = await publicClient.models.Order.create(
         preparedData
@@ -232,7 +263,7 @@ export const useOrderStore = defineStore("order", () => {
       });
       return items.map(parseOrderData);
     } catch (err) {
-      error.value = "Error al cargar órdenes del usuario";
+      error.value = "Error al cargar pedidos del usuario";
       console.error(err);
       throw err;
     } finally {
@@ -256,6 +287,46 @@ export const useOrderStore = defineStore("order", () => {
     }
   };
 
+  const updateOrderPaymentLink = async (id: string, linkPago: string) => {
+    loading.value = true;
+    try {
+      // Usamos el cliente apropiado según si es administrador o usuario público
+      const client = authClient; // Para administradores (podría cambiarse según lógica de negocio)
+
+      const { data: updatedOrder } = await client.models.Order.update({
+        id,
+        linkPago, // Actualizamos solo el enlace de pago
+      });
+
+      if (!updatedOrder) {
+        throw new Error(
+          "No se recibió respuesta del servidor al actualizar el enlace de pago"
+        );
+      }
+
+      // Actualizamos la lista de órdenes si es necesario
+      await fetchOrders();
+
+      return parseOrderData(updatedOrder);
+    } catch (err) {
+      if (isGraphQLError(err)) {
+        const errorMessage = err.errors?.[0]?.message;
+        error.value = errorMessage
+          ? `Error al actualizar enlace de pago: ${errorMessage}`
+          : "Error al actualizar enlace de pago";
+      } else if (err instanceof Error) {
+        error.value = err.message;
+      } else {
+        error.value = "Error desconocido al actualizar enlace de pago";
+      }
+
+      console.error("Error detallado:", err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
   return {
     orders,
     loading,
@@ -264,6 +335,7 @@ export const useOrderStore = defineStore("order", () => {
     createOrder,
     updateOrderStatus,
     fetchUserOrders,
+    updateOrderPaymentLink,
     getOrder,
   };
 });

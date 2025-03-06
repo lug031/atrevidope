@@ -6,7 +6,21 @@ const schema = a.schema({
       name: a.string(),
       description: a.string(),
       active: a.boolean(),
-      products: a.hasMany("Product", "categoryID"),
+      products: a.hasMany("ProductCategory", "categoryID"),
+    })
+    .authorization((allow) => [
+      allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
+      allow.authenticated().to(["read"]),
+      allow.publicApiKey().to(["read"]),
+    ]),
+
+  Brand: a
+    .model({
+      name: a.string(),
+      description: a.string(),
+      logo: a.string(),
+      active: a.boolean(),
+      products: a.hasMany("Product", "brandID"),
     })
     .authorization((allow) => [
       allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
@@ -17,16 +31,17 @@ const schema = a.schema({
   Product: a
     .model({
       name: a.string(),
-      brand: a.string(),
       description: a.string(),
       price: a.float(),
       originalPrice: a.float(),
       discountPercentage: a.integer(),
       stock: a.integer(),
       active: a.boolean(),
+      carousel: a.boolean(),
       isPromoted: a.boolean(),
-      categoryID: a.string(),
-      category: a.belongsTo("Category", "categoryID"),
+      categories: a.hasMany("ProductCategory", "productID"),
+      brandID: a.string(),
+      brand: a.belongsTo("Brand", "brandID"),
       imageUrl: a.string(),
       promotionStartDate: a.string(),
       promotionEndDate: a.string(),
@@ -38,6 +53,20 @@ const schema = a.schema({
       allow.authenticated().to(["read"]),
       allow.publicApiKey().to(["read"]),
     ]),
+
+  ProductCategory: a
+    .model({
+      productID: a.string(),
+      categoryID: a.string(),
+      product: a.belongsTo("Product", "productID"),
+      category: a.belongsTo("Category", "categoryID"),
+    })
+    .authorization((allow) => [
+      allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
+      allow.authenticated().to(["read"]),
+      allow.publicApiKey().to(["read"]),
+    ]),
+
   Cart: a
     .model({
       userID: a.string(),
@@ -71,6 +100,7 @@ const schema = a.schema({
       allow.authenticated().to(["read"]),
       allow.publicApiKey().to(["read"]),
     ]),
+
   Order: a
     .model({
       // Customer Info como campos individuales
@@ -95,6 +125,11 @@ const schema = a.schema({
 
       // Status
       status: a.enum(["pending", "processing", "completed", "cancelled"]),
+
+      // Payment
+      // Metodo de pago
+      paymentMethod: a.string(),
+      linkPago: a.string(),
 
       createdAt: a.datetime(),
       updatedAt: a.datetime(),

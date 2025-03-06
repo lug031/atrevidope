@@ -43,6 +43,7 @@
                             <th>Stock</th>
                             <th>Promoción</th>
                             <th>Estado</th>
+                            <th>Carousel</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -96,6 +97,13 @@
                                 </span>
                             </td>
                             <td>
+                                <div class="carousel-toggle">
+                                    <input type="checkbox" :id="'carousel-' + product.id" :checked="product.carousel"
+                                        @change="toggleCarousel(product)" class="carousel-checkbox" />
+                                    <label :for="'carousel-' + product.id" class="carousel-label"></label>
+                                </div>
+                            </td>
+                            <td>
                                 <div class="action-buttons">
                                     <button class="icon-button edit" @click="handleEdit(product)" title="Editar">
                                         <EditIcon :size="18" />
@@ -123,7 +131,7 @@
         </div>
 
         <!-- Modal actualizado -->
-        <Modal v-if="showCreateModal" :title="editingId ? 'Editar Producto' : 'Nuevo Producto'"
+        <Modal v-if="showCreateModal" :title="editingId ? 'Editar Producto' : 'Nuevo Producto'" :loading="isSubmitting"
             @close="handleCloseModal">
             <form @submit.prevent="handleSubmit" class="product-form">
                 <!-- Campos básicos -->
@@ -134,7 +142,12 @@
 
                 <div class="form-group">
                     <label for="brand">Marca</label>
-                    <input id="brand" v-model="formData.brand" type="text" class="form-input" required />
+                    <select id="brand" v-model="formData.brandID" class="form-input" required>
+                        <option value="">Selecciona una marca</option>
+                        <option v-for="brand in brands" :key="brand.id" :value="brand.id" :disabled="!brand.active">
+                            {{ brand.name }}
+                        </option>
+                    </select>
                 </div>
 
                 <!--<div class="form-group">
@@ -295,7 +308,7 @@
                 </div>
 
                 <!-- Campo de categoría -->
-                <div class="form-group">
+                <!-- <div class="form-group">
                     <label for="category">Categoría</label>
                     <select id="category" v-model="formData.categoryID" class="form-input" required>
                         <option value="">Selecciona una categoría</option>
@@ -304,6 +317,26 @@
                             {{ category.name }}
                         </option>
                     </select>
+                </div> -->
+
+                <div class="form-group">
+                    <label>Categorías</label>
+                    <div class="categories-container">
+                        <div class="categories-tags">
+                            <button v-for="category in categories" :key="category.id" type="button" :class="[
+                                'category-tag',
+                                formData.categoryIDs.includes(category.id) ? 'selected' : '',
+                                !category.active ? 'disabled' : ''
+                            ]" :disabled="!category.active" @click="toggleCategory(category.id)">
+                                {{ category.name }}
+                                <XIcon v-if="formData.categoryIDs.includes(category.id)" :size="14"
+                                    class="remove-icon" />
+                            </button>
+                        </div>
+                        <span v-if="formData.categoryIDs.length === 0" class="categories-hint">
+                            Selecciona al menos una categoría
+                        </span>
+                    </div>
                 </div>
 
                 <!-- Campo de imagen
@@ -339,13 +372,18 @@
                         <input type="checkbox" v-model="formData.active" />
                         Producto activo
                     </label>
+
+                    <label class="checkbox-label">
+                        <input type="checkbox" v-model="formData.carousel" />
+                        Producto carousel
+                    </label>
                 </div>
 
                 <div class="modal-footer">
-                    <button type="button" class="secondary-button" @click="handleCloseModal">
+                    <button type="button" class="secondary-button" @click="handleCloseModal" :disabled="isSubmitting">
                         Cancelar
                     </button>
-                    <button type="submit" class="primary-button" :disabled="loading">
+                    <button type="submit" class="primary-button" :disabled="isSubmitting">
                         {{ editingId ? 'Actualizar' : 'Crear' }}
                     </button>
                 </div>
@@ -385,6 +423,7 @@ import Modal from '@/components/Modal.vue'
 import { uploadData, getUrl } from 'aws-amplify/storage';
 import ImageModal from '@/components/ImageModal.vue'
 import { useToast } from '@/composables/useToast';
+import { useBrands } from '@/composables/useBrands'
 
 const imageUrls = ref<Record<string, string>>({});
 const promotionDuration = ref('single')
@@ -392,12 +431,23 @@ const markdownPreview = computed(() => {
     return simpleMarkdown(formData.value.description)
 })
 const formError = ref('')
+const isSubmitting = ref(false)
+const { brands, loadBrands } = useBrands()
 
 const validateForm = (): boolean => {
     // Limpiamos error previo
     formError.value = ''
 
-    // Validamos que si hay promoción, el descuento debe ser mayor a 0
+    if (!formData.value.brandID) {
+        formError.value = 'Debes seleccionar una marca'
+        return false
+    }
+
+    if (formData.value.categoryIDs.length === 0) {
+        formError.value = 'Debes seleccionar al menos una categoría'
+        return false
+    }
+
     if (formData.value.isPromoted && (!formData.value.discountPercentage || formData.value.discountPercentage <= 0)) {
         formError.value = 'Cuando se aplica una promoción, el descuento debe ser mayor a 0'
         return false
@@ -497,7 +547,7 @@ const insertMarkdown = (syntax: string) => {
     textarea.focus()
 }
 
-const decreaseStock = async (product: { stock: number; id: string; name: any }) => {
+const decreaseStock = async (product: Product) => {
     if (product.stock <= 0) return;
 
     try {
@@ -506,43 +556,72 @@ const decreaseStock = async (product: { stock: number; id: string; name: any }) 
             stock: product.stock - 1
         };
 
-        await updateProduct(product.id, updatedProduct);
+        // Obtener los IDs de las categorías actuales del producto
+        const categoryIds = product.categories?.map(cat => cat.id) || [];
 
-        // Añadir clase de animación al badge
+        await updateProduct(product.id, updatedProduct, categoryIds);
+
+        // Animación del badge
         const badge = document.querySelector(`[data-product-id="${product.id}"] .stock-badge`);
         if (badge) {
             badge.classList.add('animate');
             setTimeout(() => badge.classList.remove('animate'), 500);
         }
 
-        // Si el stock es bajo, mostrar una notificación
+        // Notificación de stock bajo
         if (updatedProduct.stock <= 5) {
-            // TODO: Implementar sistema de notificaciones
             showToast({
                 type: 'warning',
                 message: `Stock bajo para ${product.name}: ${updatedProduct.stock} unidades`
             });
         }
     } catch (error) {
+        console.error('Error al actualizar el stock:', error);
         showToast({
             type: 'error',
-            message: `Error al actualizar el stock`
+            message: 'Error al actualizar el stock'
         });
-        console.error('Error al actualizar el stock:', error);
-        // TODO: Mostrar mensaje de error al usuario
     }
 };
 
-const increaseStock = async (product: { stock: number; id: string }) => {
+const toggleCarousel = async (product: Product) => {
+    try {
+        const updatedProduct = {
+            ...product,
+            carousel: !product.carousel
+        };
+
+        // Obtener los IDs de las categorías actuales del producto
+        const categoryIds = product.categories?.map(cat => cat.id) || [];
+
+        await updateProduct(product.id, updatedProduct, categoryIds);
+
+        showToast({
+            type: 'success',
+            message: `Producto ${updatedProduct.carousel ? 'agregado al' : 'removido del'} carousel`
+        });
+    } catch (error) {
+        console.error('Error al actualizar el estado del carousel:', error);
+        showToast({
+            type: 'error',
+            message: 'Error al actualizar el estado del carousel'
+        });
+    }
+};
+
+const increaseStock = async (product: Product) => {
     try {
         const updatedProduct = {
             ...product,
             stock: product.stock + 1
         };
 
-        await updateProduct(product.id, updatedProduct);
+        // Obtener los IDs de las categorías actuales del producto
+        const categoryIds = product.categories?.map(cat => cat.id) || [];
 
-        // Añadir clase de animación al badge
+        await updateProduct(product.id, updatedProduct, categoryIds);
+
+        // Animación del badge
         const badge = document.querySelector(`[data-product-id="${product.id}"] .stock-badge`);
         if (badge) {
             badge.classList.add('animate');
@@ -550,7 +629,10 @@ const increaseStock = async (product: { stock: number; id: string }) => {
         }
     } catch (error) {
         console.error('Error al actualizar el stock:', error);
-        // TODO: Mostrar mensaje de error al usuario
+        showToast({
+            type: 'error',
+            message: 'Error al actualizar el stock'
+        });
     }
 };
 
@@ -583,18 +665,29 @@ const truncateDescription = (text: string, maxLength: number = 100): string => {
 const initialFormData = {
     name: '',
     brand: '',
+    brandID: '',
     description: '',
     price: 0,
     originalPrice: 0,
     discountPercentage: 0,
     stock: 0,
     active: true,
+    carousel: true,
     isPromoted: false,
-    categoryID: '',
+    categoryIDs: [] as string[],
     imageUrl: '',
     promotionStartDate: '',
     promotionEndDate: '',
     promotionType: 'discount'
+}
+
+const toggleCategory = (categoryId: string) => {
+    const index = formData.value.categoryIDs.indexOf(categoryId);
+    if (index === -1) {
+        formData.value.categoryIDs.push(categoryId);
+    } else {
+        formData.value.categoryIDs.splice(index, 1);
+    }
 }
 
 const formData = ref({ ...initialFormData })
@@ -726,19 +819,28 @@ const handleEdit = (product: Product) => {
     formData.value = {
         name: product.name,
         brand: product.brand,
+        brandID: product.brandID || '',
         description: product.description,
         price: product.price,
         originalPrice: product.originalPrice,
         discountPercentage: product.discountPercentage,
         stock: product.stock,
         active: product.active,
+        carousel: product.carousel,
         isPromoted: product.isPromoted,
-        categoryID: product.categoryID,
+        categoryIDs: product.categories?.map(cat => cat.id) || [],
         imageUrl: product.imageUrl || '',
         promotionStartDate: product.promotionStartDate || '',
         promotionEndDate: product.promotionEndDate || '',
         promotionType: product.promotionType || 'discount'
     }
+
+    if (product.imageUrl && imageUrls.value[product.id]) {
+        imagePreview.value = imageUrls.value[product.id];
+    } else {
+        imagePreview.value = null;
+    }
+
     editingId.value = product.id
     showCreateModal.value = true
 }
@@ -759,33 +861,62 @@ const handleSubmit = async () => {
         showToast({
             type: 'error',
             message: formError.value
-        })
-        return
+        });
+        return;
     }
 
     try {
-        const imageUrl = await uploadImage()
+        isSubmitting.value = true
 
-        const productData = {
-            ...formData.value,
-            imageUrl: imageUrl || formData.value.imageUrl
-        }
+        const imageUrl = await uploadImage();
+
+        const selectedBrand = brands.value.find(b => b.id === formData.value.brandID);
+        const brandName = selectedBrand ? selectedBrand.name : formData.value.brand;
+
+        // Asegurarnos de que el productData coincida con la interfaz Product
+        const productData: Omit<Product, 'id' | 'categories'> = {
+            name: formData.value.name,
+            brand: brandName, // Usar el nombre de la marca
+            brandID: formData.value.brandID, // Agregar el ID de la marca
+            description: formData.value.description,
+            price: formData.value.price,
+            originalPrice: formData.value.originalPrice,
+            discountPercentage: formData.value.discountPercentage,
+            stock: formData.value.stock,
+            active: formData.value.active,
+            carousel: formData.value.carousel,
+            isPromoted: formData.value.isPromoted,
+            imageUrl: imageUrl || formData.value.imageUrl,
+            promotionStartDate: formData.value.promotionStartDate || '',
+            promotionEndDate: formData.value.promotionEndDate || '',
+            promotionType: formData.value.promotionType || 'discount'
+        };
 
         if (editingId.value) {
-            await updateProduct(editingId.value, productData)
+            await updateProduct(editingId.value, productData, formData.value.categoryIDs)
+            showToast({
+                type: 'success',
+                message: 'Producto actualizado con éxito'
+            })
         } else {
-            await createProduct(productData)
+            await createProduct(productData, formData.value.categoryIDs)
+            showToast({
+                type: 'success',
+                message: 'Producto creado con éxito'
+            })
         }
 
-        handleCloseModal()
+        handleCloseModal();
     } catch (error) {
-        console.error('Error:', error)
+        console.error('Error al procesar el producto:', error);
         showToast({
             type: 'error',
             message: 'Error al guardar el producto'
-        })
+        });
+    } finally {
+        isSubmitting.value = false
     }
-}
+};
 
 watch(() => formData.value.isPromoted, (newValue) => {
     if (!newValue) {
@@ -805,6 +936,10 @@ const handleDelete = async (id: string) => {
     if (confirm('¿Estás seguro de que quieres eliminar este producto?')) {
         try {
             await deleteProduct(id)
+            showToast({
+                type: 'success',
+                message: 'Producto eliminado con éxito'
+            })
         } catch (error) {
             console.error('Error:', error)
         }
@@ -819,7 +954,7 @@ const getStockClass = (stock: number) => {
 }
 
 onMounted(async () => {
-    await Promise.all([loadProducts(), loadCategories()])
+    await Promise.all([loadProducts(), loadCategories(), loadBrands()])
 })
 
 watch([
@@ -1083,8 +1218,9 @@ watch(products, loadImageUrls, { immediate: true });
 
 .image-upload-container {
     display: flex;
+    align-items: flex-start;
     gap: 1rem;
-    align-items: center;
+    margin-top: 0.5rem;
 }
 
 .upload-button {
@@ -1104,27 +1240,39 @@ watch(products, loadImageUrls, { immediate: true });
 
 .image-preview {
     position: relative;
-    width: 80px;
-    height: 80px;
+    width: 100px;
+    height: 100px;
     border-radius: 0.375rem;
     overflow: hidden;
+    border: 1px solid #e2e8f0;
+    background-color: #f8fafc;
 }
 
 .preview-image {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
 }
 
 .clear-image-button {
     position: absolute;
-    top: 0;
-    right: 0;
-    padding: 0.25rem;
-    background: rgba(0, 0, 0, 0.5);
+    top: 0.25rem;
+    right: 0.25rem;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.5);
     color: white;
+    border-radius: 50%;
     border: none;
     cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.clear-image-button:hover {
+    background-color: rgba(0, 0, 0, 0.7);
 }
 
 .upload-status {
@@ -1139,6 +1287,63 @@ watch(products, loadImageUrls, { immediate: true });
     align-items: center;
     margin-bottom: 1rem;
     width: 100%;
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+}
+
+.categories-container {
+    width: 100%;
+}
+
+.categories-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.category-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    border: 1px solid #e2e8f0;
+    background-color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.category-tag:hover:not(.disabled) {
+    background-color: #f1f5f9;
+}
+
+.category-tag.selected {
+    background-color: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+.category-tag.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.categories-hint {
+    display: block;
+    color: #64748b;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+}
+
+.remove-icon {
+    opacity: 0.7;
+}
+
+.remove-icon:hover {
+    opacity: 1;
 }
 
 .search-filter {
@@ -1167,6 +1372,59 @@ watch(products, loadImageUrls, { immediate: true });
     padding: 0.5rem 1rem 0.5rem 2.5rem;
     border: 1px solid #e2e8f0;
     border-radius: 0.375rem;
+}
+
+.carousel-toggle {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.carousel-checkbox {
+    position: absolute;
+    opacity: 0;
+    height: 0;
+    width: 0;
+}
+
+.carousel-label {
+    position: relative;
+    display: inline-block;
+    width: 40px;
+    height: 20px;
+    background-color: #ccc;
+    border-radius: 20px;
+    transition: background-color 0.3s;
+    cursor: pointer;
+}
+
+.carousel-label::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: white;
+    transition: 0.3s;
+}
+
+.carousel-checkbox:checked+.carousel-label {
+    background-color: #4CAF50;
+}
+
+.carousel-checkbox:checked+.carousel-label::after {
+    transform: translateX(20px);
+}
+
+.carousel-checkbox:focus+.carousel-label {
+    box-shadow: 0 0 1px #4CAF50;
+}
+
+/* Para la animación al hacer cambios */
+.carousel-label:active::after {
+    width: 22px;
 }
 
 @media (max-width: 768px) {
@@ -1416,7 +1674,20 @@ watch(products, loadImageUrls, { immediate: true });
     background: #e2e8f0;
 }
 
-.loading-state,
+/* Loading State */
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    gap: 1rem;
+}
+
+/* Error State */
 .error-state {
     display: flex;
     flex-direction: column;
@@ -1564,5 +1835,15 @@ watch(products, loadImageUrls, { immediate: true });
     background-color: #dcfce7;
     border-color: #bbf7d0;
     color: #16a34a;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 </style>

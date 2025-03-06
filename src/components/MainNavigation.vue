@@ -11,7 +11,9 @@
                 </Transition>
 
                 <RouterLink to="/" class="logo-link">
-                    <img src="@/assets/new-logo.png" alt="Logo" class="logo" />
+                    <Transition name="logo-fade" mode="out-in">
+                        <img :key="currentLogo" :src="currentLogo" alt="Logo" class="logo" />
+                    </Transition>
                 </RouterLink>
             </div>
 
@@ -102,7 +104,7 @@
                             </button>
 
                             <div v-if="isUserMenuOpen" class="dropdown-menu">
-                                <!-- <div class="user-email">{{ userEmail }}</div> -->
+                                <div class="user-email mobile-only">{{ userEmail }}</div>
                                 <RouterLink to="/profile" class="menu-item">
                                     <UserIcon :size="16" />
                                     Perfil
@@ -159,7 +161,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink, useRouter, useRoute } from 'vue-router'
 import {
     UserIcon,
     SearchIcon,
@@ -189,6 +191,7 @@ const orderCount = ref(0)
 
 const { isAuthenticated, isAdmin, userEmail, userName } = storeToRefs(authStore)
 const router = useRouter()
+const route = useRoute()
 const showLoginModal = ref(false)
 const isUserMenuOpen = ref(false)
 const isAdminSidebarOpen = ref(false)
@@ -197,9 +200,35 @@ const searchQuery = ref('')
 const showResults = ref(false)
 const loading = ref(false)
 const imageUrls = ref<Record<string, string>>({})
-const { products, loadProducts } = useProducts()
+const { allProductsWeb, loadAllProductsWeb } = useProducts()
 const filteredProducts = ref<any[]>([])
 const isMobileSearchOpen = ref(false)
+
+// Variables para gestión de logos y transiciones
+const defaultLogo = '/new-logo.png'
+const altLogo = '/new-logo-atrevida.png'
+const currentLogo = ref(defaultLogo)
+
+// Función para manejar los cambios de logo
+const handleLogoChange = () => {
+    const isPerfumesMujer = route.query.name === 'Perfumes Mujer'
+    const isPerfumesHombre = route.query.name === 'Perfumes Hombre'
+
+    // Si estamos en la sección de Perfumes Mujer
+    if (isPerfumesMujer) {
+        // Cambiar al logo alternativo
+        currentLogo.value = altLogo
+    }
+    // Si estamos en la sección de Perfumes Hombre
+    else if (isPerfumesHombre) {
+        // Cambiar al logo original
+        currentLogo.value = defaultLogo
+    }
+    // Para cualquier otra ruta, mantener el logo original
+    else {
+        currentLogo.value = defaultLogo
+    }
+}
 
 const currentUserEmail = computed(() => {
     if (isAuthenticated.value) {
@@ -246,7 +275,7 @@ const filterProducts = () => {
     }
 
     const query = searchQuery.value.toLowerCase()
-    filteredProducts.value = products.value
+    filteredProducts.value = allProductsWeb.value
         .filter(product =>
             product.name.toLowerCase().includes(query) ||
             product.brand.toLowerCase().includes(query)
@@ -320,26 +349,26 @@ onUnmounted(() => {
     document.removeEventListener('click', closeUserMenu)
 })
 
-/*onMounted(async () => {
-    document.addEventListener('click', closeUserMenu)
-    await authStore.checkAuth()
-})*/
-
 onMounted(async () => {
     document.addEventListener('click', closeUserMenu)
     await Promise.all([
         authStore.checkAuth(),
         cartStore.fetchCartItems(),
-        loadProducts(),
+        loadAllProductsWeb(),
         checkUserOrders()
     ])
+
+    // Verificar la ruta inicial
+    handleLogoChange()
 })
 
-/*watch(isAuthenticated, (newValue) => {
-    if (!newValue) {
-        isUserMenuOpen.value = false
+// Observar los cambios de ruta para actualizar el logo
+watch(
+    () => route.fullPath,
+    () => {
+        handleLogoChange()
     }
-})*/
+)
 
 watch(currentUserEmail, async (newEmail) => {
     if (!isAuthenticated.value && newEmail) {
@@ -359,12 +388,34 @@ watch(isAuthenticated, async (newValue) => {
 
 <style scoped>
 .main-nav {
-    padding: 1rem 2rem;
-    border-bottom: 1px solid #eee;
-    background-color: white;
-    position: sticky;
+    position: fixed;
     top: 0;
-    z-index: 100;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 72px;
+    /* Altura fija para calcular correctamente los offsets */
+    padding: 1rem;
+    background-color: white;
+    border-bottom: 1px solid #eee;
+    z-index: 1000;
+}
+
+body {
+    padding-top: 80px;
+    /* Ajusta este valor según la altura de tu nav */
+}
+
+@media (max-width: 768px) {
+    .main-nav {
+        height: 64px;
+        padding: 0.75rem;
+    }
+
+    body {
+        padding-top: 72px;
+        /* Ajusta este valor para móvil según necesites */
+    }
 }
 
 .orders-icon.active-orders {
@@ -444,7 +495,7 @@ watch(isAuthenticated, async (newValue) => {
 .nav-right {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
+    gap: 0.75rem;
 }
 
 .icon-button {
@@ -485,7 +536,7 @@ watch(isAuthenticated, async (newValue) => {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     min-width: 200px;
     margin-top: 0.5rem;
-    z-index: 1000;
+    z-index: 1001;
     overflow: hidden;
 }
 
@@ -519,6 +570,40 @@ watch(isAuthenticated, async (newValue) => {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+/* Transición del logo */
+.logo-fade-enter-active,
+.logo-fade-leave-active {
+    transition: opacity 0.5s, transform 0.5s;
+}
+
+.logo-fade-enter-from,
+.logo-fade-leave-to {
+    opacity: 0;
+    transform: scale(0.8) rotate(-5deg);
+}
+
+.logo-fade-enter-to,
+.logo-fade-leave-from {
+    opacity: 1;
+    transform: scale(0.9) rotate(0deg);
+}
+
+/* Estilos base del logo */
+.logo-link {
+    display: block;
+    width: 150px;
+    height: 40px;
+    text-decoration: none;
+}
+
+.logo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    transform: scale(0.9);
 }
 
 .greeting-text {
@@ -729,12 +814,22 @@ watch(isAuthenticated, async (newValue) => {
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     max-height: 400px;
     overflow-y: auto;
-    z-index: 50;
+    z-index: 1001;
 }
 
 .search-loading {
     padding: 2rem;
     text-align: center;
+}
+
+.mobile-only {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .mobile-only {
+        display: block;
+    }
 }
 
 .no-results {
@@ -826,7 +921,7 @@ watch(isAuthenticated, async (newValue) => {
     left: 0;
     right: 0;
     background: white;
-    z-index: 200;
+    z-index: 1002;
     padding: 1rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
@@ -900,6 +995,42 @@ watch(isAuthenticated, async (newValue) => {
     .mobile-search-results .product-thumbnail {
         width: 50px;
         height: 50px;
+    }
+}
+
+@media (max-width: 768px) {
+    .nav-content {
+        padding: 0 0.5rem;
+        /* Reducido el padding horizontal */
+    }
+
+    .icon-button {
+        padding: 6px;
+        /* Reducido de 8px a 6px */
+    }
+
+    .logo-link {
+        width: 120px;
+        /* Reducido de 150px */
+    }
+
+    /* Ajustar el contenedor de órdenes para móvil */
+    .orders-container {
+        margin-right: 0.25rem;
+        /* Añadir un pequeño margen a la derecha */
+    }
+
+    /* Ajustar el espacio entre los iconos */
+    .nav-right {
+        gap: 0.5rem;
+        /* Reducido aún más el espacio entre elementos */
+    }
+
+    /* Asegurar que los iconos no se deformen */
+    .orders-icon,
+    .cart-icon,
+    .user-icon {
+        min-width: 24px;
     }
 }
 </style>

@@ -25,7 +25,7 @@
                     <div v-if="currentStep === 0" class="checkout-card">
                         <h2>Información del cliente</h2>
                         <p class="customer-subtitle">Por favor asegúrese de ingresar datos verídicos y correctos, ya que
-                            esta información será esencial para la entrega de su pedido.</p>
+                            esta información será esencial para el pago y entrega de su pedido.</p>
                         <form @submit.prevent="nextStep" class="customer-form">
                             <div class="form-row">
                                 <div class="form-group">
@@ -64,7 +64,7 @@
                                         @input="validateDocumentNumber" :class="{ 'error': errors.documentNumber }"
                                         :maxlength="getDocumentMaxLength">
                                     <span class="error-message" v-if="errors.documentNumber">{{ errors.documentNumber
-                                    }}</span>
+                                        }}</span>
                                 </div>
                             </div>
 
@@ -95,13 +95,13 @@
                                         <input type="radio" v-model="form.shippingMethod" value="regular">
                                         <div class="radio-content">
                                             <div class="radio-title">Envío Regular</div>
-                                            <div class="radio-description">3-5 días hábiles</div>
+                                            <div class="radio-description">1-2 días hábiles</div>
                                         </div>
                                     </label>
                                 </div>
                             </div>
 
-                            <div class="form-section">
+                            <!-- <div class="form-section">
                                 <h3>Tipo de comprobante</h3>
                                 <div class="invoice-options">
                                     <label class="radio-button">
@@ -112,6 +112,91 @@
                                         <input type="radio" v-model="form.invoiceType" value="factura">
                                         <span>Factura</span>
                                     </label>
+                                </div>
+                            </div> -->
+
+                            <div class="form-section payment-method-section">
+                                <h3>Método de pago</h3>
+                                <div class="payment-methods-container">
+                                    <div class="payment-method-option"
+                                        :class="{ active: form.paymentMethod === 'yape' }">
+                                        <label class="payment-option-label">
+                                            <input type="radio" v-model="form.paymentMethod" value="yape"
+                                                class="payment-method-input" />
+                                            <div class="payment-option-text">
+                                                <span class="payment-method-name">Yape</span>
+                                                <span class="payment-method-desc">Escanea y paga</span>
+                                            </div>
+                                            <div class="payment-option-icon yape">
+                                                <img src="/yape-icon.png" alt="Yape" class="payment-method-img" />
+                                            </div>
+                                        </label>
+                                    </div>
+
+                                    <div class="payment-method-option"
+                                        :class="{ active: form.paymentMethod === 'plin' }">
+                                        <label class="payment-option-label">
+                                            <input type="radio" v-model="form.paymentMethod" value="plin"
+                                                class="payment-method-input" />
+                                            <div class="payment-option-text">
+                                                <span class="payment-method-name">Plin</span>
+                                                <span class="payment-method-desc">Escanea y paga</span>
+                                            </div>
+                                            <div class="payment-option-icon plin">
+                                                <img src="/plin-icon.png" alt="Plin" class="payment-method-img" />
+                                            </div>
+                                        </label>
+                                    </div>
+
+                                    <!-- Comentado el método de pago contra entrega
+                                    <div class="payment-method-option" :class="{ active: form.paymentMethod === 'efectivo' }">
+                                        <label class="payment-option-label">
+                                            <input type="radio" v-model="form.paymentMethod" value="efectivo"
+                                                class="payment-method-input" />
+                                            <div class="payment-option-text">
+                                                <span class="payment-method-name">Pago Contra Entrega</span>
+                                                <span class="payment-method-desc">Paga al recibir el producto</span>
+                                            </div>
+                                            <div class="payment-option-icon">
+                                                <img src="/contraentrega.png" alt="QR Code" class="payment-method-img" />
+                                            </div>
+                                        </label>
+                                    </div>
+                                    -->
+
+                                    <div class="payment-method-option"
+                                        :class="{ active: form.paymentMethod === 'transferencia' }">
+                                        <label class="payment-option-label">
+                                            <input type="radio" v-model="form.paymentMethod" value="transferencia"
+                                                class="payment-method-input" />
+                                            <div class="payment-option-text">
+                                                <span class="payment-method-name">Transferencias</span>
+                                                <span class="payment-method-desc">Transfiere a nuestras cuentas
+                                                    bancarias</span>
+                                            </div>
+                                            <div class="payment-option-icon">
+                                                <img src="/transfer.png" alt="Transferencia"
+                                                    class="payment-method-img" />
+                                            </div>
+                                        </label>
+                                    </div>
+
+                                    <!-- Nuevo método de pago Izipay -->
+                                    <div class="payment-method-option"
+                                        :class="{ active: form.paymentMethod === 'izipay' }">
+                                        <label class="payment-option-label">
+                                            <input type="radio" v-model="form.paymentMethod" value="izipay"
+                                                class="payment-method-input" />
+                                            <div class="payment-option-text">
+                                                <span class="payment-method-name">Izipay</span>
+                                                <span class="payment-method-desc">Link de Pago</span>
+                                            </div>
+                                            <div class="payment-option-icon">
+                                                <img src="@/assets/izipay.png" alt="Izipay"
+                                                    class="payment-method-img" />
+                                            </div>
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
 
@@ -148,7 +233,7 @@
                                     <div class="info-item">
                                         <span class="info-label">Documento</span>
                                         <span class="info-value">{{ form.documentType }}: {{ form.documentNumber
-                                        }}</span>
+                                            }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -185,17 +270,31 @@
                                 <div v-for="item in cartItems" :key="item.id" class="cart-item">
                                     <div class="item-container">
                                         <img :src="imageUrls[item.productID] || '/api/placeholder/80/80'"
-                                            :alt="productDetails[item.productID]?.name" class="item-image">
+                                            :alt="item.product?.name || 'Producto'" class="item-image">
                                         <div class="item-details">
-                                            <div class="item-name">{{ productDetails[item.productID]?.name }}</div>
+                                            <div class="item-name">{{ item.product?.name || 'Producto no disponible' }}
+                                            </div>
                                             <div class="item-quantity">
                                                 Cantidad: {{ item.quantity }}
-                                                <span v-if="productDetails[item.productID]?.stock < item.quantity"
+                                                <span v-if="(item.product?.stock ?? 0) < item.quantity"
                                                     class="stock-alert">
-                                                    (Stock disponible: {{ productDetails[item.productID]?.stock }})
+                                                    (Stock disponible: {{ item.product?.stock ?? 0 }})
                                                 </span>
                                             </div>
-                                            <div class="item-price">S/. {{ item.price.toFixed(2) }}</div>
+                                            <div class="price-container">
+                                                <span v-if="item.isPromoted && isPromotionActive(item)"
+                                                    class="original-price">
+                                                    S/. {{ item.originalPrice.toFixed(2) }}
+                                                </span>
+                                                <span class="item-price"
+                                                    :class="{ promotional: item.isPromoted && isPromotionActive(item) }">
+                                                    S/. {{ item.price.toFixed(2) }}
+                                                </span>
+                                                <span v-if="item.isPromoted && isPromotionActive(item)"
+                                                    class="discount-badge">
+                                                    -{{ item.discountPercentage }}%
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -207,9 +306,13 @@
                                 <span>Subtotal</span>
                                 <span>S/. {{ subtotal.toFixed(2) }}</span>
                             </div>
-                            <div class="summary-row">
+                            <!-- <div class="summary-row">
                                 <span>Envío</span>
                                 <span>{{ shippingCost > 0 ? `S/. ${shippingCost.toFixed(2)}` : 'Gratis' }}</span>
+                            </div> -->
+                            <div v-if="form.paymentMethod === 'izipay'" class="summary-row izipay-commission">
+                                <span>Comisión Izipay (4%)</span>
+                                <span>S/. {{ izipayCommission.toFixed(2) }}</span>
                             </div>
                             <div class="summary-row total">
                                 <span>Total</span>
@@ -231,26 +334,25 @@ import { useCart } from '@/composables/useCart';
 import { useToast } from '@/composables/useToast';
 import MainLayout from '@/layouts/MainLayout.vue';
 import AdminLayout from '@/layouts/AdminLayout.vue';
-import { useProducts } from '@/composables/useProducts';
-import { getUrl } from 'aws-amplify/storage';
 import type { Product } from '@/types/product.types';
 import { useAuthStore } from '@/stores/auth';
 import { useOrders } from '@/composables/useOrders';
 import type { CustomerInfo, Order } from '@/types/order.types';
+import { uploadData, getUrl } from 'aws-amplify/storage';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = useRouter();
 const auth = useAuthStore();
 const { createOrder } = useOrders();
 const { showToast } = useToast();
-const { items: cartItems, shippingCost, subtotal, total, validItems, clearCart, updateQuantity, removeFromCart } = useCart();
-const { products, loadProducts, updateProduct } = useProducts();
+const { items: cartItems, shippingCost, subtotal, izipayCommission, total, validItems, clearCart, updateQuantity, removeFromCart } = useCart({ paymentMethod: computed(() => form.value.paymentMethod) });
 
 const steps = ['Identificación', 'Entrega y Pago', 'Resumen de pago'];
 const currentStep = ref(0);
 const submitting = ref(false);
 const loadingState = ref<'idle' | 'validating' | 'generating'>('idle');
 const imageUrls = ref<Record<string, string>>({});
-const productDetails = ref<Record<string, Product>>({});
+/*const productDetails = ref<Record<string, Product>>({});*/
 const stockValidationMessage = ref('');
 const whatsappLink = ref('');
 const noProducts = computed(() => total.value <= 0);
@@ -271,7 +373,8 @@ const form = ref<CustomerInfo>({
     documentNumber: '',
     phone: '',
     shippingMethod: 'regular',
-    invoiceType: 'boleta'
+    invoiceType: 'boleta',
+    paymentMethod: 'yape'
 });
 
 const nextStep = () => {
@@ -377,20 +480,19 @@ const loadingMessage = computed(() => {
     }
 });
 
-const updateProductDetails = () => {
+/*const updateProductDetails = () => {
     const productsMap: Record<string, Product> = {};
     products.value.forEach(product => {
         productsMap[product.id] = product;
     });
     productDetails.value = productsMap;
-};
+};*/
 
 const loadImageUrls = async () => {
     for (const item of validItems.value) {
-        const product = productDetails.value[item.productID];
-        if (product?.imageUrl) {
+        if (item.product?.imageUrl) {
             try {
-                const { url } = await getUrl({ path: product.imageUrl });
+                const { url } = await getUrl({ path: item.product.imageUrl });
                 imageUrls.value[item.productID] = url.toString();
             } catch (error) {
                 console.error("Error cargando imagen:", error);
@@ -401,8 +503,7 @@ const loadImageUrls = async () => {
 
 const initializeCheckout = async () => {
     try {
-        await loadProducts();
-        updateProductDetails();
+        //updateProductDetails();
         await loadImageUrls();
     } catch (error) {
         console.error('Error initializing checkout:', error);
@@ -416,33 +517,31 @@ const initializeCheckout = async () => {
 const validateAndUpdateStock = async (): Promise<boolean> => {
     loadingState.value = 'validating';
     try {
-        await loadProducts(); // Refresh products data
         let valid = true;
         let updates: Promise<any>[] = [];
         let stockWarnings: string[] = [];
 
         for (const item of validItems.value) {
-            const product = productDetails.value[item.productID];
-
-            if (!product) {
+            // Validar que el producto exista
+            if (!item.product) {
                 stockWarnings.push(`Producto no encontrado: ${item.productID}`);
                 valid = false;
                 continue;
             }
 
-            if (product.stock < item.quantity) {
+            const stock = item.product.stock ?? 0; // Usar 0 como valor por defecto
+
+            if (stock < item.quantity) {
                 valid = false;
-                if (product.stock > 0) {
-                    // Update quantity to available stock
-                    updates.push(updateQuantity(item.id, product.stock));
+                if (stock > 0) {
+                    updates.push(updateQuantity(item.id, stock));
                     stockWarnings.push(
-                        `Stock insuficiente para ${product.name}. Se actualizó a ${product.stock} unidades disponibles.`
+                        `Stock insuficiente para ${item.product.name}. Se actualizó a ${stock} unidades disponibles.`
                     );
                 } else {
-                    // Remove item if no stock
                     updates.push(removeFromCart(item.id));
                     stockWarnings.push(
-                        `${product.name} no tiene stock disponible y se removió del carrito.`
+                        `${item.product.name} no tiene stock disponible y se removió del carrito.`
                     );
                 }
             }
@@ -451,20 +550,34 @@ const validateAndUpdateStock = async (): Promise<boolean> => {
         if (updates.length > 0) {
             await Promise.all(updates);
             stockValidationMessage.value = 'Algunos productos han sido actualizados por cambios en stock. Por favor, revisa tu orden.';
-            /*showToast({
-                type: 'warning',
-                message: stockWarnings.join('\n')
-            });*/
         } else {
             stockValidationMessage.value = '';
         }
 
         return valid;
     } finally {
-        if (loadingState.value === 'validating') {
-            loadingState.value = 'idle';
-        }
+        loadingState.value = 'idle';
     }
+};
+
+const isPromotionActive = (item: any) => {
+    if (!item.isPromoted || !item.product?.promotionStartDate || !item.product?.promotionEndDate) {
+        return false;
+    }
+
+    const today = getCurrentPeruDate();
+    return today >= item.product.promotionStartDate && today <= item.product.promotionEndDate;
+};
+
+const getCurrentPeruDate = () => {
+    const date = new Date();
+    const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
+
+    const year = peruDate.getFullYear();
+    const month = String(peruDate.getMonth() + 1).padStart(2, '0');
+    const day = String(peruDate.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
 };
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -472,64 +585,104 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const generateOrder = async () => {
     loadingState.value = 'generating';
     try {
-
-        await sleep(2000);
-
+        await sleep(3000);
         const userEmail = auth.userEmail ?? form.value.email;
 
         if (!auth.userEmail && form.value.email) {
             localStorage.setItem('userEmail', form.value.email);
         }
 
-        // Create order and update stock
-        const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {
-            customerInfo: form.value,
-            userEmail,
-            items: validItems.value.map(item => ({
+        // Procesar los productos del carrito
+        const processedItems = await Promise.all(validItems.value.map(async item => {
+            let orderImagePath = '';
+
+            // Procesar la imagen del producto
+            if (item.product?.imageUrl) {
+                try {
+                    // Obtener la URL de la imagen original
+                    const { url } = await getUrl({ path: item.product.imageUrl });
+
+                    // Fetch la imagen
+                    const response = await fetch(url.toString());
+                    const blob = await response.blob();
+
+                    // Redimensionar la imagen para reducir su tamaño
+                    const resizedBlob = await resizeImage(blob, 400, 400);
+
+                    // Crear una ruta única para guardar una copia de la imagen en la carpeta de pedidos
+                    const orderImagesFolder = 'order-images';
+                    const uniqueFileName = `${Date.now()}-${item.productID}`;
+                    const imagePath = `${orderImagesFolder}/${uniqueFileName}.jpg`;
+
+                    // Subir la imagen redimensionada a Storage
+                    await uploadData({
+                        data: resizedBlob as Blob,
+                        path: imagePath,
+                        options: {
+                            contentType: 'image/jpeg'
+                        }
+                    }).result;
+
+                    // Guardar la ruta de la imagen en el pedido
+                    orderImagePath = imagePath;
+                } catch (error) {
+                    console.error("Error procesando imagen:", error);
+                }
+            }
+
+            return {
                 productID: item.productID,
                 quantity: item.quantity,
                 price: item.price,
-                subtotal: item.price * item.quantity
-            })),
+                subtotal: item.price * item.quantity,
+                productSnapshot: {
+                    name: item.product?.name || '',
+                    brand: item.product?.brand || '',
+                    brandID: item.product?.brandID || '',
+                    description: item.product?.description || '',
+                    price: item.product?.price || 0,
+                    originalPrice: item.product?.originalPrice || 0,
+                    discountPercentage: item.product?.discountPercentage || 0,
+                    // Usar la nueva ruta independiente para la imagen
+                    imageUrl: orderImagePath,
+                    categories: item.product?.categories || [],
+                    stock: item.product?.stock || 0,
+                    active: item.product?.active || false,
+                    carousel: item.product?.carousel || false,
+                    isPromoted: item.product?.isPromoted || false,
+                    promotionStartDate: item.product?.promotionStartDate || '',
+                    promotionEndDate: item.product?.promotionEndDate || '',
+                    promotionType: item.product?.promotionType || ''
+                }
+            };
+        }));
+
+        // Crear orden y actualizar stock
+        const orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt'> = {
+            customerInfo: form.value,
+            userEmail,
+            items: processedItems,
             subtotal: subtotal.value,
             shipping: shippingCost.value,
             total: total.value,
-            status: 'pending'
+            status: 'pending',
+            paymentMethod: form.value.paymentMethod,
+            linkPago: '',
         };
 
-
-        //console.log("items?????: ", orderData)
         const newOrder = await createOrder(orderData);
 
+        // Resto de la función...
         if (!newOrder) {
             throw new Error('Error al crear el pedido');
         }
 
-        // Submit order to backend
-        /*const orderResponse = await fetch('/api/orders', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(order)
-        });
-
-        if (!orderResponse.ok) {
-            throw new Error('Error al crear el pedido');
-        }*/
-
-        // Format WhatsApp message and create URL
+        // Formato del mensaje de WhatsApp
         const message = formatWhatsAppMessage(orderData);
         const phoneNumber = '51934505566';
         const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
 
         whatsappLink.value = whatsappUrl;
-        // Update product stock
-        //await updateProductStock();
-        //await clearCart();
-
-        // Redirect to WhatsApp
-        //window.open(whatsappUrl, '_blank');
 
         await clearCart();
         showToast({
@@ -537,7 +690,6 @@ const generateOrder = async () => {
             message: 'Pedido registrado correctamente'
         });
 
-        //router.push('/order-confirmation');
         router.push('/my-orders');
     } catch (error) {
         console.error('Error generando orden:', error);
@@ -547,10 +699,54 @@ const generateOrder = async () => {
     }
 };
 
+const resizeImage = (blob: Blob | MediaSource, maxWidth: number, maxHeight: number, quality = 0.8) => {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            // Crear un canvas para redimensionar
+            const canvas = document.createElement('canvas');
+
+            // Calcular nuevas dimensiones manteniendo la proporción
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+                if (width > maxWidth) {
+                    height = Math.round(height * (maxWidth / width));
+                    width = maxWidth;
+                }
+            } else {
+                if (height > maxHeight) {
+                    width = Math.round(width * (maxHeight / height));
+                    height = maxHeight;
+                }
+            }
+
+            // Establecer dimensiones del canvas
+            canvas.width = width;
+            canvas.height = height;
+
+            // Dibujar imagen en el canvas
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(img, 0, 0, width, height);
+            } else {
+                console.error('Failed to get 2D context');
+            }
+
+            // Convertir a Blob con calidad reducida
+            canvas.toBlob((resizedBlob) => {
+                resolve(resizedBlob);
+            }, 'image/jpeg', quality);
+        };
+
+        img.src = URL.createObjectURL(blob);
+    });
+};
+
 const formatWhatsAppMessage = (order: any) => {
     const { customerInfo, items, subtotal, shipping, total } = order;
 
-    // Format customer information
     const customerDetails =
         `*INFORMACIÓN DEL CLIENTE*\n` +
         `Nombre: ${customerInfo.firstName} ${customerInfo.lastName}\n` +
@@ -558,17 +754,15 @@ const formatWhatsAppMessage = (order: any) => {
         `${customerInfo.documentType}: ${customerInfo.documentNumber}\n` +
         `Teléfono: ${customerInfo.phone}\n\n`;
 
-    // Format items
+    // Usar item.product directamente
     const itemsDetails = items.map((item: any) => {
-        const product = productDetails.value[item.productID];
-        return `- ${product?.name} (${item.quantity}x) : S/. ${item.price.toFixed(2)}`;
+        return `- ${item.product?.name} (${item.quantity}x) : S/. ${item.price.toFixed(2)}`;
     }).join('\n');
 
-    // Format totals
     const totalsDetails =
         `\n*TOTALES*\n` +
         `Subtotal: S/. ${subtotal.toFixed(2)}\n` +
-        `Envío: ${shipping > 0 ? `S/. ${shipping.toFixed(2)}` : 'Gratis'}\n` +
+        /*`Envío: ${shipping > 0 ? `S/. ${shipping.toFixed(2)}` : 'Gratis'}\n` +*/
         `Total: S/. ${total.toFixed(2)}`;
 
     return encodeURIComponent(
@@ -614,12 +808,12 @@ const openWhatsapp = () => {
     }
 };
 
-watch(
+/*watch(
     () => products.value,
     () => {
         updateProductDetails();
     }
-);
+);*/
 
 watch(
     () => validItems.value,
@@ -646,6 +840,211 @@ onMounted(() => {
 .cart-items-container {
     position: relative;
     min-height: 100px;
+}
+
+.payment-dropdown {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    color: #1a1a1a;
+    background-color: #fff;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+    padding-right: 2.5rem;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.payment-dropdown:focus {
+    outline: none;
+    border-color: #000000;
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}
+
+.payment-dropdown:hover {
+    border-color: #d1d5db;
+}
+
+/* Estilo para las opciones dentro del dropdown */
+.payment-dropdown option {
+    padding: 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* Contenedor para el dropdown con ícono opcional */
+.payment-method-container {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+/* Para añadir un ícono al dropdown si se desea */
+.payment-method-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6b7280;
+}
+
+/* Si se usa un ícono, añadir padding extra a la izquierda */
+.payment-dropdown.with-icon {
+    padding-left: 2.5rem;
+}
+
+.payment-method-section {
+    margin-bottom: 1.5rem;
+}
+
+.payment-methods-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.payment-method-option {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.payment-method-option:hover {
+    border-color: #d1d5db;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.payment-method-option.active {
+    border-color: #000000;
+    background-color: #f9fafb;
+}
+
+.payment-option-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 1rem;
+    cursor: pointer;
+}
+
+.payment-method-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.payment-option-text {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding-right: 12px;
+}
+
+.payment-option-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+}
+
+.price-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.original-price {
+    text-decoration: line-through;
+    color: #666;
+    font-size: 0.9em;
+}
+
+.promotional {
+    color: #e53e3e;
+}
+
+.izipay-commission {
+    color: #e53e3e;
+    font-weight: 500;
+    animation: highlight-fade 2s ease-out;
+    /* Animación sutil cuando aparece */
+}
+
+/* Animación para destacar brevemente cuando aparece la comisión */
+@keyframes highlight-fade {
+    0% {
+        background-color: rgba(229, 62, 62, 0.1);
+    }
+
+    100% {
+        background-color: transparent;
+    }
+}
+
+/* Puedes añadir un icono informativo al lado de la comisión */
+.izipay-commission span:first-child {
+    display: flex;
+    align-items: center;
+}
+/*
+.izipay-commission span:first-child::before {
+    content: '';
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 6px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23e53e3e'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z'/%3E%3C/svg%3E");
+    background-size: contain;
+}*/
+
+.discount-badge {
+    background-color: #e53e3e;
+    color: white;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+
+.payment-method-img {
+    width: 38px;
+    height: 38px;
+    object-fit: contain;
+}
+
+.payment-method-name {
+    font-weight: 500;
+    color: #1a1a1a;
+    margin-bottom: 0.25rem;
+}
+
+.payment-method-desc {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+/* Estilos específicos para cuando están activos */
+.payment-method-option.active .payment-method-name {
+    color: #000000;
+    font-weight: 600;
+}
+
+@media (max-width: 640px) {
+    .payment-methods-container {
+        grid-template-columns: 1fr;
+    }
 }
 
 .customer-subtitle {

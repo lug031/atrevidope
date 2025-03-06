@@ -20,6 +20,12 @@ import ProductDetailView from "../views/ProductDetailView.vue";
 import CategoryProductsView from "@/views/CategoryProductsView.vue";
 import CheckoutView from "@/views/CheckoutView.vue";
 import MyOrdersView from "@/views/MyOrdersView.vue";
+import BrandProductsView from "@/views/BrandProductsView.vue";
+import FaqView from "@/views/FaqView.vue";
+import ContactView from "@/views/ContactView.vue";
+import AboutUsView from "@/views/AboutUsView.vue";
+import PaymentInfoView from "@/views/PaymentInfoView.vue";
+import ShippingInfoView from "@/views/ShippingInfoView.vue";
 
 let authInitialized = false;
 
@@ -57,6 +63,12 @@ const router = createRouter({
       meta: { requiresAuth: false },
     },
     {
+      path: "/brand/:brandId",
+      name: "BrandProducts",
+      component: BrandProductsView,
+      meta: { requiresAuth: false },
+    },
+    {
       path: "/checkout",
       name: "checkout",
       component: CheckoutView,
@@ -66,6 +78,36 @@ const router = createRouter({
       path: "/my-orders",
       name: "my-orders",
       component: MyOrdersView,
+      meta: { requiresAuth: false },
+    },
+    {
+      path: "/faq",
+      name: "faq",
+      component: FaqView,
+      meta: { requiresAuth: false },
+    },
+    {
+      path: "/contacto",
+      name: "contacto",
+      component: ContactView,
+      meta: { requiresAuth: false },
+    },
+    {
+      path: "/nosotros",
+      name: "nosotros",
+      component: AboutUsView,
+      meta: { requiresAuth: false },
+    },
+    {
+      path: "/pago-info",
+      name: "pago-info",
+      component: PaymentInfoView,
+      meta: { requiresAuth: false },
+    },
+    {
+      path: "/envio-info",
+      name: "envio-info",
+      component: ShippingInfoView,
       meta: { requiresAuth: false },
     },
     {
@@ -136,6 +178,20 @@ const router = createRouter({
       meta: { requiresAuth: false },
     },
   ],
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition;
+    }
+
+    if (to.hash) {
+      return {
+        el: to.hash,
+        behavior: "smooth",
+      };
+    }
+
+    return { top: 0 };
+  },
 });
 
 router.beforeEach(async (to, from, next) => {

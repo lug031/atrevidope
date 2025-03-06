@@ -8,9 +8,7 @@
                 <Breadcrumbs :items="breadcrumbs" />
             </div>
             <router-view v-slot="{ Component }">
-                <Transition name="fade" mode="out-in">
-                    <component :is="Component" />
-                </Transition>
+                <component :is="Component" />
             </router-view>
         </div>
     </AdminLayout>

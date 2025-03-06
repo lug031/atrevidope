@@ -5,18 +5,18 @@ export interface Product {
   id: string;
   name: string;
   brand: string;
+  brandID: string;
   description: string;
   price: number;
   originalPrice: number;
   discountPercentage: number;
   stock: number;
   active: boolean;
+  carousel: boolean;
   isPromoted: boolean;
-  categoryID: string;
-  category?: Category;
+  categories?: Category[];
   imageUrl: string;
-  promotionStartDate: string | null;
-  promotionEndDate: string | null;
-  promotionType: string | null;
-  cartItems?: CartItem[];
+  promotionStartDate: string;
+  promotionEndDate: string;
+  promotionType: string;
 }

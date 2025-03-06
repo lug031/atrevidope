@@ -104,13 +104,32 @@ export const useCartStore = defineStore("cart", () => {
           id: generateCartItemId(),
           cartID: "default-cart",
           productID: product.id,
+          product: {
+            id: product.id,
+            name: product.name,
+            brand: product.brand,
+            brandID: product.brandID,
+            description: product.description,
+            price: product.price,
+            originalPrice: product.originalPrice,
+            discountPercentage: product.discountPercentage,
+            stock: product.stock,
+            active: product.active,
+            carousel: product.carousel,
+            isPromoted: product.isPromoted,
+            imageUrl: product.imageUrl,
+            promotionStartDate: product.promotionStartDate,
+            promotionEndDate: product.promotionEndDate,
+            promotionType: product.promotionType,
+            categories: product.categories,
+          },
           quantity,
           price: product.price,
           originalPrice: product.originalPrice,
           discountPercentage: product.discountPercentage,
           isPromoted: product.isPromoted,
-        };
-
+        }
+        //console.log("ITEM: ",newItem)
         items.value.push(newItem);
         showNotification.value = true;
         setTimeout(() => {

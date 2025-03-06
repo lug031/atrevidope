@@ -5,7 +5,7 @@
             <div class="search-filter">
                 <div class="search-box">
                     <SearchIcon :size="20" class="search-icon" />
-                    <input type="text" placeholder="Buscar órdenes..." class="search-input" v-model="searchQuery" />
+                    <input type="text" placeholder="Buscar pedidos..." class="search-input" v-model="searchQuery" />
                 </div>
             </div>
             <button @click="loadOrders" class="refresh-button" :disabled="loading">
@@ -17,7 +17,7 @@
         <!-- Estados de loading y error -->
         <div v-if="loading" class="loading-state">
             <Loader2Icon :size="40" class="animate-spin" />
-            <p>Cargando órdenes...</p>
+            <p>Cargando pedidos...</p>
         </div>
 
         <div v-else-if="error" class="error-state">
@@ -35,7 +35,7 @@
                 <div class="stat-card">
                     <PackageIcon :size="24" class="stat-icon" />
                     <div class="stat-info">
-                        <span class="stat-label">Total Órdenes</span>
+                        <span class="stat-label">Total Pedidos</span>
                         <span class="stat-value">{{ orderStats.total }}</span>
                     </div>
                 </div>
@@ -72,7 +72,11 @@
                             <th>Items</th>
                             <th>Total</th>
                             <th>Estado</th>
-                            <th>Fecha</th>
+                            <!-- Encabezado de fecha sorteable -->
+                            <th @click="toggleSort('createdAt')" class="sortable-header">
+                                Fecha
+                                <span class="sort-icon">{{ getSortIcon('createdAt') }}</span>
+                            </th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -172,31 +176,30 @@
                         <div v-for="item in selectedOrder?.items" :key="item.productID" class="order-item">
                             <div class="item-info">
                                 <img :src="productImages[item.productID] || '/api/placeholder/60/60'"
-                                    :alt="orderProducts[item.productID]?.name" class="item-image" />
+                                    :alt="item.productSnapshot?.name" class="item-image" />
                                 <div class="item-details">
                                     <div class="item-header">
                                         <span class="item-name"
-                                            v-html="truncateProductName(orderProducts[item.productID]?.name)"></span>
-                                        <!-- <span class="item-brand">{{ orderProducts[item.productID]?.brand }}</span>-->
+                                            v-html="truncateProductName(item.productSnapshot?.name)"></span>
+                                        <span class="item-brand">{{ item.productSnapshot?.brand }}</span>
                                     </div>
                                     <div class="item-pricing">
                                         <div class="quantity-info">
                                             <span class="item-quantity">Cantidad: {{ item.quantity }}</span>
-                                            <span class="stock-info" v-if="orderProducts[item.productID]">
-                                                Stock disponible: {{ orderProducts[item.productID].stock }}
-                                            </span>
+                                            <!-- Ya no mostramos stock actual -->
                                         </div>
                                         <div class="price-details">
                                             <div class="price-group">
-                                                <span class="original-price"
-                                                    v-if="orderProducts[item.productID]?.originalPrice !== item.price">
-                                                    S/{{ formatPrice(orderProducts[item.productID]?.originalPrice) }}
+                                                <span class="original-price" v-if="hasDiscount(item)">
+                                                    S/{{ formatPrice(getOriginalPrice(item)) }}
                                                 </span>
-                                                <span class="current-price">S/{{ formatPrice(item.price) }}</span>
+                                                <span class="current-price"
+                                                    :class="{ 'promotional': hasDiscount(item) }">
+                                                    S/{{ formatPrice(item.price) }}
+                                                </span>
                                             </div>
-                                            <span class="discount-badge"
-                                                v-if="orderProducts[item.productID]?.discountPercentage > 0">
-                                                -{{ orderProducts[item.productID]?.discountPercentage }}%
+                                            <span class="discount-badge" v-if="hasDiscount(item)">
+                                                -{{ getDiscountPercentage(item) }}%
                                             </span>
                                         </div>
                                     </div>
@@ -208,15 +211,53 @@
                             </div>
                         </div>
                     </div>
+
+                    <h3>Detalles de Pago</h3>
+                    <div class="pago-info">
+                        <div class="detail-item">
+                            <span class="label">Método de Pago:</span>
+                            <span class="value">{{ selectedOrder?.paymentMethod || 'No especificado' }}</span>
+                        </div>
+                        <div v-if="selectedOrder?.paymentMethod === 'izipay'" class="payment-link-container">
+                            <div class="payment-link-field">
+                                <span class="label">Link de Pago:</span>
+                                <div class="link-input-group">
+                                    <input type="text" v-model="paymentLinkInput" class="payment-link-input"
+                                        placeholder="Ingrese el enlace de pago"
+                                        :disabled="selectedOrder?.status !== 'processing'" />
+                                    <button @click="updatePaymentLink" class="update-link-button"
+                                        :disabled="updateLinkLoading || selectedOrder?.status !== 'processing'">
+                                        <span v-if="!updateLinkLoading">Enviar</span>
+                                        <Loader2Icon v-else :size="16" class="animate-spin" />
+                                    </button>
+                                </div>
+                                <span v-if="selectedOrder?.status !== 'processing'" class="status-warning">
+                                    Solo se puede actualizar el enlace de pago cuando la orden está en proceso
+                                </span>
+                            </div>
+                            <div v-if="selectedOrder?.linkPago" class="current-link">
+                                <span class="current-link-label">Enlace actual:</span>
+                                <a :href="selectedOrder.linkPago" target="_blank" class="current-link-value">
+                                    {{ truncateLink(selectedOrder.linkPago) }}
+                                    <ExternalLinkIcon :size="14" class="external-link-icon" />
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="order-summary">
                         <div class="summary-item">
                             <span>Subtotal</span>
                             <span>S/{{ formatPrice(selectedOrder?.subtotal) }}</span>
                         </div>
-                        <div class="summary-item">
+                        <div v-if="selectedOrder?.paymentMethod === 'izipay'" class="summary-item">
+                            <span class="summary-label">Comisión Izipay (4%)</span>
+                            <span class="summary-value">S/. {{ (selectedOrder?.subtotal * 0.04).toFixed(2) }}</span>
+                        </div>
+                        <!-- <div class="summary-item">
                             <span>Envío</span>
                             <span>S/{{ formatPrice(selectedOrder?.shipping) }}</span>
-                        </div>
+                        </div>-->
                         <div class="summary-item total">
                             <span>Total</span>
                             <span>S/{{ formatPrice(selectedOrder?.total) }}</span>
@@ -226,10 +267,11 @@
             </div>
         </ModalOrder>
     </div>
+    <StockErrorModal :show="showStockModal" :invalidProducts="stockErrorProducts" @close="showStockModal = false" />
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { getUrl } from 'aws-amplify/storage'
 import { useProducts } from '@/composables/useProducts'
 import type { Product } from '@/types/product.types'
@@ -245,75 +287,214 @@ import {
     DollarSignIcon,
     PlayIcon,
     CheckIcon,
-    XIcon
+    XIcon,
+    ExternalLinkIcon
 } from 'lucide-vue-next'
 import type { Order } from '@/types/order.types'
 import ModalOrder from '@/components/ModalOrder.vue'
 import { useToast } from '@/composables/useToast'
+import { useOrderStore } from '@/stores/order';
+import { useOrderValidation } from '@/composables/useOrderValidation';
+import StockErrorModal from '@/components/StockErrorModal.vue'
 
-const {
-    orders,
-    loading,
-    error,
-    loadOrders,
-    updateOrderStatus,
-    orderStats
-} = useOrders()
+const { orders, loading, error, loadOrders, updateOrderStatus, orderStats, getOrderDetails } = useOrders()
+const { validateOrderStock } = useOrderValidation();
 
 const { showToast } = useToast()
+const showStockModal = ref(false);
+interface StockErrorProduct {
+    id: string;
+    name: string;
+    requested: number;
+    available: number;
+    error?: string;
+}
 
+const stockErrorProducts = ref<StockErrorProduct[]>([]);
+const orderStore = useOrderStore();
+const paymentLinkInput = ref('');
+const updateLinkLoading = ref(false);
 const searchQuery = ref('')
 const showDetailsModal = ref(false)
 const selectedOrder = ref<Order | null>(null)
-const orderProducts = ref<Record<string, Product>>({})
+//const orderProducts = ref<Record<string, Product>>({})
 const productImages = ref<Record<string, string>>({})
 
-const { products, loadProducts } = useProducts()
+const sortField = ref<keyof Order>('createdAt')
+const sortDirection = ref('desc')
+//const { products, loadProducts } = useProducts()
+
+const toggleSort = (field: any) => {
+    if (sortField.value === field) {
+        // Si ya estamos ordenando por este campo, cambiamos la dirección
+        sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+    } else {
+        // Si es un nuevo campo, establecemos el campo y dirección por defecto
+        sortField.value = field
+        sortDirection.value = 'desc' // Por defecto de más reciente a más antiguo
+    }
+}
 
 const loadOrderProducts = async () => {
     if (!selectedOrder.value) return
+    // Ya no necesitamos cargar productos existentes
+}
 
-    // Si los productos no están cargados, cargarlos primero
-    if (products.value.length === 0) {
-        await loadProducts()
+const updatePaymentLink = async () => {
+    if (!selectedOrder.value?.id || !paymentLinkInput.value) return;
+
+    if (selectedOrder.value.status !== 'processing') {
+        showToast({
+            type: 'warning',
+            message: 'Solo se puede actualizar el enlace de pago cuando la orden está en proceso'
+        });
+        return;
     }
 
-    // Asociar productos con items de la orden
-    selectedOrder.value.items.forEach(item => {
-        const product = products.value.find(p => p.id === item.productID)
-        if (product) {
-            orderProducts.value[item.productID] = product
-        }
-    })
-}
+    updateLinkLoading.value = true;
+    try {
+        const updatedOrder = await orderStore.updateOrderPaymentLink(
+            selectedOrder.value.id,
+            paymentLinkInput.value
+        );
+
+        // Actualizar el orden seleccionado con la información actualizada
+        selectedOrder.value = updatedOrder;
+
+        showToast({
+            type: 'success',
+            message: 'Enlace de pago actualizado correctamente'
+        });
+    } catch (error) {
+        console.error('Error al actualizar el enlace de pago:', error);
+        showToast({
+            type: 'error',
+            message: 'Error al actualizar el enlace de pago'
+        });
+    } finally {
+        updateLinkLoading.value = false;
+    }
+};
+
+// Función para truncar enlaces largos para mostrarlos
+const truncateLink = (link: string, maxLength: number = 40): string => {
+    if (!link) return '';
+    if (link.length <= maxLength) return link;
+
+    return link.substring(0, maxLength) + '...';
+};
+
+const isPromotionActive = (item: any) => {
+    if (!item.productSnapshot?.isPromoted ||
+        !item.productSnapshot?.promotionStartDate ||
+        !item.productSnapshot?.promotionEndDate) {
+        return false;
+    }
+
+    const today = getCurrentPeruDate();
+    return today >= item.productSnapshot.promotionStartDate &&
+        today <= item.productSnapshot.promotionEndDate;
+};
+
+const getCurrentPeruDate = () => {
+    const date = new Date();
+    const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
+
+    const year = peruDate.getFullYear();
+    const month = String(peruDate.getMonth() + 1).padStart(2, '0');
+    const day = String(peruDate.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+};
+
+const hasDiscount = (item: any) => {
+    return isPromotionActive(item) &&
+        item.productSnapshot?.discountPercentage > 0;
+};
+
+const getOriginalPrice = (item: any) => {
+    if (hasDiscount(item)) {
+        return item.productSnapshot?.originalPrice;
+    }
+    return null;
+};
+
+const getDiscountPercentage = (item: any) => {
+    if (hasDiscount(item)) {
+        return item.productSnapshot?.discountPercentage;
+    }
+    return 0;
+};
 
 const loadProductImages = async () => {
     if (!selectedOrder.value) return
 
     for (const item of selectedOrder.value.items) {
-        const product = orderProducts.value[item.productID]
-        if (product?.imageUrl) {
-            try {
-                const { url } = await getUrl({ path: product.imageUrl })
-                productImages.value[item.productID] = url.toString()
-            } catch (error) {
-                console.error("Error loading product image:", error)
+        if (item.productSnapshot?.imageUrl) {
+            if (item.productSnapshot.imageUrl.startsWith('data:')) {
+                // Si la imagen está en base64
+                productImages.value[item.productID] = item.productSnapshot.imageUrl;
+            } else {
+                // Si es una URL de S3
+                try {
+                    const { url } = await getUrl({ path: item.productSnapshot.imageUrl })
+                    productImages.value[item.productID] = url.toString()
+                } catch (error) {
+                    console.error("Error loading product image:", error)
+                }
             }
         }
     }
 }
 
 const filteredOrders = computed(() => {
-    if (!searchQuery.value) return orders.value
+    let result = orders.value
 
-    const query = searchQuery.value.toLowerCase()
-    return orders.value.filter(order =>
-        order.customerInfo.firstName.toLowerCase().includes(query) ||
-        order.customerInfo.lastName.toLowerCase().includes(query) ||
-        order.customerInfo.email.toLowerCase().includes(query) ||
-        order.id?.toLowerCase().includes(query)
-    )
+    // Aplicar filtro de búsqueda
+    if (searchQuery.value) {
+        const query = searchQuery.value.toLowerCase()
+        result = result.filter(order =>
+            order.customerInfo.firstName.toLowerCase().includes(query) ||
+            order.customerInfo.lastName.toLowerCase().includes(query) ||
+            order.customerInfo.email.toLowerCase().includes(query) ||
+            order.id?.toLowerCase().includes(query)
+        )
+    }
+
+    // Aplicar ordenamiento
+    if (sortField.value) {
+        result = [...result].sort((a, b) => {
+            let valA, valB
+
+            // Manejar campos anidados como createdAt
+            if (sortField.value === 'createdAt') {
+                valA = new Date(a.createdAt || 0).getTime()
+                valB = new Date(b.createdAt || 0).getTime()
+            } else {
+                // Para otros campos si los agregas en el futuro
+                valA = a[sortField.value as keyof Order]
+                valB = b[sortField.value as keyof Order]
+            }
+
+            // Comparar valores
+            if (sortDirection.value === 'asc') {
+                if (valA === undefined || valB === undefined) return 0;
+                return valA > valB ? 1 : -1;
+            } else {
+                if (valA === undefined || valB === undefined) return 0;
+                return valA < valB ? 1 : -1;
+            }
+        })
+    }
+
+    return result
 })
+
+// Función auxiliar para mostrar el indicador de dirección de ordenamiento
+const getSortIcon = (field: string) => {
+    if (sortField.value !== field) return null
+    return sortDirection.value === 'asc' ? '↑' : '↓'
+}
 
 const formatPrice = (price?: number) => {
     return price?.toFixed(2) ?? '0.00'
@@ -388,26 +569,69 @@ const truncateProductName = (name: string, maxLength: number = 100): string => {
     }
 }
 
-const updateStatus = async (orderId: string | undefined, newStatus: Order['status']) => {
-    if (!orderId) return
+const updateStatus = async (orderId: any, newStatus: any) => {
+    if (!orderId) return;
 
+    // Solo validar stock cuando se cambia a completado
+    if (newStatus === 'completed') {
+        try {
+            // Obtener la orden actual
+            const order = await getOrderDetails(orderId);
+
+            if (!order) {
+                showToast({
+                    type: 'error',
+                    message: 'No se pudo obtener la información del pedido'
+                });
+                return;
+            }
+
+            // Validar stock para la orden
+            const { valid, invalidProducts } = await validateOrderStock(order);
+
+            if (!valid) {
+                // Configurar y mostrar el modal
+                stockErrorProducts.value = invalidProducts;
+                showStockModal.value = true;
+                return; // Detener el proceso de actualización
+            }
+        } catch (error) {
+            console.error('Error al validar stock:', error);
+            showToast({
+                type: 'error',
+                message: 'Error al validar el stock de los productos'
+            });
+            return;
+        }
+    }
+
+    // Si todo está bien, continuar con la actualización normal
     try {
-        await updateOrderStatus(orderId, newStatus)
+        await updateOrderStatus(orderId, newStatus);
         showToast({
             type: 'success',
             message: `Orden ${orderId.slice(-6)} actualizada a ${getStatusText(newStatus)}`
-        })
+        });
     } catch (error) {
         showToast({
             type: 'error',
             message: 'Error al actualizar el estado de la orden'
-        })
+        });
     }
-}
+};
 
 onMounted(async () => {
     await loadOrders()
 })
+
+watch(
+    () => selectedOrder.value,
+    (newOrder) => {
+        if (newOrder) {
+            paymentLinkInput.value = newOrder.linkPago || '';
+        }
+    }
+);
 </script>
 
 <style scoped>
@@ -415,6 +639,112 @@ onMounted(async () => {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+}
+
+/* Estilos para la sección de detalles de pago */
+.payment-details {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e2e8f0;
+}
+
+.pago-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.payment-link-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.payment-link-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.link-input-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.payment-link-input {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    transition: border-color 0.2s;
+}
+
+.payment-link-input:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.2);
+}
+
+.update-link-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    background-color: #6366f1;
+    color: white;
+    border: none;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    min-width: 100px;
+}
+
+.update-link-button:hover:not(:disabled) {
+    background-color: #4f46e5;
+}
+
+.update-link-button:disabled {
+    background-color: #c7d2fe;
+    cursor: not-allowed;
+}
+
+.current-link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+}
+
+.current-link-label {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.current-link-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    color: #6366f1;
+    text-decoration: none;
+    word-break: break-all;
+}
+
+.current-link-value:hover {
+    text-decoration: underline;
+}
+
+.external-link-icon {
+    color: #94a3b8;
+}
+
+.status-warning {
+    font-size: 0.75rem;
+    color: #ef4444;
+    margin-top: 0.25rem;
 }
 
 /* Stats Section */
@@ -636,6 +966,10 @@ onMounted(async () => {
     color: #1e40af;
 }
 
+.current-price.promotional {
+    color: #e53e3e;
+}
+
 .status-badge.completed {
     background: #dcfce7;
     color: #166534;
@@ -644,6 +978,46 @@ onMounted(async () => {
 .status-badge.cancelled {
     background: #fee2e2;
     color: #991b1b;
+}
+
+/* Estilos para encabezados sorteables */
+.sortable-header {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.sortable-header:hover {
+    background-color: #e5e7eb;
+}
+
+.sort-icon {
+    margin-left: 0.5rem;
+    font-weight: bold;
+    font-size: 0.875rem;
+    color: #383838;
+}
+
+/* Opcional: añadir un indicador visual para mostrar que es sorteable */
+.sortable-header::after {
+    content: '';
+    display: inline-block;
+    width: 0.5rem;
+    height: 0.5rem;
+    margin-left: 0.25rem;
+    opacity: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='16' height='16' stroke='currentColor' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-size: contain;
+    background-repeat: no-repeat;
+    transition: opacity 0.2s ease;
+}
+
+.sortable-header:hover::after {
+    opacity: 0.5;
 }
 
 /* Order Date */

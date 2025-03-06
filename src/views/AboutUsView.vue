@@ -57,9 +57,11 @@
                                         ¡ATREVIDO nunca decepciona!</p>
                                 </div>
                                 <div class="testimonial-author">
-                                    <img src="@/assets/user.png" alt="Foto de cliente" class="author-image" />
+                                    <div class="icon-container">
+                                        <UserIcon :size="48" class="author-icon" />
+                                    </div>
                                     <div class="author-info">
-                                        <h4>Joel PC</h4>
+                                        <h4>Joel Pinto</h4>
                                         <p>Compra: Tom Ford Tobacco Vanille</p>
                                         <div class="rating">
                                             <i class="fa-solid fa-star"></i>
@@ -87,9 +89,11 @@
                                         recomendado.</p>
                                 </div>
                                 <div class="testimonial-author">
-                                    <img src="@/assets/user.png" alt="Foto de cliente" class="author-image" />
+                                    <div class="icon-container">
+                                        <UserIcon :size="48" class="author-icon" />
+                                    </div>
                                     <div class="author-info">
-                                        <h4>Jan Saona</h4>
+                                        <h4>Angelo Fajardo</h4>
                                         <p>Compra: Armaf Odyssey Mandarin Sky</p>
                                         <div class="rating">
                                             <i class="fa-solid fa-star"></i>
@@ -117,7 +121,9 @@
                                         es exactamente como debe ser.</p>
                                 </div>
                                 <div class="testimonial-author">
-                                    <img src="@/assets/user.png" alt="Foto de cliente" class="author-image" />
+                                    <div class="icon-container">
+                                        <UserIcon :size="48" class="author-icon" />
+                                    </div>
                                     <div class="author-info">
                                         <h4>Luis Torres</h4>
                                         <p>Compra: Dior Sauvage EDP</p>
@@ -169,6 +175,7 @@
 
 <script setup lang="ts">
 import MainLayout from '@/layouts/MainLayout.vue';
+import { UserIcon } from 'lucide-vue-next';
 import { ref, onMounted, onUnmounted } from 'vue';
 
 const activeTestimonial = ref(0);
@@ -437,6 +444,21 @@ onUnmounted(() => {
     font-style: italic;
     margin-bottom: 10px;
     text-align: center;
+}
+
+.icon-container {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f0f0f0;
+    border-radius: 50%;
+    margin-right: 15px;
+}
+
+.author-icon {
+    color: #333;
 }
 
 .testimonial-author {

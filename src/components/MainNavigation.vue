@@ -11,7 +11,9 @@
                 </Transition>
 
                 <RouterLink to="/" class="logo-link">
-                    <img src="@/assets/new-logo.png" alt="Logo" class="logo" />
+                    <Transition name="logo-fade" mode="out-in">
+                        <img :key="currentLogo" :src="currentLogo" alt="Logo" class="logo" />
+                    </Transition>
                 </RouterLink>
             </div>
 
@@ -159,7 +161,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink, useRouter, useRoute } from 'vue-router'
 import {
     UserIcon,
     SearchIcon,
@@ -189,6 +191,7 @@ const orderCount = ref(0)
 
 const { isAuthenticated, isAdmin, userEmail, userName } = storeToRefs(authStore)
 const router = useRouter()
+const route = useRoute()
 const showLoginModal = ref(false)
 const isUserMenuOpen = ref(false)
 const isAdminSidebarOpen = ref(false)
@@ -200,6 +203,32 @@ const imageUrls = ref<Record<string, string>>({})
 const { allProductsWeb, loadAllProductsWeb } = useProducts()
 const filteredProducts = ref<any[]>([])
 const isMobileSearchOpen = ref(false)
+
+// Variables para gestión de logos y transiciones
+const defaultLogo = '/new-logo.png'
+const altLogo = '/new-logo-atrevida.png'
+const currentLogo = ref(defaultLogo)
+
+// Función para manejar los cambios de logo
+const handleLogoChange = () => {
+    const isPerfumesMujer = route.query.name === 'Perfumes Mujer'
+    const isPerfumesHombre = route.query.name === 'Perfumes Hombre'
+
+    // Si estamos en la sección de Perfumes Mujer
+    if (isPerfumesMujer) {
+        // Cambiar al logo alternativo
+        currentLogo.value = altLogo
+    }
+    // Si estamos en la sección de Perfumes Hombre
+    else if (isPerfumesHombre) {
+        // Cambiar al logo original
+        currentLogo.value = defaultLogo
+    }
+    // Para cualquier otra ruta, mantener el logo original
+    else {
+        currentLogo.value = defaultLogo
+    }
+}
 
 const currentUserEmail = computed(() => {
     if (isAuthenticated.value) {
@@ -320,11 +349,6 @@ onUnmounted(() => {
     document.removeEventListener('click', closeUserMenu)
 })
 
-/*onMounted(async () => {
-    document.addEventListener('click', closeUserMenu)
-    await authStore.checkAuth()
-})*/
-
 onMounted(async () => {
     document.addEventListener('click', closeUserMenu)
     await Promise.all([
@@ -333,13 +357,18 @@ onMounted(async () => {
         loadAllProductsWeb(),
         checkUserOrders()
     ])
+
+    // Verificar la ruta inicial
+    handleLogoChange()
 })
 
-/*watch(isAuthenticated, (newValue) => {
-    if (!newValue) {
-        isUserMenuOpen.value = false
+// Observar los cambios de ruta para actualizar el logo
+watch(
+    () => route.fullPath,
+    () => {
+        handleLogoChange()
     }
-})*/
+)
 
 watch(currentUserEmail, async (newEmail) => {
     if (!isAuthenticated.value && newEmail) {
@@ -541,6 +570,40 @@ body {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+/* Transición del logo */
+.logo-fade-enter-active,
+.logo-fade-leave-active {
+    transition: opacity 0.5s, transform 0.5s;
+}
+
+.logo-fade-enter-from,
+.logo-fade-leave-to {
+    opacity: 0;
+    transform: scale(0.8) rotate(-5deg);
+}
+
+.logo-fade-enter-to,
+.logo-fade-leave-from {
+    opacity: 1;
+    transform: scale(0.9) rotate(0deg);
+}
+
+/* Estilos base del logo */
+.logo-link {
+    display: block;
+    width: 150px;
+    height: 40px;
+    text-decoration: none;
+}
+
+.logo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    transform: scale(0.9);
 }
 
 .greeting-text {

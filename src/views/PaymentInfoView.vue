@@ -110,7 +110,7 @@
 
                 <!-- Mobile Payment Information -->
                 <section class="mobile-payment-section">
-                    <h2>Pagos Móviles</h2>
+                    <h2>Billeteras Digitales</h2>
 
                     <div class="mobile-payments">
                         <div class="mobile-card">

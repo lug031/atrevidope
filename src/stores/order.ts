@@ -85,7 +85,7 @@ export const useOrderStore = defineStore("order", () => {
     };
   };
 
-  const fetchOrders = async () => {
+  /*const fetchOrders = async () => {
     loading.value = true;
     try {
       const { data: items } = await authClient.models.Order.list();
@@ -96,9 +96,9 @@ export const useOrderStore = defineStore("order", () => {
     } finally {
       loading.value = false;
     }
-  };
+  };*/
   
-  /*const fetchOrders = async () => {
+  const fetchOrders = async () => {
     loading.value = true;
     try {
       const { data: items } = await authClient.models.Order.list();
@@ -117,7 +117,7 @@ export const useOrderStore = defineStore("order", () => {
     } finally {
       loading.value = false;
     }
-  };*/
+  };
 
   const parseOrderData = (order: any): Order => {
     if (!order) {

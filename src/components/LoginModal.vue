@@ -1,101 +1,120 @@
 <template>
-    <div class="modal-overlay" @click.self="handleClose">
-        <div class="auth-container">
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[1000]"
+        @click.self="handleClose">
+        <div class="w-full max-w-[400px] mx-4">
             <template v-if="!showConfirmation && !showNewPasswordForm">
-                <form @submit.prevent="handleSubmit" class="auth-form">
-                    <button type="button" class="close-button" @click="handleClose">
+                <form @submit.prevent="handleSubmit" class="bg-white p-8 rounded-lg shadow-md w-full relative">
+                    <button type="button"
+                        class="absolute top-4 right-4 text-2xl bg-transparent border-0 cursor-pointer text-gray-500"
+                        @click="handleClose">
                         ×
                     </button>
 
-                    <div class="logo-container">
-                        <img src="@/assets/new-logo.png" alt="Atrevido Logo" class="auth-logo" />
+                    <div class="text-center mt-8 mb-14">
+                        <img src="@/assets/new-logo.png" alt="Atrevido Logo" class="max-w-[200px] h-auto mx-auto" />
                     </div>
 
-                    <h1>{{ isRegistering ? 'Registro' : 'Iniciar Sesión' }}</h1>
+                    <h1 class="text-xl font-semibold mb-4 text-center">{{ isRegistering ? 'Registro' : 'Iniciar Sesión'
+                        }}</h1>
 
-                    <div class="form-group">
-                        <label for="email">Email</label>
-                        <input id="email" v-model="email" type="email" required class="form-input"
+                    <div class="mb-4">
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input id="email" v-model="email" type="email" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
                             :disabled="authStore.loading" />
                     </div>
 
-                    <div class="form-group">
-                        <label for="password">Contraseña</label>
-                        <input id="password" v-model="password" type="password" required class="form-input"
+                    <div class="mb-4">
+                        <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                        <input id="password" v-model="password" type="password" required
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
                             minlength="8" :disabled="authStore.loading" />
                     </div>
 
-                    <button type="submit" :disabled="authStore.loading" class="auth-button">
+                    <button type="submit" :disabled="authStore.loading"
+                        class="w-full py-3 bg-gray-800 text-white border-0 rounded-md cursor-pointer disabled:bg-gray-400">
                         {{ authStore.loading ? 'Cargando...' : (isRegistering ? 'Registrarse' : 'Iniciar Sesión') }}
                     </button>
 
-                    <p v-if="authStore.error" class="error-message">
+                    <p v-if="authStore.error" class="text-red-500 mt-4 text-center">
                         {{ authStore.error }}
                     </p>
 
-                    <p class="toggle-auth">
+                    <p class="text-center mt-4">
                         {{ isRegistering ? '¿Ya tienes cuenta?' : '¿No tienes cuenta?' }}
-                        <a href="#" @click.prevent="toggleAuth">
+                        <a href="#" @click.prevent="toggleAuth" class="text-green-600 no-underline ml-2">
                             {{ isRegistering ? 'Inicia Sesión' : 'Regístrate' }}
                         </a>
                     </p>
                 </form>
             </template>
 
-            <form v-else-if="showConfirmation" @submit.prevent="handleConfirmation" class="auth-form">
-                <button type="button" class="close-button" @click="handleClose">
+            <form v-else-if="showConfirmation" @submit.prevent="handleConfirmation"
+                class="bg-white p-8 rounded-lg shadow-md w-full relative">
+                <button type="button"
+                    class="absolute top-4 right-4 text-2xl bg-transparent border-0 cursor-pointer text-gray-500"
+                    @click="handleClose">
                     ×
                 </button>
 
-                <div class="logo-container">
-                    <img src="@/assets/new-logo.png" alt="Atrevido Logo" class="auth-logo" />
+                <div class="text-center mt-8 mb-14">
+                    <img src="@/assets/new-logo.png" alt="Atrevido Logo" class="max-w-[200px] h-auto mx-auto" />
                 </div>
 
-                <h1>Confirmar Registro</h1>
-                <p class="confirmation-message">
+                <h1 class="text-xl font-semibold mb-4 text-center">Confirmar Registro</h1>
+                <p class="text-center mb-4 text-gray-600">
                     Se ha enviado un código de confirmación a tu email
                 </p>
 
-                <div class="form-group">
-                    <label for="code">Código de confirmación</label>
-                    <input id="code" v-model="confirmationCode" type="text" required class="form-input"
+                <div class="mb-4">
+                    <label for="code" class="block text-sm font-medium text-gray-700 mb-1">Código de
+                        confirmación</label>
+                    <input id="code" v-model="confirmationCode" type="text" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
                         :disabled="authStore.loading" />
                 </div>
 
-                <button type="submit" :disabled="authStore.loading" class="auth-button">
+                <button type="submit" :disabled="authStore.loading"
+                    class="w-full py-3 bg-gray-800 text-white border-0 rounded-md cursor-pointer disabled:bg-gray-400">
                     {{ authStore.loading ? 'Verificando...' : 'Confirmar Registro' }}
                 </button>
 
-                <p v-if="authStore.error" class="error-message">
+                <p v-if="authStore.error" class="text-red-500 mt-4 text-center">
                     {{ authStore.error }}
                 </p>
             </form>
 
-            <form v-else-if="showNewPasswordForm" @submit.prevent="handleNewPassword" class="auth-form">
-                <button type="button" class="close-button" @click="handleClose">
+            <form v-else-if="showNewPasswordForm" @submit.prevent="handleNewPassword"
+                class="bg-white p-8 rounded-lg shadow-md w-full relative">
+                <button type="button"
+                    class="absolute top-4 right-4 text-2xl bg-transparent border-0 cursor-pointer text-gray-500"
+                    @click="handleClose">
                     ×
                 </button>
 
-                <div class="logo-container">
-                    <img src="@/assets/new-logo.png" alt="Logo" class="auth-logo" />
+                <div class="text-center mt-8 mb-14">
+                    <img src="@/assets/new-logo.png" alt="Logo" class="max-w-[200px] h-auto mx-auto" />
                 </div>
 
-                <h1>Cambiar Contraseña</h1>
-                <p class="confirmation-message">
+                <h1 class="text-xl font-semibold mb-4 text-center">Cambiar Contraseña</h1>
+                <p class="text-center mb-4 text-gray-600">
                     Por seguridad, debes establecer una nueva contraseña
                 </p>
 
-                <div class="form-group">
-                    <label for="newPassword">Nueva Contraseña</label>
-                    <input id="newPassword" v-model="newPassword" type="password" required class="form-input"
+                <div class="mb-4">
+                    <label for="newPassword" class="block text-sm font-medium text-gray-700 mb-1">Nueva
+                        Contraseña</label>
+                    <input id="newPassword" v-model="newPassword" type="password" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
                         minlength="8" :disabled="authStore.loading" />
                 </div>
 
-                <button type="submit" :disabled="authStore.loading" class="auth-button">
+                <button type="submit" :disabled="authStore.loading"
+                    class="w-full py-3 bg-gray-800 text-white border-0 rounded-md cursor-pointer disabled:bg-gray-400">
                     {{ authStore.loading ? 'Actualizando...' : 'Cambiar Contraseña' }}
                 </button>
 
-                <p v-if="authStore.error" class="error-message">
+                <p v-if="authStore.error" class="text-red-500 mt-4 text-center">
                     {{ authStore.error }}
                 </p>
             </form>
@@ -201,128 +220,3 @@ const toggleAuth = () => {
     authStore.error = null;
 };
 </script>
-
-<style scoped>
-.modal-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-}
-
-.close-button {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    font-size: 1.5rem;
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: #666;
-}
-
-.auth-container {
-    position: relative;
-    width: 100%;
-    max-width: 400px;
-    margin: 1rem;
-}
-
-.auth-form {
-    background-color: white;
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    width: 100%;
-}
-
-.logo-container {
-    text-align: center;
-    margin-top: 2rem;
-    margin-bottom: 3.5rem;
-}
-
-.auth-logo {
-    max-width: 200px;
-    height: auto;
-}
-
-.form-group {
-    margin-bottom: 1rem;
-}
-
-.form-input {
-    width: 100%;
-    padding: 0.5rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    margin-top: 0.25rem;
-}
-
-.auth-button {
-    width: 100%;
-    padding: 0.75rem;
-    background-color: #292929;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.auth-button:disabled {
-    background-color: #cccccc;
-}
-
-.error-message {
-    color: red;
-    margin-top: 1rem;
-    text-align: center;
-}
-
-.toggle-auth {
-    text-align: center;
-    margin-top: 1rem;
-}
-
-.toggle-auth a {
-    color: #4CAF50;
-    text-decoration: none;
-    margin-left: 0.5rem;
-}
-
-.confirmation-message {
-    text-align: center;
-    margin-bottom: 1rem;
-    color: #666;
-}
-
-.divider {
-    position: relative;
-    text-align: center;
-    margin: 1.5rem 0;
-}
-
-.divider::before {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 0;
-    right: 0;
-    height: 1px;
-    background: #e2e8f0;
-}
-
-.divider-text {
-    position: relative;
-    background: white;
-    padding: 0 1rem;
-    color: #718096;
-    font-size: 0.875rem;
-}
-</style>

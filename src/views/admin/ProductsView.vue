@@ -70,7 +70,7 @@
                             </td>
                             <td>S/{{ product.price.toFixed(2) }}</td>
                             <td>
-                                <div class="stock-control">
+                                <div class="stock-control column">
                                     <span :class="['stock-badge', getStockClass(product.stock)]">
                                         {{ product.stock }}
                                     </span>
@@ -1793,6 +1793,17 @@ watch(products, loadImageUrls, { immediate: true });
     display: flex;
     align-items: center;
     gap: 0.75rem;
+}
+
+.stock-control.column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.stock-control.column .stock-badge {
+    margin-bottom: 0.25rem;
 }
 
 .stock-buttons {

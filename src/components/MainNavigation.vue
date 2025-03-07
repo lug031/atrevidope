@@ -1,54 +1,69 @@
 <template>
-    <nav class="main-nav">
-        <div class="nav-content">
-            <div class="nav-left">
+    <nav
+        class="fixed top-0 left-0 right-0 w-full h-[72px] md:h-[74px] px-4 flex items-center bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 z-[1000] transition-colors duration-300">
+        <div class="flex justify-between items-center max-w-[1200px] mx-auto w-full">
+            <div class="flex items-center gap-4">
                 <!-- Admin Menu Button -->
                 <Transition name="fade">
-                    <button v-if="!authStore.loading && isAdmin" class="icon-button menu-button"
+                    <button v-if="!authStore.loading && isAdmin"
+                        class="flex items-center justify-center bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 p-2 rounded cursor-pointer text-gray-900 dark:text-gray-200 transition-colors duration-200"
                         @click="toggleAdminSidebar" aria-label="Menú de administración">
-                        <MenuIcon class="menu-icon" :size="24" />
+                        <MenuIcon class="stroke-current stroke-[1.5px]" :size="24" />
                     </button>
                 </Transition>
 
-                <RouterLink to="/" class="logo-link">
+                <RouterLink to="/" class="block w-[150px] h-[40px] md:w-[150px] no-underline">
                     <Transition name="logo-fade" mode="out-in">
-                        <img :key="currentLogo" :src="currentLogo" alt="Logo" class="logo" />
+                        <img :key="currentLogo" :src="currentLogo" alt="Logo"
+                            class="w-full h-full object-cover object-center scale-90 dark:invert dark:brightness-100" />
                     </Transition>
                 </RouterLink>
             </div>
 
             <!-- Search button for mobile -->
-            <button class="icon-button search-mobile-button" @click="toggleMobileSearch">
-                <SearchIcon class="search-icon" :size="24" />
+            <button
+                class="md:hidden flex items-center justify-center bg-transparent border-0 p-2 cursor-pointer text-gray-900 dark:text-gray-200 ml-auto mr-4"
+                @click="toggleMobileSearch">
+                <SearchIcon class="stroke-current stroke-[1.5px]" :size="24" />
             </button>
 
             <!-- Desktop search bar -->
-            <div class="nav-center desktop-search">
-                <div class="search-bar">
-                    <input type="text" placeholder="¿Qué estás buscando?" class="search-input" v-model="searchQuery"
-                        @focus="showResults = true" @input="handleSearch" />
-                    <button class="search-button" @click="handleSearch">
-                        <SearchIcon class="search-icon" :size="20" />
+            <div class="hidden md:flex w-full max-w-[600px] justify-self-end mr-8 items-center">
+                <div class="relative w-full max-w-[600px]">
+                    <input type="text" placeholder="¿Qué estás buscando?"
+                        class="w-full h-[42px] py-2 pl-4 pr-10 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none transition-all duration-300 focus:border-black focus:shadow-[0_0_0_2px_rgba(0,0,0,0.1)] dark:bg-gray-800 dark:text-gray-200 dark:focus:border-gray-500"
+                        v-model="searchQuery" @focus="showResults = true" @input="handleSearch" />
+                    <button
+                        class="absolute right-2 top-1/2 -translate-y-1/2 bg-transparent border-0 cursor-pointer p-2 text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors duration-200"
+                        @click="handleSearch">
+                        <SearchIcon class="stroke-current stroke-[1.5px]" :size="20" />
                     </button>
 
                     <!-- Lista de resultados -->
-                    <div v-if="showResults && searchQuery" class="search-results" v-click-outside="hideResults">
-                        <div v-if="loading" class="search-loading">
-                            <span class="loader"></span>
+                    <div v-if="showResults && searchQuery"
+                        class="absolute top-full mt-2 left-0 right-0 bg-white dark:bg-gray-800 rounded-lg shadow-lg max-h-[400px] overflow-y-auto z-[1001]"
+                        v-click-outside="hideResults">
+                        <div v-if="loading" class="p-8 text-center">
+                            <span
+                                class="inline-block w-6 h-6 rounded-full border-2 border-gray-200 dark:border-gray-700 border-t-gray-900 dark:border-t-white animate-spin"></span>
                         </div>
 
-                        <div v-else-if="filteredProducts.length === 0" class="no-results">
+                        <div v-else-if="filteredProducts.length === 0"
+                            class="p-6 text-center text-gray-600 dark:text-gray-400">
                             No encontramos productos que coincidan con tu búsqueda
                         </div>
 
-                        <div v-else class="results-list">
+                        <div v-else class="p-2">
                             <RouterLink v-for="product in filteredProducts" :key="product.id"
-                                :to="{ name: 'ProductDetail', params: { id: product.id } }" class="product-result"
+                                :to="{ name: 'ProductDetail', params: { id: product.id } }"
+                                class="flex items-center p-3 no-underline text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors duration-200"
                                 @click="hideResults">
-                                <img :src="getProductImage(product)" :alt="product.name" class="product-thumbnail" />
-                                <div class="product-info">
-                                    <span class="product-brand">{{ product.brand }}</span>
-                                    <span class="product-name">{{ product.name }}</span>
+                                <img :src="getProductImage(product)" :alt="product.name"
+                                    class="w-[60px] h-[60px] object-cover rounded-lg mr-6" />
+                                <div class="flex flex-col">
+                                    <span class="font-semibold text-sm text-gray-900 dark:text-gray-100">{{
+                                        product.brand }}</span>
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">{{ product.name }}</span>
                                 </div>
                             </RouterLink>
                         </div>
@@ -57,30 +72,39 @@
             </div>
 
             <Transition name="slide-down">
-                <div v-if="isMobileSearchOpen" class="mobile-search-overlay">
-                    <div class="mobile-search-container">
-                        <input type="text" placeholder="¿Qué estás buscando?" class="mobile-search-input"
+                <div v-if="isMobileSearchOpen"
+                    class="fixed top-0 left-0 right-0 bg-white dark:bg-gray-900 z-[1002] p-4 shadow-md">
+                    <div class="flex items-center gap-2">
+                        <input type="text" placeholder="¿Qué estás buscando?"
+                            class="flex-1 py-3 px-4 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200"
                             v-model="searchQuery" @input="handleSearch" />
-                        <button class="mobile-search-close" @click="toggleMobileSearch">
+                        <button class="bg-transparent border-0 p-2 text-gray-600 dark:text-gray-400 cursor-pointer"
+                            @click="toggleMobileSearch">
                             <XIcon :size="24" />
                         </button>
                     </div>
                     <!-- Mobile search results -->
-                    <div v-if="searchQuery" class="mobile-search-results">
-                        <div v-if="loading" class="search-loading">
-                            <span class="loader"></span>
+                    <div v-if="searchQuery"
+                        class="fixed top-[70px] left-0 right-0 bottom-0 bg-white dark:bg-gray-900 overflow-y-auto p-4">
+                        <div v-if="loading" class="p-8 text-center">
+                            <span
+                                class="inline-block w-6 h-6 rounded-full border-2 border-gray-200 dark:border-gray-700 border-t-gray-900 dark:border-t-white animate-spin"></span>
                         </div>
-                        <div v-else-if="filteredProducts.length === 0" class="no-results">
+                        <div v-else-if="filteredProducts.length === 0"
+                            class="p-6 text-center text-gray-600 dark:text-gray-400">
                             No encontramos productos que coincidan con tu búsqueda
                         </div>
-                        <div v-else class="results-list">
+                        <div v-else>
                             <RouterLink v-for="product in filteredProducts" :key="product.id"
-                                :to="{ name: 'ProductDetail', params: { id: product.id } }" class="product-result"
+                                :to="{ name: 'ProductDetail', params: { id: product.id } }"
+                                class="flex items-center p-4 border-b border-gray-100 dark:border-gray-800 no-underline text-gray-900 dark:text-gray-200"
                                 @click="closeMobileSearch">
-                                <img :src="getProductImage(product)" :alt="product.name" class="product-thumbnail" />
-                                <div class="product-info">
-                                    <span class="product-brand">{{ product.brand }}</span>
-                                    <span class="product-name">{{ product.name }}</span>
+                                <img :src="getProductImage(product)" :alt="product.name"
+                                    class="w-[50px] h-[50px] object-cover rounded-lg mr-6" />
+                                <div class="flex flex-col">
+                                    <span class="font-semibold text-sm text-gray-900 dark:text-gray-100">{{
+                                        product.brand }}</span>
+                                    <span class="text-sm text-gray-600 dark:text-gray-400">{{ product.name }}</span>
                                 </div>
                             </RouterLink>
                         </div>
@@ -88,28 +112,39 @@
                 </div>
             </Transition>
 
-            <div class="nav-right">
-                <!-- User Menu  -->
-                <div class="user-menu-container">
+            <!-- Desktop navigation icons -->
+            <div class="hidden md:flex items-center gap-2">
+                <!-- User Menu -->
+                <div class="relative">
                     <Transition name="fade">
-                        <button v-if="!authStore.loading && !isAuthenticated" class="icon-button"
+                        <button v-if="!authStore.loading && !isAuthenticated"
+                            class="bg-transparent border-0 cursor-pointer p-1.5 flex items-center justify-center text-gray-900 dark:text-gray-200 hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-200"
                             @click="showLoginModal = true">
-                            <UserIcon class="user-icon" :size="24" />
+                            <UserIcon class="stroke-current stroke-[1.5px] min-w-[24px]" :size="24" />
                         </button>
 
-                        <div v-else-if="!authStore.loading && isAuthenticated" class="user-menu">
-                            <button class="icon-button user-greeting" @click="isUserMenuOpen = !isUserMenuOpen">
-                                <span class="greeting-text">¡Hola, {{ userName }}!</span>
-                                <UserIcon class="user-icon" :size="24" />
+                        <div v-else-if="!authStore.loading && isAuthenticated" class="relative">
+                            <button
+                                class="bg-transparent border-0 cursor-pointer p-1.5 flex items-center justify-center text-gray-900 dark:text-gray-200 hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-200"
+                                @click="isUserMenuOpen = !isUserMenuOpen">
+                                <span class="hidden sm:block mr-2 text-[0.9rem] text-gray-700 dark:text-gray-300">¡Hola,
+                                    {{ userName }}!</span>
+                                <UserIcon class="stroke-current stroke-[1.5px] min-w-[24px]" :size="24" />
                             </button>
 
-                            <div v-if="isUserMenuOpen" class="dropdown-menu">
-                                <div class="user-email mobile-only">{{ userEmail }}</div>
-                                <RouterLink to="/profile" class="menu-item">
+                            <div v-if="isUserMenuOpen"
+                                class="absolute top-full right-1/2 translate-x-1/2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[200px] mt-2 z-[1001] overflow-hidden">
+                                <div
+                                    class="p-3 border-b border-gray-100 dark:border-gray-800 text-gray-600 dark:text-gray-400 text-[0.875rem]">
+                                    {{ userEmail }}
+                                </div>
+                                <RouterLink to="/profile"
+                                    class="flex items-center gap-2 p-3 w-full text-left bg-transparent border-0 text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer no-underline transition-colors duration-200">
                                     <UserIcon :size="16" />
                                     Perfil
                                 </RouterLink>
-                                <button @click="handleLogout" class="menu-item">
+                                <button @click="handleLogout"
+                                    class="flex items-center gap-2 p-3 w-full text-left bg-transparent border-0 text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-200">
                                     <LogOutIcon :size="16" />
                                     Cerrar sesión
                                 </button>
@@ -118,16 +153,28 @@
                     </Transition>
                 </div>
 
-                <!-- Carrito - Visible para todos -->
+                <!-- Botón de tema -->
+                <div class="relative">
+                    <button
+                        class="bg-transparent border-0 cursor-pointer p-1.5 flex items-center justify-center text-gray-900 dark:text-gray-200 hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-200"
+                        @click="toggleTheme" aria-label="Cambiar tema">
+                        <SunIcon v-if="isDarkMode" class="stroke-current stroke-[1.5px] min-w-[24px]" :size="24" />
+                        <MoonIcon v-else class="stroke-current stroke-[1.5px] min-w-[24px]" :size="24" />
+                    </button>
+                </div>
+
+                <!-- Carrito -->
                 <Transition name="fade">
-                    <div v-if="!authStore.loading" class="cart-container">
-                        <!--<div v-if="!authStore.loading && !isAdmin" class="cart-container">-->
-                        <button class="icon-button cart-button" @click="isCartOpen = true">
-                            <ShoppingBagIcon class="cart-icon" :size="24"
-                                :class="{ 'bounce': cartStore.showNotification }" />
+                    <div v-if="!authStore.loading" class="relative inline-block">
+                        <button
+                            class="bg-transparent border-0 cursor-pointer p-1.5 flex items-center justify-center text-gray-900 dark:text-gray-200 hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-200 relative"
+                            @click="isCartOpen = true">
+                            <ShoppingBagIcon class="stroke-current stroke-[1.5px] min-w-[24px]" :size="24"
+                                :class="{ 'animate-bounce': cartStore.showNotification }" />
                             <Transition name="bounce">
-                                <span v-if="cartStore.itemCount > 0" class="cart-badge"
-                                    :class="{ 'pulse': cartStore.showNotification }">
+                                <span v-if="cartStore.itemCount > 0"
+                                    class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full min-w-[18px] h-[18px] text-[0.75rem] font-bold flex items-center justify-center px-1.5"
+                                    :class="{ 'animate-pulse': cartStore.showNotification }">
                                     {{ cartStore.itemCount }}
                                 </span>
                             </Transition>
@@ -135,19 +182,134 @@
                     </div>
                 </Transition>
 
-                <!-- Pedidos - Visible según condiciones -->
+                <!-- Pedidos -->
                 <Transition name="fade">
-                    <div v-if="!authStore.loading" class="orders-container">
-                        <RouterLink to="/my-orders" class="icon-button orders-button" :title="'Ver mis pedidos'">
-                            <PackageIcon class="orders-icon" :size="24" :class="{ 'active-orders': orderCount > 0 }" />
+                    <div v-if="!authStore.loading" class="relative inline-block">
+                        <RouterLink to="/my-orders"
+                            class="bg-transparent border-0 cursor-pointer p-1.5 flex items-center justify-center text-gray-900 dark:text-gray-200 hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-200"
+                            :title="'Ver mis pedidos'">
+                            <PackageIcon class="stroke-current stroke-[1.5px] min-w-[24px]" :size="24"
+                                :class="{ 'text-amber-800 dark:text-amber-500': orderCount > 0 }" />
                         </RouterLink>
+                    </div>
+                </Transition>
+            </div>
+
+            <!-- Mobile menu toggle and dropdown -->
+            <div class="md:hidden flex items-center">
+                <!-- Mobile menu button -->
+                <button
+                    class="bg-transparent border-0 cursor-pointer p-2 flex items-center justify-center text-gray-900 dark:text-gray-200 hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-200"
+                    @click="isMobileMenuOpen = !isMobileMenuOpen">
+                    <ChevronDownIcon :class="{ 'rotate-180': isMobileMenuOpen }"
+                        class="stroke-current stroke-[1.5px] min-w-[22px] transition-transform duration-300"
+                        :size="22" />
+                </button>
+
+                <!-- Primary visible elements on mobile (Cart only) -->
+                <Transition name="fade">
+                    <div v-if="!authStore.loading" class="relative inline-block">
+                        <button
+                            class="bg-transparent border-0 cursor-pointer p-2 flex items-center justify-center text-gray-900 dark:text-gray-200 hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-200 relative"
+                            @click="isCartOpen = true">
+                            <ShoppingBagIcon class="stroke-current stroke-[1.5px] min-w-[24px]" :size="24"
+                                :class="{ 'animate-bounce': cartStore.showNotification }" />
+                            <Transition name="bounce">
+                                <span v-if="cartStore.itemCount > 0"
+                                    class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full min-w-[18px] h-[18px] text-[0.75rem] font-bold flex items-center justify-center px-1.5"
+                                    :class="{ 'animate-pulse': cartStore.showNotification }">
+                                    {{ cartStore.itemCount }}
+                                </span>
+                            </Transition>
+                        </button>
                     </div>
                 </Transition>
             </div>
         </div>
 
+        <!-- Mobile menu dropdown -->
+        <Transition name="slide-down">
+            <div v-if="isMobileMenuOpen"
+                class="absolute left-0 right-0 bg-white dark:bg-gray-900 shadow-md border-t border-gray-100 dark:border-gray-800 py-2 z-[1001]">
+                <div class="flex justify-center gap-6 px-4">
+                    <!-- User Menu -->
+                    <div class="relative">
+                        <Transition name="fade">
+                            <button v-if="!authStore.loading && !isAuthenticated"
+                                class="bg-transparent border-0 cursor-pointer p-2 flex flex-col items-center justify-center text-gray-900 dark:text-gray-200 hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-200"
+                                @click="showLoginModal = true; isMobileMenuOpen = false;">
+                                <UserIcon class="stroke-current stroke-[1.5px]" :size="24" />
+                                <span class="text-xs mt-1">Iniciar sesión</span>
+                            </button>
+
+                            <div v-else-if="!authStore.loading && isAuthenticated" class="relative">
+                                <button
+                                    class="bg-transparent border-0 cursor-pointer p-2 flex flex-col items-center justify-center text-gray-900 dark:text-gray-200 hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-200"
+                                    @click="showMobileUserMenu = !showMobileUserMenu">
+                                    <UserIcon class="stroke-current stroke-[1.5px]" :size="24" />
+                                    <span class="text-xs mt-1">{{ userName }}</span>
+                                </button>
+
+                                <!-- Mobile user dropdown menu -->
+                                <div v-if="showMobileUserMenu"
+                                    class="absolute top-full left-1/2 -translate-x-1/2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[200px] mt-2 z-[1002] overflow-hidden">
+                                    <div
+                                        class="p-3 border-b border-gray-100 dark:border-gray-800 text-gray-600 dark:text-gray-400 text-[0.875rem] text-center">
+                                        {{ userEmail }}
+                                    </div>
+                                    <RouterLink to="/profile"
+                                        class="flex items-center gap-2 p-3 w-full text-left bg-transparent border-0 text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer no-underline transition-colors duration-200"
+                                        @click="showMobileUserMenu = false; isMobileMenuOpen = false;">
+                                        <UserIcon :size="16" />
+                                        Perfil
+                                    </RouterLink>
+                                    <button @click="handleLogout"
+                                        class="flex items-center gap-2 p-3 w-full text-left bg-transparent border-0 text-gray-900 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-200">
+                                        <LogOutIcon :size="16" />
+                                        Cerrar sesión
+                                    </button>
+                                </div>
+                            </div>
+                        </Transition>
+                    </div>
+
+                    <!-- Tema -->
+                    <div class="relative">
+                        <button
+                            class="bg-transparent border-0 cursor-pointer p-2 flex flex-col items-center justify-center text-gray-900 dark:text-gray-200 hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-200"
+                            @click="toggleTheme" aria-label="Cambiar tema">
+                            <SunIcon v-if="isDarkMode" class="stroke-current stroke-[1.5px]" :size="24" />
+                            <MoonIcon v-else class="stroke-current stroke-[1.5px]" :size="24" />
+                            <span class="text-xs mt-1">Tema</span>
+                        </button>
+                    </div>
+
+                    <!-- Pedidos -->
+                    <Transition name="fade">
+                        <div v-if="!authStore.loading" class="relative">
+                            <RouterLink to="/my-orders"
+                                class="bg-transparent border-0 cursor-pointer p-2 flex flex-col items-center justify-center text-gray-900 dark:text-gray-200 hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-200 no-underline"
+                                :title="'Ver mis pedidos'">
+                                <PackageIcon class="stroke-current stroke-[1.5px]" :size="24"
+                                    :class="{ 'text-amber-800 dark:text-amber-500': orderCount > 0 }" />
+                                <span class="text-xs mt-1">Mis Pedidos</span>
+                                <span v-if="orderCount > 0"
+                                    class="absolute top-0 right-0 bg-amber-500 text-white rounded-full min-w-[18px] h-[18px] text-[0.65rem] font-bold flex items-center justify-center px-1">
+                                    {{ orderCount }}
+                                </span>
+                            </RouterLink>
+                        </div>
+                    </Transition>
+                </div>
+            </div>
+        </Transition>
+
         <!-- Loading indicator -->
-        <div v-if="authStore.loading" class="auth-loading-indicator"></div>
+        <div v-if="authStore.loading" class="absolute bottom-0 left-0 w-full h-[5px]">
+            <div
+                class="h-full bg-gradient-to-r from-transparent via-black dark:via-white to-transparent animate-[loading_1.5s_infinite]">
+            </div>
+        </div>
     </nav>
 
     <CartSidebar :is-open="isCartOpen" @close="isCartOpen = false" />
@@ -169,7 +331,10 @@ import {
     LogOutIcon,
     MenuIcon,
     XIcon,
-    PackageIcon
+    PackageIcon,
+    SunIcon,
+    MoonIcon,
+    ChevronDownIcon
 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import LoginModal from '@/components/LoginModal.vue'
@@ -181,6 +346,7 @@ import { getUrl } from 'aws-amplify/storage'
 import debounce from 'lodash/debounce'
 import CartSidebar from '@/components/CartSidebar.vue'
 import { useOrders } from '@/composables/useOrders'
+import { useTheme } from '@/composables/useTheme'
 
 const { getUserOrders } = useOrders()
 const hasOrders = ref(false)
@@ -188,6 +354,10 @@ const authStore = useAuthStore()
 const cartStore = useCartStore()
 const isCartOpen = ref(false)
 const orderCount = ref(0)
+const showMobileUserMenu = ref(false)
+
+// Usar el composable de tema
+const { isDarkMode, toggleTheme } = useTheme()
 
 const { isAuthenticated, isAdmin, userEmail, userName } = storeToRefs(authStore)
 const router = useRouter()
@@ -195,6 +365,9 @@ const route = useRoute()
 const showLoginModal = ref(false)
 const isUserMenuOpen = ref(false)
 const isAdminSidebarOpen = ref(false)
+
+// New mobile menu state
+const isMobileMenuOpen = ref(false)
 
 const searchQuery = ref('')
 const showResults = ref(false)
@@ -206,27 +379,30 @@ const isMobileSearchOpen = ref(false)
 
 // Variables para gestión de logos y transiciones
 const defaultLogo = '/new-logo.png'
+const defaultLogoDark = '/new-logo.png' // Versión para modo oscuro
 const altLogo = '/new-logo-atrevida.png'
+const altLogoDark = '/new-logo-atrevida.png' // Versión para modo oscuro
 const currentLogo = ref(defaultLogo)
 
 // Función para manejar los cambios de logo
 const handleLogoChange = () => {
     const isPerfumesMujer = route.query.name === 'Perfumes Mujer'
     const isPerfumesHombre = route.query.name === 'Perfumes Hombre'
+    const isCurrentlyDark = isDarkMode.value
 
     // Si estamos en la sección de Perfumes Mujer
     if (isPerfumesMujer) {
-        // Cambiar al logo alternativo
-        currentLogo.value = altLogo
+        // Cambiar al logo alternativo según el tema
+        currentLogo.value = isCurrentlyDark ? altLogoDark : altLogo
     }
     // Si estamos en la sección de Perfumes Hombre
     else if (isPerfumesHombre) {
-        // Cambiar al logo original
-        currentLogo.value = defaultLogo
+        // Cambiar al logo original según el tema
+        currentLogo.value = isCurrentlyDark ? defaultLogoDark : defaultLogo
     }
-    // Para cualquier otra ruta, mantener el logo original
+    // Para cualquier otra ruta, mantener el logo original según el tema
     else {
-        currentLogo.value = defaultLogo
+        currentLogo.value = isCurrentlyDark ? defaultLogoDark : defaultLogo
     }
 }
 
@@ -312,6 +488,8 @@ const toggleMobileSearch = () => {
     isMobileSearchOpen.value = !isMobileSearchOpen.value
     if (isMobileSearchOpen.value) {
         document.body.style.overflow = 'hidden'
+        // Close mobile menu if open
+        isMobileMenuOpen.value = false
     } else {
         document.body.style.overflow = ''
     }
@@ -323,15 +501,17 @@ const closeMobileSearch = () => {
     hideResults()
 }
 
-
 const toggleAdminSidebar = () => {
     isAdminSidebarOpen.value = !isAdminSidebarOpen.value
+    // Close mobile menu if open
+    isMobileMenuOpen.value = false
 }
 
 const handleLogout = async () => {
     try {
         await authStore.logout()
         isUserMenuOpen.value = false
+        isMobileMenuOpen.value = false
         router.push('/')
     } catch (error) {
         console.error('Error during logout:', error)
@@ -345,12 +525,37 @@ const closeUserMenu = (event: MouseEvent) => {
     }
 }
 
+const closeMobileUserMenu = (event: MouseEvent) => {
+    const mobileUserMenu = document.querySelector('.mobile-user-menu')
+    if (mobileUserMenu && !mobileUserMenu.contains(event.target as Node)) {
+        showMobileUserMenu.value = false
+    }
+}
+
+// Close mobile menu when clicking outside or changing route
+const closeMobileMenu = () => {
+    isMobileMenuOpen.value = false
+}
+
 onUnmounted(() => {
     document.removeEventListener('click', closeUserMenu)
+    window.removeEventListener('resize', handleWindowResize)
 })
+
+// Close mobile menu on window resize (if screen becomes large enough)
+const handleWindowResize = () => {
+    if (window.innerWidth >= 768) { // md breakpoint
+        isMobileMenuOpen.value = false
+    }
+}
 
 onMounted(async () => {
     document.addEventListener('click', closeUserMenu)
+    document.addEventListener('click', closeMobileUserMenu)
+    document.removeEventListener('click', closeMobileUserMenu)
+
+    window.addEventListener('resize', handleWindowResize)
+
     await Promise.all([
         authStore.checkAuth(),
         cartStore.fetchCartItems(),
@@ -362,13 +567,20 @@ onMounted(async () => {
     handleLogoChange()
 })
 
-// Observar los cambios de ruta para actualizar el logo
+// Observar los cambios de ruta para actualizar el logo y cerrar el menú móvil
 watch(
     () => route.fullPath,
     () => {
         handleLogoChange()
+        closeMobileMenu()
+        showMobileUserMenu.value = false
     }
 )
+
+// Observar los cambios en el tema para actualizar el logo
+watch(isDarkMode, () => {
+    handleLogoChange()
+})
 
 watch(currentUserEmail, async (newEmail) => {
     if (!isAuthenticated.value && newEmail) {
@@ -387,189 +599,26 @@ watch(isAuthenticated, async (newValue) => {
 </script>
 
 <style scoped>
-.main-nav {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    height: 72px;
-    /* Altura fija para calcular correctamente los offsets */
-    padding: 1rem;
-    background-color: white;
-    border-bottom: 1px solid #eee;
-    z-index: 1000;
-}
-
-body {
-    padding-top: 80px;
-    /* Ajusta este valor según la altura de tu nav */
-}
-
-@media (max-width: 768px) {
-    .main-nav {
-        height: 64px;
-        padding: 0.75rem;
+/* Estilos para animaciones que no se pueden hacer con Tailwind */
+@keyframes loading {
+    0% {
+        transform: translateX(-100%);
     }
 
-    body {
-        padding-top: 72px;
-        /* Ajusta este valor para móvil según necesites */
+    100% {
+        transform: translateX(100%);
     }
 }
 
-.orders-icon.active-orders {
-    color: #996a1e;
+/* Transiciones */
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity 0.3s ease;
 }
 
-.nav-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-.nav-left {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.menu-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: none;
-    padding: 8px;
-    cursor: pointer;
-    color: #000;
-    border-radius: 4px;
-    transition: background-color 0.2s;
-}
-
-.menu-button:hover {
-    background-color: #f5f5f5;
-}
-
-.logo-link {
-    display: block;
-    width: 150px;
-    height: 40px;
-    text-decoration: none;
-}
-
-.logo {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
-    transform: scale(0.9);
-}
-
-.search-bar {
-    display: flex;
-    width: 500px;
-}
-
-.search-input {
-    width: 100%;
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 4px 0 0 4px;
-}
-
-.search-button {
-    padding: 8px 16px;
-    background-color: #000;
-    color: white;
-    border: none;
-    border-radius: 0 4px 4px 0;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.nav-right {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.icon-button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #000;
-    transition: color 0.2s;
-}
-
-.icon-button:hover {
-    color: #666;
-}
-
-.search-icon,
-.user-icon,
-.cart-icon,
-.menu-icon {
-    stroke-width: 1.5;
-}
-
-.user-menu-container {
-    position: relative;
-}
-
-.dropdown-menu {
-    position: absolute;
-    top: 100%;
-    right: 50%;
-    transform: translateX(50%);
-    background-color: white;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    min-width: 200px;
-    margin-top: 0.5rem;
-    z-index: 1001;
-    overflow: hidden;
-}
-
-.user-email {
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid #eee;
-    color: #666;
-    font-size: 0.875rem;
-}
-
-.menu-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
-    width: 100%;
-    text-align: left;
-    background: none;
-    border: none;
-    color: #000;
-    cursor: pointer;
-    text-decoration: none;
-    transition: background-color 0.2s;
-}
-
-.menu-item:hover {
-    background-color: #f5f5f5;
-}
-
-.user-greeting {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
 }
 
 /* Transición del logo */
@@ -590,150 +639,7 @@ body {
     transform: scale(0.9) rotate(0deg);
 }
 
-/* Estilos base del logo */
-.logo-link {
-    display: block;
-    width: 150px;
-    height: 40px;
-    text-decoration: none;
-}
-
-.logo {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
-    transform: scale(0.9);
-}
-
-.greeting-text {
-    font-size: 0.9rem;
-    color: #333;
-}
-
-@media (max-width: 768px) {
-    .search-bar {
-        width: 100%;
-        max-width: 300px;
-    }
-
-    .greeting-text {
-        display: none;
-    }
-}
-
-.loading-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(90deg, transparent, #000, transparent);
-    animation: loading 1.5s infinite;
-    z-index: 1000;
-}
-
-@keyframes loading {
-    0% {
-        transform: translateX(-100%);
-    }
-
-    100% {
-        transform: translateX(100%);
-    }
-}
-
-.auth-loading-indicator {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 5px;
-    background: linear-gradient(90deg, transparent, #000, transparent);
-    animation: loading 1.5s infinite;
-}
-
-@keyframes loading {
-    0% {
-        transform: translateX(-100%);
-    }
-
-    100% {
-        transform: translateX(100%);
-    }
-}
-
-.fade-enter-active,
-.fade-leave-active {
-    transition: opacity 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-    opacity: 0;
-}
-
-.cart-container {
-    position: relative;
-    display: inline-block;
-}
-
-.cart-button {
-    position: relative;
-}
-
-.cart-badge {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    background-color: #ff4444;
-    color: white;
-    border-radius: 50%;
-    padding: 2px 6px;
-    font-size: 0.75rem;
-    min-width: 18px;
-    height: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-}
-
-.cart-icon.bounce {
-    animation: cart-bounce 0.5s ease;
-}
-
-@keyframes cart-bounce {
-
-    0%,
-    100% {
-        transform: scale(1);
-    }
-
-    50% {
-        transform: scale(1.2);
-    }
-}
-
-.cart-badge.pulse {
-    animation: badge-pulse 0.5s ease;
-}
-
-@keyframes badge-pulse {
-    0% {
-        transform: scale(1);
-    }
-
-    50% {
-        transform: scale(1.3);
-        background-color: #ff6b6b;
-    }
-
-    100% {
-        transform: scale(1);
-    }
-}
-
+/* Animación de rebote */
 .bounce-enter-active {
     animation: bounce-in 0.5s;
 }
@@ -756,211 +662,7 @@ body {
     }
 }
 
-.nav-center {
-    justify-self: end;
-    /* Mueve la barra hacia la derecha */
-    width: 100%;
-    max-width: 600px;
-    /* Ajustado el ancho máximo */
-    margin-right: 2rem;
-    /* Espacio a la derecha */
-}
-
-.search-bar {
-    position: relative;
-    width: 100%;
-    max-width: 600px;
-}
-
-.search-input {
-    width: 100%;
-    padding: 0.75rem 2.5rem 0.75rem 1rem;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 0.875rem;
-    outline: none;
-    transition: all 0.3s ease;
-}
-
-.search-input:focus {
-    border-color: #000;
-    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
-}
-
-.search-button {
-    position: absolute;
-    right: 0.5rem;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0.5rem;
-    color: #4a5568;
-    transition: color 0.3s ease;
-}
-
-.search-button:hover {
-    color: #000;
-}
-
-.search-results {
-    position: absolute;
-    top: calc(100% + 0.5rem);
-    left: 0;
-    right: 0;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    max-height: 400px;
-    overflow-y: auto;
-    z-index: 1001;
-}
-
-.search-loading {
-    padding: 2rem;
-    text-align: center;
-}
-
-.mobile-only {
-    display: none;
-}
-
-@media (max-width: 768px) {
-    .mobile-only {
-        display: block;
-    }
-}
-
-.no-results {
-    padding: 1.5rem;
-    text-align: center;
-    color: #666;
-}
-
-.results-list {
-    padding: 0.5rem;
-}
-
-.product-result {
-    display: flex;
-    align-items: center;
-    padding: 0.75rem;
-    text-decoration: none;
-    color: inherit;
-    transition: background-color 0.3s ease;
-    border-radius: 6px;
-}
-
-.product-result:hover {
-    background-color: #f7f7f7;
-}
-
-.product-thumbnail {
-    width: 60px;
-    /* Aumentado el tamaño */
-    height: 60px;
-    /* Aumentado el tamaño */
-    object-fit: cover;
-    border-radius: 8px;
-    margin-right: 1.5rem;
-}
-
-.product-info {
-    display: flex;
-    flex-direction: column;
-}
-
-.product-brand {
-    font-weight: 600;
-    font-size: 0.875rem;
-    color: #1a202c;
-}
-
-.product-name {
-    font-size: 0.875rem;
-    color: #4a5568;
-}
-
-.loader {
-    width: 24px;
-    height: 24px;
-    border: 2px solid #f3f3f3;
-    border-top: 2px solid #000;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
-        transform: rotate(360deg);
-    }
-}
-
-@media (max-width: 768px) {
-    .search-results {
-        position: fixed;
-        top: 60px;
-        left: 1rem;
-        right: 1rem;
-        max-height: calc(100vh - 80px);
-    }
-}
-
-.search-mobile-button {
-    display: none;
-}
-
-.mobile-search-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    background: white;
-    z-index: 1002;
-    padding: 1rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.mobile-search-container {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.mobile-search-input {
-    flex: 1;
-    padding: 0.75rem 1rem;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 0.875rem;
-    outline: none;
-}
-
-.mobile-search-close {
-    background: none;
-    border: none;
-    padding: 0.5rem;
-    color: #666;
-    cursor: pointer;
-}
-
-.mobile-search-results {
-    position: fixed;
-    top: 70px;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: white;
-    overflow-y: auto;
-    padding: 1rem;
-}
-
-/* Animation classes */
+/* Animación de deslizamiento */
 .slide-down-enter-active,
 .slide-down-leave-active {
     transition: transform 0.3s ease, opacity 0.3s ease;
@@ -972,65 +674,29 @@ body {
     opacity: 0;
 }
 
-@media (max-width: 768px) {
-    .desktop-search {
-        display: none;
-    }
-
-    .search-mobile-button {
-        display: block;
-        margin-left: auto;
-        margin-right: 1rem;
-    }
-
-    .nav-content {
-        padding: 0 1rem;
-    }
-
-    .mobile-search-results .product-result {
-        padding: 1rem;
-        border-bottom: 1px solid #eee;
-    }
-
-    .mobile-search-results .product-thumbnail {
-        width: 50px;
-        height: 50px;
-    }
+/* Estilos adicionales para corregir el posicionamiento */
+nav {
+    display: flex;
+    align-items: center !important;
 }
 
-@media (max-width: 768px) {
-    .nav-content {
-        padding: 0 0.5rem;
-        /* Reducido el padding horizontal */
-    }
+/* Asegura que la barra de navegación tenga el contenido centrado verticalmente */
+nav>div {
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
 
-    .icon-button {
-        padding: 6px;
-        /* Reducido de 8px a 6px */
-    }
+/* Centrar el campo de búsqueda */
+.hidden.md\:block.w-full.max-w-\[600px\] {
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
 
-    .logo-link {
-        width: 120px;
-        /* Reducido de 150px */
-    }
-
-    /* Ajustar el contenedor de órdenes para móvil */
-    .orders-container {
-        margin-right: 0.25rem;
-        /* Añadir un pequeño margen a la derecha */
-    }
-
-    /* Ajustar el espacio entre los iconos */
-    .nav-right {
-        gap: 0.5rem;
-        /* Reducido aún más el espacio entre elementos */
-    }
-
-    /* Asegurar que los iconos no se deformen */
-    .orders-icon,
-    .cart-icon,
-    .user-icon {
-        min-width: 24px;
-    }
+/* Asegura que el campo de entrada tenga una altura adecuada y esté centrado */
+input[type="text"] {
+    height: 42px;
+    align-self: center;
 }
 </style>

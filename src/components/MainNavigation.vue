@@ -1,7 +1,7 @@
 <template>
     <nav
-        class="fixed top-0 left-0 right-0 w-full h-[72px] md:h-[74px] px-4 py-3 md:py-2 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 z-[1000] transition-colors duration-300">
-        <div class="flex justify-between items-center max-w-[1200px] mx-auto">
+        class="fixed top-0 left-0 right-0 w-full h-[72px] md:h-[74px] px-4 flex items-center bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 z-[1000] transition-colors duration-300">
+        <div class="flex justify-between items-center max-w-[1200px] mx-auto w-full">
             <div class="flex items-center gap-4">
                 <!-- Admin Menu Button -->
                 <Transition name="fade">
@@ -12,7 +12,7 @@
                     </button>
                 </Transition>
 
-                <RouterLink to="/" class="block w-[150px] h-[40px] md:w-[120px] no-underline">
+                <RouterLink to="/" class="block w-[150px] h-[40px] md:w-[150px] no-underline">
                     <Transition name="logo-fade" mode="out-in">
                         <img :key="currentLogo" :src="currentLogo" alt="Logo"
                             class="w-full h-full object-cover object-center scale-90 dark:invert dark:brightness-100" />
@@ -28,10 +28,10 @@
             </button>
 
             <!-- Desktop search bar -->
-            <div class="hidden md:block w-full max-w-[600px] justify-self-end mr-8">
+            <div class="hidden md:flex w-full max-w-[600px] justify-self-end mr-8 items-center">
                 <div class="relative w-full max-w-[600px]">
                     <input type="text" placeholder="¿Qué estás buscando?"
-                        class="w-full py-3 pl-4 pr-10 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none transition-all duration-300 focus:border-black focus:shadow-[0_0_0_2px_rgba(0,0,0,0.1)] dark:bg-gray-800 dark:text-gray-200 dark:focus:border-gray-500"
+                        class="w-full h-[42px] py-2 pl-4 pr-10 border border-gray-200 dark:border-gray-700 rounded-lg text-sm outline-none transition-all duration-300 focus:border-black focus:shadow-[0_0_0_2px_rgba(0,0,0,0.1)] dark:bg-gray-800 dark:text-gray-200 dark:focus:border-gray-500"
                         v-model="searchQuery" @focus="showResults = true" @input="handleSearch" />
                     <button
                         class="absolute right-2 top-1/2 -translate-y-1/2 bg-transparent border-0 cursor-pointer p-2 text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors duration-200"
@@ -555,7 +555,7 @@ onMounted(async () => {
     document.removeEventListener('click', closeMobileUserMenu)
 
     window.addEventListener('resize', handleWindowResize)
-    
+
     await Promise.all([
         authStore.checkAuth(),
         cartStore.fetchCartItems(),
@@ -672,5 +672,31 @@ watch(isAuthenticated, async (newValue) => {
 .slide-down-leave-to {
     transform: translateY(-100%);
     opacity: 0;
+}
+
+/* Estilos adicionales para corregir el posicionamiento */
+nav {
+    display: flex;
+    align-items: center !important;
+}
+
+/* Asegura que la barra de navegación tenga el contenido centrado verticalmente */
+nav>div {
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+
+/* Centrar el campo de búsqueda */
+.hidden.md\:block.w-full.max-w-\[600px\] {
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
+
+/* Asegura que el campo de entrada tenga una altura adecuada y esté centrado */
+input[type="text"] {
+    height: 42px;
+    align-self: center;
 }
 </style>

@@ -230,7 +230,7 @@
         <!-- Mobile menu dropdown -->
         <Transition name="slide-down">
             <div v-if="isMobileMenuOpen"
-                class="absolute left-0 right-0 bg-white dark:bg-gray-900 shadow-md border-t border-gray-100 dark:border-gray-800 py-2 z-[1001]">
+                class="absolute left-0 right-0 top-[72px] md:top-[74px] bg-white dark:bg-gray-900 shadow-md border-t border-gray-100 dark:border-gray-800 py-2 z-[1001]">
                 <div class="flex justify-center gap-6 px-4">
                     <!-- User Menu -->
                     <div class="relative">

@@ -62,7 +62,7 @@ const loadImageUrls = async () => {
 .promo-banner {
     position: relative;
     height: 600px;
-    background: url('/IMG_9395.png') center/cover;
+    background: url('/foto-portada-web.png') center/cover;
     display: grid;
     grid-template-columns: 300px 1fr;
     overflow: hidden;

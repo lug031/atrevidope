@@ -673,30 +673,4 @@ watch(isAuthenticated, async (newValue) => {
     transform: translateY(-100%);
     opacity: 0;
 }
-
-/* Estilos adicionales para corregir el posicionamiento */
-nav {
-    display: flex;
-    align-items: center !important;
-}
-
-/* Asegura que la barra de navegación tenga el contenido centrado verticalmente */
-nav>div {
-    height: 100%;
-    display: flex;
-    align-items: center;
-}
-
-/* Centrar el campo de búsqueda */
-.hidden.md\:block.w-full.max-w-\[600px\] {
-    display: flex;
-    align-items: center;
-    height: 100%;
-}
-
-/* Asegura que el campo de entrada tenga una altura adecuada y esté centrado */
-input[type="text"] {
-    height: 42px;
-    align-self: center;
-}
 </style>

@@ -277,7 +277,7 @@ export const useOrderStore = defineStore("order", () => {
   const getOrder = async (id: string) => {
     loading.value = true;
     try {
-      const { data: order } = await authClient.models.Order.get({
+      const { data: order } = await publicClient.models.Order.get({
         id,
       });
       return parseOrderData(order);

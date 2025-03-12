@@ -26,6 +26,7 @@ import ContactView from "@/views/ContactView.vue";
 import AboutUsView from "@/views/AboutUsView.vue";
 import PaymentInfoView from "@/views/PaymentInfoView.vue";
 import ShippingInfoView from "@/views/ShippingInfoView.vue";
+import OrderDetailView from "@/views/OrderDetailView.vue";
 
 let authInitialized = false;
 
@@ -78,6 +79,12 @@ const router = createRouter({
       path: "/my-orders",
       name: "my-orders",
       component: MyOrdersView,
+      meta: { requiresAuth: false },
+    },
+    {
+      path: "/order/:id",
+      name: "order-detail",
+      component: OrderDetailView,
       meta: { requiresAuth: false },
     },
     {

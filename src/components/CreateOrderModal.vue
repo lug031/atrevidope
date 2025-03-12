@@ -22,22 +22,22 @@
                         orderId.slice(-6) }}</span></p>
 
                     <div class="short-link-container">
-                        <p class="short-link-label">Link corto del pedido:</p>
+                        <p class="short-link-label">Link del pedido:</p>
                         <div class="link-copy-container">
                             <input type="text" :value="shortLink" readonly class="short-link-input" />
                             <button @click="copyLinkToClipboard" class="copy-button" :class="{ 'copied': copySuccess }">
                                 <span v-if="!copySuccess">
                                     <ClipboardIcon :size="18" />
-                                    Copiar
                                 </span>
                                 <span v-else>
                                     <CheckIcon :size="18" />
-                                    ¡Copiado!
                                 </span>
                             </button>
                         </div>
-                        <p class="short-link-help">Comparte este link con el cliente para que pueda realizar el
-                            seguimiento de su pedido.</p>
+                        <p class="short-link-help">
+                            Este link permite acceder directamente a los detalles de este pedido.
+                            Compártelo con el cliente para que pueda ver el estado de su pedido.
+                        </p>
                     </div>
 
                     <div class="success-actions">
@@ -113,7 +113,7 @@
                                 <label for="invoiceType">Tipo de comprobante *</label>
                                 <select id="invoiceType" v-model="orderData.customerInfo.invoiceType" required>
                                     <option value="boleta">Boleta</option>
-                                    <option value="factura">Factura</option>
+                                    <!-- <option value="factura">Factura</option>m -->
                                 </select>
                             </div>
 
@@ -323,7 +323,7 @@ const productImages = ref<Record<string, string>>({});
 
 // Composables
 const { products, loading: productsLoading, loadProducts } = useProducts();
-const { createOrder: createOrderFunction } = useOrders();
+const { createOrder: createOrderFunction, updateOrderShortLink } = useOrders();
 const { showToast } = useToast();
 
 // Estado del modal
@@ -350,7 +350,7 @@ const orderData = reactive<Omit<Order, 'id' | 'createdAt' | 'updatedAt'>>({
         phone: '',
         shippingMethod: 'regular',
         invoiceType: 'boleta',
-        paymentMethod: 'izipay',
+        paymentMethod: 'efectivo',
     },
     userEmail: '',
     items: [],
@@ -358,7 +358,7 @@ const orderData = reactive<Omit<Order, 'id' | 'createdAt' | 'updatedAt'>>({
     shipping: 0,
     total: 0,
     status: 'pending',
-    paymentMethod: 'izipay',
+    paymentMethod: 'efectivo',
 });
 
 // Métodos de pago disponibles
@@ -410,7 +410,10 @@ const formatPrice = (price: number) => {
 
 // Cerrar modal
 const closeModal = () => {
-    emit('close');
+    // Only close if we're not in the middle of creating an order
+    if (!submitting.value) {
+        emit('close');
+    }
 };
 
 // Métodos para manejar productos
@@ -517,7 +520,6 @@ const selectPaymentMethod = (method: string) => {
     calculateTotals();
 };
 
-// Crear pedido
 const createOrder = async () => {
     submitting.value = true;
 
@@ -531,8 +533,21 @@ const createOrder = async () => {
         // Guardar el ID del pedido
         if (newOrder && newOrder.id) {
             orderId.value = newOrder.id;
-            // Aquí generaríamos el link real, pero por ahora usamos un dummy
-            shortLink.value = `https://acortar.link/${newOrder.id.substring(0, 8)}`;
+
+            // Generar el link corto usando la ruta de la aplicación
+            const orderUrl = `/order/${newOrder.id}`;
+            const generatedShortLink = `${window.location.origin}${orderUrl}`;
+            shortLink.value = generatedShortLink;
+
+            // Ahora actualiza la orden con el link corto
+            try {
+                await updateOrderShortLink(newOrder.id, generatedShortLink);
+                console.log('Link corto guardado en la base de datos');
+            } catch (updateError) {
+                console.error('Error al guardar el link corto:', updateError);
+                // No fallar si no se puede guardar el link corto
+            }
+
             orderCreated.value = true;
         }
 
@@ -578,14 +593,51 @@ const copyLinkToClipboard = async () => {
 
 // Función para cerrar el modal y emitir el evento
 const finishAndClose = () => {
+    // Make sure we're sending all the necessary data to the parent component
     emit('orderCreated', { id: orderId.value, shortLink: shortLink.value });
-    closeModal();
+    // Explicitly close the modal
+    emit('close');
+
+    // Reset form for next use
+    orderData.customerInfo = {
+        firstName: '',
+        lastName: '',
+        email: '',
+        documentType: 'DNI',
+        documentNumber: '',
+        phone: '',
+        shippingMethod: 'regular',
+        invoiceType: 'boleta',
+        paymentMethod: 'efectivo',
+    };
+    orderData.items = [];
+    orderData.subtotal = 0;
+    orderData.shipping = 0;
+    orderData.total = 0;
+    orderData.paymentMethod = 'efectivo';
+
+    // Reset other state values
+    orderCreated.value = false;
+    currentTab.value = 'customer';
+    productSearchQuery.value = '';
+    linkPago.value = '';
+    linkShort.value = '';
 };
 
 // Cargar productos al montar el componente
 onMounted(async () => {
     if (products.value.length === 0) {
         await loadProducts();
+    }
+});
+
+// Añade este watcher que responde a los cambios de pestaña
+watch(() => currentTab.value, (newTab) => {
+    if (newTab === 'products') {
+        selectPaymentMethod('');
+        calculateTotals();
+    } else if (newTab === 'payment') {
+        selectPaymentMethod('');
     }
 });
 
@@ -632,7 +684,7 @@ watch(filteredProducts, async () => {
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 50;
+    z-index: 1000;
 }
 
 .modal-container {
@@ -719,8 +771,8 @@ watch(filteredProducts, async () => {
 }
 
 .tab-button.active {
-    color: #6366f1;
-    border-bottom-color: #6366f1;
+    color: #1A1A1A;
+    border-bottom-color: #1A1A1A;
 }
 
 .tab-button:disabled {
@@ -762,7 +814,7 @@ watch(filteredProducts, async () => {
 .form-group input:focus,
 .form-group select:focus {
     outline: none;
-    border-color: #6366f1;
+    border-color: #1A1A1A;
     box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.2);
 }
 
@@ -801,7 +853,7 @@ watch(filteredProducts, async () => {
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem 1.25rem;
-    background-color: #6366f1;
+    background-color: #1A1A1A;
     border: none;
     border-radius: 0.375rem;
     color: white;
@@ -812,12 +864,12 @@ watch(filteredProducts, async () => {
 
 .next-button:hover:not(:disabled),
 .submit-button:hover:not(:disabled) {
-    background-color: #4f46e5;
+    background-color: #1A1A1A;
 }
 
 .next-button:disabled,
 .submit-button:disabled {
-    background-color: #c7d2fe;
+    background-color: #b0b0b0;
     cursor: not-allowed;
 }
 
@@ -932,7 +984,7 @@ watch(filteredProducts, async () => {
 
 .product-search-input:focus {
     outline: none;
-    border-color: #6366f1;
+    border-color: #1A1A1A;
     box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.2);
 }
 
@@ -1146,7 +1198,7 @@ watch(filteredProducts, async () => {
 }
 
 .payment-method.selected {
-    border-color: #6366f1;
+    border-color: #1A1A1A;
     background-color: #eff6ff;
 }
 
@@ -1158,7 +1210,7 @@ watch(filteredProducts, async () => {
     height: 48px;
     border-radius: 50%;
     background-color: #f1f5f9;
-    color: #6366f1;
+    color: #1A1A1A;
 }
 
 .payment-method.selected .payment-method-icon {
@@ -1194,7 +1246,7 @@ watch(filteredProducts, async () => {
 
 .payment-link-field input:focus {
     outline: none;
-    border-color: #6366f1;
+    border-color: #1A1A1A;
     box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.2);
 }
 

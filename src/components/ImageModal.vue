@@ -44,7 +44,7 @@ defineEmits<{
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 50;
+    z-index: 1000;
     padding: 1rem;
     animation: fadeIn 0.2s ease-out;
 }

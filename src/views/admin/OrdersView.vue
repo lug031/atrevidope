@@ -243,7 +243,7 @@
                                 </a>
                             </div>
 
-                            <div class="payment-link-field">
+                            <!-- <div class="payment-link-field">
                                 <span class="label">Link Corto:</span>
                                 <div class="link-input-group">
                                     <input type="text" v-model="shortLinkInput" class="payment-link-input"
@@ -255,7 +255,7 @@
                                         <Loader2Icon v-else :size="16" class="animate-spin" />
                                     </button>
                                 </div>
-                            </div>
+                            </div>-->
                             <div v-if="selectedOrder?.linkShort" class="current-link">
                                 <span class="current-link-label">Enlace corto actual:</span>
                                 <a :href="selectedOrder.linkShort" target="_blank" class="current-link-value">

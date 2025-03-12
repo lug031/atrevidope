@@ -28,11 +28,9 @@
                             <button @click="copyLinkToClipboard" class="copy-button" :class="{ 'copied': copySuccess }">
                                 <span v-if="!copySuccess">
                                     <ClipboardIcon :size="18" />
-                                    Copiar
                                 </span>
                                 <span v-else>
                                     <CheckIcon :size="18" />
-                                    ¡Copiado!
                                 </span>
                             </button>
                         </div>
@@ -113,7 +111,7 @@
                                 <label for="invoiceType">Tipo de comprobante *</label>
                                 <select id="invoiceType" v-model="orderData.customerInfo.invoiceType" required>
                                     <option value="boleta">Boleta</option>
-                                    <option value="factura">Factura</option>
+                                    <!-- <option value="factura">Factura</option>m -->
                                 </select>
                             </div>
 
@@ -242,7 +240,7 @@
                                     <div class="summary-row">
                                         <span>Cliente:</span>
                                         <span>{{ orderData.customerInfo.firstName }} {{ orderData.customerInfo.lastName
-                                            }}</span>
+                                        }}</span>
                                     </div>
                                     <div class="summary-row">
                                         <span>Productos:</span>
@@ -350,7 +348,7 @@ const orderData = reactive<Omit<Order, 'id' | 'createdAt' | 'updatedAt'>>({
         phone: '',
         shippingMethod: 'regular',
         invoiceType: 'boleta',
-        paymentMethod: 'izipay',
+        paymentMethod: 'efectivo',
     },
     userEmail: '',
     items: [],
@@ -358,7 +356,7 @@ const orderData = reactive<Omit<Order, 'id' | 'createdAt' | 'updatedAt'>>({
     shipping: 0,
     total: 0,
     status: 'pending',
-    paymentMethod: 'izipay',
+    paymentMethod: 'efectivo',
 });
 
 // Métodos de pago disponibles
@@ -589,6 +587,16 @@ onMounted(async () => {
     }
 });
 
+// Añade este watcher que responde a los cambios de pestaña
+watch(() => currentTab.value, (newTab) => {
+    if (newTab === 'products') {
+        selectPaymentMethod('');
+        calculateTotals();
+    } else if (newTab === 'payment') {
+        selectPaymentMethod('');
+    }
+});
+
 // Reiniciar formulario cuando se cierra el modal
 watch(() => props.show, (newValue) => {
     if (!newValue) {
@@ -632,7 +640,7 @@ watch(filteredProducts, async () => {
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 50;
+    z-index: 1000;
 }
 
 .modal-container {
@@ -719,8 +727,8 @@ watch(filteredProducts, async () => {
 }
 
 .tab-button.active {
-    color: #6366f1;
-    border-bottom-color: #6366f1;
+    color: #1A1A1A;
+    border-bottom-color: #1A1A1A;
 }
 
 .tab-button:disabled {
@@ -762,7 +770,7 @@ watch(filteredProducts, async () => {
 .form-group input:focus,
 .form-group select:focus {
     outline: none;
-    border-color: #6366f1;
+    border-color: #1A1A1A;
     box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.2);
 }
 
@@ -801,7 +809,7 @@ watch(filteredProducts, async () => {
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem 1.25rem;
-    background-color: #6366f1;
+    background-color: #1A1A1A;
     border: none;
     border-radius: 0.375rem;
     color: white;
@@ -812,12 +820,12 @@ watch(filteredProducts, async () => {
 
 .next-button:hover:not(:disabled),
 .submit-button:hover:not(:disabled) {
-    background-color: #4f46e5;
+    background-color: #1A1A1A;
 }
 
 .next-button:disabled,
 .submit-button:disabled {
-    background-color: #c7d2fe;
+    background-color: #b0b0b0;
     cursor: not-allowed;
 }
 
@@ -932,7 +940,7 @@ watch(filteredProducts, async () => {
 
 .product-search-input:focus {
     outline: none;
-    border-color: #6366f1;
+    border-color: #1A1A1A;
     box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.2);
 }
 
@@ -1146,7 +1154,7 @@ watch(filteredProducts, async () => {
 }
 
 .payment-method.selected {
-    border-color: #6366f1;
+    border-color: #1A1A1A;
     background-color: #eff6ff;
 }
 
@@ -1158,7 +1166,7 @@ watch(filteredProducts, async () => {
     height: 48px;
     border-radius: 50%;
     background-color: #f1f5f9;
-    color: #6366f1;
+    color: #1A1A1A;
 }
 
 .payment-method.selected .payment-method-icon {
@@ -1194,7 +1202,7 @@ watch(filteredProducts, async () => {
 
 .payment-link-field input:focus {
     outline: none;
-    border-color: #6366f1;
+    border-color: #1A1A1A;
     box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.2);
 }
 

@@ -542,7 +542,7 @@ const createOrder = async () => {
             // Ahora actualiza la orden con el link corto
             try {
                 await updateOrderShortLink(newOrder.id, generatedShortLink);
-                console.log('Link corto guardado en la base de datos');
+                //console.log('Link corto guardado en la base de datos');
             } catch (updateError) {
                 console.error('Error al guardar el link corto:', updateError);
                 // No fallar si no se puede guardar el link corto

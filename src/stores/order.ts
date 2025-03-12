@@ -29,6 +29,7 @@ type CreateOrderInput = {
   total: number;
   status: "pending" | "processing" | "completed" | "cancelled";
   linkPago: string;
+  linkShort: string;
 };
 
 export const useOrderStore = defineStore("order", () => {
@@ -82,6 +83,7 @@ export const useOrderStore = defineStore("order", () => {
 
       // Link de pago
       linkPago: "",
+      linkShort: "",
     };
   };
 
@@ -97,7 +99,7 @@ export const useOrderStore = defineStore("order", () => {
       loading.value = false;
     }
   };*/
-  
+
   const fetchOrders = async () => {
     loading.value = true;
     try {
@@ -152,6 +154,7 @@ export const useOrderStore = defineStore("order", () => {
         status: order.status,
         paymentMethod: order.paymentMethod || "",
         linkPago: order.linkPago || "",
+        linkShort: order.linkShort || "",
         createdAt: new Date(order.createdAt),
         updatedAt: new Date(order.updatedAt),
       };
@@ -327,6 +330,44 @@ export const useOrderStore = defineStore("order", () => {
     }
   };
 
+  // New function to update just the short link
+  const updateOrderShortLink = async (id: string, linkShort: string) => {
+    loading.value = true;
+    try {
+      const client = authClient;
+
+      const { data: updatedOrder } = await client.models.Order.update({
+        id,
+        linkShort, // Update only the short link
+      });
+
+      if (!updatedOrder) {
+        throw new Error(
+          "No se recibió respuesta del servidor al actualizar el enlace acortado"
+        );
+      }
+
+      await fetchOrders();
+      return parseOrderData(updatedOrder);
+    } catch (err) {
+      if (isGraphQLError(err)) {
+        const errorMessage = err.errors?.[0]?.message;
+        error.value = errorMessage
+          ? `Error al actualizar enlace acortado: ${errorMessage}`
+          : "Error al actualizar enlace acortado";
+      } else if (err instanceof Error) {
+        error.value = err.message;
+      } else {
+        error.value = "Error desconocido al actualizar enlace acortado";
+      }
+
+      console.error("Error detallado:", err);
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
   return {
     orders,
     loading,
@@ -336,6 +377,7 @@ export const useOrderStore = defineStore("order", () => {
     updateOrderStatus,
     fetchUserOrders,
     updateOrderPaymentLink,
+    updateOrderShortLink,
     getOrder,
   };
 });

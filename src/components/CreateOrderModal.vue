@@ -94,32 +94,39 @@
                                     placeholder="999 999 999" required />
                             </div>
 
-                            <div class="form-group">
-                                <label for="documentType">Tipo de documento *</label>
-                                <select id="documentType" v-model="orderData.customerInfo.documentType" required>
+                            <div class="form-group disabled-looking">
+                                <label for="documentType">Tipo de documento</label>
+                                <select disabled id="documentType" v-model="orderData.customerInfo.documentType" class="disabled-appearance"
+                                    required>
                                     <option value="DNI">DNI</option>
                                     <option value="CE">CE</option>
                                     <option value="Pasaporte">Pasaporte</option>
                                 </select>
                             </div>
 
-                            <div class="form-group">
+                            <!-- <div class="form-group">
                                 <label for="documentNumber">Número de documento *</label>
                                 <input type="text" id="documentNumber" v-model="orderData.customerInfo.documentNumber"
                                     placeholder="12345678" required />
+                            </div> -->
+
+                            <div class="form-group disabled-looking">
+                                <label for="documentNumber">Número de documento</label>
+                                <input disabled type="text" id="documentNumber"
+                                    v-model="orderData.customerInfo.documentNumber" placeholder="12345678" class="disabled-appearance"/>
                             </div>
 
-                            <div class="form-group">
+                            <div class="form-group disabled-looking">
                                 <label for="invoiceType">Tipo de comprobante *</label>
-                                <select id="invoiceType" v-model="orderData.customerInfo.invoiceType" required>
+                                <select disabled id="invoiceType" v-model="orderData.customerInfo.invoiceType" class="disabled-appearance" required>
                                     <option value="boleta">Boleta</option>
                                     <!-- <option value="factura">Factura</option>m -->
                                 </select>
                             </div>
 
-                            <div class="form-group">
+                            <div class="form-group disabled-looking">
                                 <label for="shippingMethod">Método de envío *</label>
-                                <select id="shippingMethod" v-model="orderData.customerInfo.shippingMethod" required>
+                                <select disabled id="shippingMethod" v-model="orderData.customerInfo.shippingMethod" class="disabled-appearance" required>
                                     <option value="regular">Regular</option>
                                 </select>
                             </div>
@@ -242,7 +249,7 @@
                                     <div class="summary-row">
                                         <span>Cliente:</span>
                                         <span>{{ orderData.customerInfo.firstName }} {{ orderData.customerInfo.lastName
-                                            }}</span>
+                                        }}</span>
                                     </div>
                                     <div class="summary-row">
                                         <span>Productos:</span>
@@ -391,8 +398,11 @@ const izipayCommission = computed(() => {
 
 // Validaciones
 const isCustomerInfoValid = computed(() => {
-    const { firstName, lastName, email, phone, documentNumber } = orderData.customerInfo;
-    return firstName && lastName && email && phone && documentNumber;
+    /*const { firstName, lastName, email, phone, documentNumber } = orderData.customerInfo;
+    return firstName && lastName && email && phone && documentNumber;*/
+
+    const { firstName, lastName, email, phone } = orderData.customerInfo;
+    return firstName && lastName && email && phone;
 });
 
 const isProductsValid = computed(() => {
@@ -526,6 +536,10 @@ const createOrder = async () => {
     try {
         // Asegurar que el email del usuario se copie del customerInfo
         orderData.userEmail = orderData.customerInfo.email;
+
+        if (!orderData.customerInfo.documentNumber) {
+            orderData.customerInfo.documentNumber = '12345678';
+        }
 
         // Crear el pedido
         const newOrder = await createOrderFunction(orderData);
@@ -879,6 +893,29 @@ watch(filteredProducts, async () => {
     align-items: center;
     text-align: center;
     padding: 2rem 1rem;
+}
+
+.disabled-looking label {
+    color: #a0aec0;
+    /* Color gris más claro para las etiquetas */
+}
+
+.disabled-appearance {
+    background-color: #f7f7f7;
+    /* Fondo grisáceo */
+    border-color: #e2e2e2;
+    /* Borde más claro */
+    color: #6b7280;
+    /* Texto más claro */
+    cursor: pointer;
+    /* Mantener el cursor para indicar que sigue siendo interactivo */
+}
+
+.disabled-appearance:focus {
+    border-color: #e2e2e2;
+    /* Mantener el borde claro incluso al enfocar */
+    box-shadow: none;
+    /* Eliminar el resplandor al enfocar */
 }
 
 .success-icon {

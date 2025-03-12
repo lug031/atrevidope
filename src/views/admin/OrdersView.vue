@@ -230,6 +230,11 @@
                                     <input type="text" v-model="paymentLinkInput" class="payment-link-input"
                                         placeholder="Ingrese el enlace de pago"
                                         :disabled="selectedOrder?.status !== 'processing'" />
+                                    <button @click="updatePaymentLink" class="update-link-button"
+                                        :disabled="updateLinkLoading || selectedOrder?.status !== 'processing'">
+                                        <span v-if="!updateLinkLoading">Enviar</span>
+                                        <Loader2Icon v-else :size="16" class="animate-spin" />
+                                    </button>
                                 </div>
                                 <span v-if="selectedOrder?.status !== 'processing'" class="status-warning">
                                     Solo se puede actualizar el enlace de pago cuando la orden está en proceso
@@ -243,25 +248,23 @@
                                 </a>
                             </div>
 
-                            <!-- <div class="payment-link-field">
+                            <!-- Reemplazar la sección del Link Corto en la template -->
+                            <!-- Reemplazar la sección del Link Corto en la template -->
+                            <div class="payment-link-field">
                                 <span class="label">Link Corto:</span>
-                                <div class="link-input-group">
-                                    <input type="text" v-model="shortLinkInput" class="payment-link-input"
-                                        placeholder="Ingrese el enlace corto"
-                                        :disabled="selectedOrder?.status !== 'processing'" />
-                                    <button @click="updateShortLink" class="update-link-button"
-                                        :disabled="shortLinkUpdateLoading || selectedOrder?.status !== 'processing'">
-                                        <span v-if="!shortLinkUpdateLoading">Enviar</span>
-                                        <Loader2Icon v-else :size="16" class="animate-spin" />
+                                <div v-if="selectedOrder?.linkShort" class="current-link horizontal">
+                                    <a :href="selectedOrder.linkShort" target="_blank" class="current-link-value">
+                                        {{ truncateLink(selectedOrder.linkShort) }}
+                                        <ExternalLinkIcon :size="14" class="external-link-icon" />
+                                    </a>
+                                    <button @click="copyLinkToClipboard(selectedOrder.linkShort)" class="copy-button"
+                                        title="Copiar al portapapeles">
+                                        <ClipboardIcon :size="16" />
                                     </button>
                                 </div>
-                            </div>-->
-                            <div v-if="selectedOrder?.linkShort" class="current-link">
-                                <span class="current-link-label">Enlace corto actual:</span>
-                                <a :href="selectedOrder.linkShort" target="_blank" class="current-link-value">
-                                    {{ truncateLink(selectedOrder.linkShort) }}
-                                    <ExternalLinkIcon :size="14" class="external-link-icon" />
-                                </a>
+                                <div v-else class="no-link-message">
+                                    No hay link corto disponible
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -322,6 +325,7 @@ import { useOrderStore } from '@/stores/order';
 import { useOrderValidation } from '@/composables/useOrderValidation';
 import StockErrorModal from '@/components/StockErrorModal.vue'
 import CreateOrderModal from '@/components/CreateOrderModal.vue'
+import { ClipboardIcon } from 'lucide-vue-next';
 
 const { orders, loading, error, loadOrders, updateOrderStatus, orderStats, getOrderDetails } = useOrders()
 const { validateOrderStock } = useOrderValidation();
@@ -366,6 +370,22 @@ const toggleSort = (field: any) => {
         sortDirection.value = 'desc' // Por defecto de más reciente a más antiguo
     }
 }
+
+const copyLinkToClipboard = async (link: any) => {
+    try {
+        await navigator.clipboard.writeText(link);
+        showToast({
+            type: 'success',
+            message: 'Link copiado al portapapeles'
+        });
+    } catch (err) {
+        console.error('Error al copiar:', err);
+        showToast({
+            type: 'error',
+            message: 'No se pudo copiar el link'
+        });
+    }
+};
 
 const loadOrderProducts = async () => {
     if (!selectedOrder.value) return
@@ -571,6 +591,42 @@ const showOrderDetails = async (order: Order) => {
     shortLinkInput.value = order.linkShort || '';
 }
 
+const updatePaymentLink = async () => {
+    if (!selectedOrder.value?.id || !paymentLinkInput.value) return;
+
+    if (selectedOrder.value.status !== 'processing') {
+        showToast({
+            type: 'warning',
+            message: 'Solo se puede actualizar el enlace de pago cuando la orden está en proceso'
+        });
+        return;
+    }
+
+    updateLinkLoading.value = true;
+    try {
+        const updatedOrder = await orderStore.updateOrderPaymentLink(
+            selectedOrder.value.id,
+            paymentLinkInput.value
+        );
+
+        // Actualizar el orden seleccionado con la información actualizada
+        selectedOrder.value = updatedOrder;
+
+        showToast({
+            type: 'success',
+            message: 'Enlace de pago actualizado correctamente'
+        });
+    } catch (error) {
+        console.error('Error al actualizar el enlace de pago:', error);
+        showToast({
+            type: 'error',
+            message: 'Error al actualizar el enlace de pago'
+        });
+    } finally {
+        updateLinkLoading.value = false;
+    }
+};
+
 const truncateProductName = (name: string, maxLength: number = 100): string => {
     if (!name) return '';
 
@@ -694,6 +750,53 @@ watch(
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+}
+
+.current-link.horizontal {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+    flex-direction: row;
+    /* Asegura que los elementos se muestren en línea */
+}
+
+.current-link-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    color: #6366f1;
+    text-decoration: none;
+    word-break: break-all;
+    flex: 1;
+}
+
+.copy-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.375rem;
+    background-color: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    color: #4b5563;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    /* Evita que el botón se encoja */
+}
+
+.copy-button:hover {
+    background-color: #e5e7eb;
+    color: #1f2937;
+}
+
+.no-link-message {
+    font-size: 0.875rem;
+    color: #94a3b8;
+    font-style: italic;
+    margin-top: 0.25rem;
 }
 
 /* Botón de crear pedido y contenedor de botones */

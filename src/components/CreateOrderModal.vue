@@ -22,7 +22,7 @@
                         orderId.slice(-6) }}</span></p>
 
                     <div class="short-link-container">
-                        <p class="short-link-label">Link corto del pedido:</p>
+                        <p class="short-link-label">Link del pedido:</p>
                         <div class="link-copy-container">
                             <input type="text" :value="shortLink" readonly class="short-link-input" />
                             <button @click="copyLinkToClipboard" class="copy-button" :class="{ 'copied': copySuccess }">
@@ -34,8 +34,10 @@
                                 </span>
                             </button>
                         </div>
-                        <p class="short-link-help">Comparte este link con el cliente para que pueda realizar el
-                            seguimiento de su pedido.</p>
+                        <p class="short-link-help">
+                            Este link permite acceder directamente a los detalles de este pedido.
+                            Compártelo con el cliente para que pueda ver el estado de su pedido.
+                        </p>
                     </div>
 
                     <div class="success-actions">
@@ -240,7 +242,7 @@
                                     <div class="summary-row">
                                         <span>Cliente:</span>
                                         <span>{{ orderData.customerInfo.firstName }} {{ orderData.customerInfo.lastName
-                                        }}</span>
+                                            }}</span>
                                     </div>
                                     <div class="summary-row">
                                         <span>Productos:</span>
@@ -321,7 +323,7 @@ const productImages = ref<Record<string, string>>({});
 
 // Composables
 const { products, loading: productsLoading, loadProducts } = useProducts();
-const { createOrder: createOrderFunction } = useOrders();
+const { createOrder: createOrderFunction, updateOrderShortLink } = useOrders();
 const { showToast } = useToast();
 
 // Estado del modal
@@ -408,7 +410,10 @@ const formatPrice = (price: number) => {
 
 // Cerrar modal
 const closeModal = () => {
-    emit('close');
+    // Only close if we're not in the middle of creating an order
+    if (!submitting.value) {
+        emit('close');
+    }
 };
 
 // Métodos para manejar productos
@@ -515,7 +520,6 @@ const selectPaymentMethod = (method: string) => {
     calculateTotals();
 };
 
-// Crear pedido
 const createOrder = async () => {
     submitting.value = true;
 
@@ -529,8 +533,21 @@ const createOrder = async () => {
         // Guardar el ID del pedido
         if (newOrder && newOrder.id) {
             orderId.value = newOrder.id;
-            // Aquí generaríamos el link real, pero por ahora usamos un dummy
-            shortLink.value = `https://acortar.link/${newOrder.id.substring(0, 8)}`;
+
+            // Generar el link corto usando la ruta de la aplicación
+            const orderUrl = `/order/${newOrder.id}`;
+            const generatedShortLink = `${window.location.origin}${orderUrl}`;
+            shortLink.value = generatedShortLink;
+
+            // Ahora actualiza la orden con el link corto
+            try {
+                await updateOrderShortLink(newOrder.id, generatedShortLink);
+                console.log('Link corto guardado en la base de datos');
+            } catch (updateError) {
+                console.error('Error al guardar el link corto:', updateError);
+                // No fallar si no se puede guardar el link corto
+            }
+
             orderCreated.value = true;
         }
 
@@ -576,8 +593,35 @@ const copyLinkToClipboard = async () => {
 
 // Función para cerrar el modal y emitir el evento
 const finishAndClose = () => {
+    // Make sure we're sending all the necessary data to the parent component
     emit('orderCreated', { id: orderId.value, shortLink: shortLink.value });
-    closeModal();
+    // Explicitly close the modal
+    emit('close');
+
+    // Reset form for next use
+    orderData.customerInfo = {
+        firstName: '',
+        lastName: '',
+        email: '',
+        documentType: 'DNI',
+        documentNumber: '',
+        phone: '',
+        shippingMethod: 'regular',
+        invoiceType: 'boleta',
+        paymentMethod: 'efectivo',
+    };
+    orderData.items = [];
+    orderData.subtotal = 0;
+    orderData.shipping = 0;
+    orderData.total = 0;
+    orderData.paymentMethod = 'efectivo';
+
+    // Reset other state values
+    orderCreated.value = false;
+    currentTab.value = 'customer';
+    productSearchQuery.value = '';
+    linkPago.value = '';
+    linkShort.value = '';
 };
 
 // Cargar productos al montar el componente

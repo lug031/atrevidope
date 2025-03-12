@@ -8,10 +8,15 @@
                     <input type="text" placeholder="Buscar pedidos..." class="search-input" v-model="searchQuery" />
                 </div>
             </div>
-            <button @click="loadOrders" class="refresh-button" :disabled="loading">
-                <RefreshCwIcon :size="20" :class="{ 'animate-spin': loading }" />
-                Actualizar
-            </button>
+            <div class="action-buttons-container">
+                <!-- Botón para crear un nuevo pedido -->
+                <button @click="openCreateOrderModal" class="create-button">
+                    <PlusIcon :size="20" />
+                </button>
+                <button @click="loadOrders" class="refresh-button" :disabled="loading">
+                    <RefreshCwIcon :size="20" :class="{ 'animate-spin': loading }" />
+                </button>
+            </div>
         </div>
 
         <!-- Estados de loading y error -->
@@ -242,6 +247,25 @@
                                     <ExternalLinkIcon :size="14" class="external-link-icon" />
                                 </a>
                             </div>
+
+                            <!-- Reemplazar la sección del Link Corto en la template -->
+                            <!-- Reemplazar la sección del Link Corto en la template -->
+                            <div class="payment-link-field">
+                                <span class="label">Link Corto:</span>
+                                <div v-if="selectedOrder?.linkShort" class="current-link horizontal">
+                                    <a :href="selectedOrder.linkShort" target="_blank" class="current-link-value">
+                                        {{ truncateLink(selectedOrder.linkShort) }}
+                                        <ExternalLinkIcon :size="14" class="external-link-icon" />
+                                    </a>
+                                    <button @click="copyLinkToClipboard(selectedOrder.linkShort)" class="copy-button"
+                                        title="Copiar al portapapeles">
+                                        <ClipboardIcon :size="16" />
+                                    </button>
+                                </div>
+                                <div v-else class="no-link-message">
+                                    No hay link corto disponible
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -268,6 +292,9 @@
         </ModalOrder>
     </div>
     <StockErrorModal :show="showStockModal" :invalidProducts="stockErrorProducts" @close="showStockModal = false" />
+
+    <!-- Modal de Creación de Pedido -->
+    <CreateOrderModal :show="showCreateModal" @close="closeCreateOrderModal" @order-created="handleOrderCreated" />
 </template>
 
 <script setup lang="ts">
@@ -288,7 +315,8 @@ import {
     PlayIcon,
     CheckIcon,
     XIcon,
-    ExternalLinkIcon
+    ExternalLinkIcon,
+    PlusIcon
 } from 'lucide-vue-next'
 import type { Order } from '@/types/order.types'
 import ModalOrder from '@/components/ModalOrder.vue'
@@ -296,6 +324,8 @@ import { useToast } from '@/composables/useToast'
 import { useOrderStore } from '@/stores/order';
 import { useOrderValidation } from '@/composables/useOrderValidation';
 import StockErrorModal from '@/components/StockErrorModal.vue'
+import CreateOrderModal from '@/components/CreateOrderModal.vue'
+import { ClipboardIcon } from 'lucide-vue-next';
 
 const { orders, loading, error, loadOrders, updateOrderStatus, orderStats, getOrderDetails } = useOrders()
 const { validateOrderStock } = useOrderValidation();
@@ -314,15 +344,21 @@ const stockErrorProducts = ref<StockErrorProduct[]>([]);
 const orderStore = useOrderStore();
 const paymentLinkInput = ref('');
 const updateLinkLoading = ref(false);
+
+// Referencias para el link corto
+const shortLinkInput = ref('');
+const shortLinkUpdateLoading = ref(false);
+
 const searchQuery = ref('')
 const showDetailsModal = ref(false)
 const selectedOrder = ref<Order | null>(null)
-//const orderProducts = ref<Record<string, Product>>({})
 const productImages = ref<Record<string, string>>({})
+
+// Estado para el modal de creación de pedidos
+const showCreateModal = ref(false);
 
 const sortField = ref<keyof Order>('createdAt')
 const sortDirection = ref('desc')
-//const { products, loadProducts } = useProducts()
 
 const toggleSort = (field: any) => {
     if (sortField.value === field) {
@@ -335,27 +371,44 @@ const toggleSort = (field: any) => {
     }
 }
 
+const copyLinkToClipboard = async (link: any) => {
+    try {
+        await navigator.clipboard.writeText(link);
+        showToast({
+            type: 'success',
+            message: 'Link copiado al portapapeles'
+        });
+    } catch (err) {
+        console.error('Error al copiar:', err);
+        showToast({
+            type: 'error',
+            message: 'No se pudo copiar el link'
+        });
+    }
+};
+
 const loadOrderProducts = async () => {
     if (!selectedOrder.value) return
     // Ya no necesitamos cargar productos existentes
 }
 
-const updatePaymentLink = async () => {
-    if (!selectedOrder.value?.id || !paymentLinkInput.value) return;
+// Función para actualizar solo el enlace corto
+const updateShortLink = async () => {
+    if (!selectedOrder.value?.id || !shortLinkInput.value) return;
 
     if (selectedOrder.value.status !== 'processing') {
         showToast({
             type: 'warning',
-            message: 'Solo se puede actualizar el enlace de pago cuando la orden está en proceso'
+            message: 'Solo se puede actualizar el enlace corto cuando la orden está en proceso'
         });
         return;
     }
 
-    updateLinkLoading.value = true;
+    shortLinkUpdateLoading.value = true;
     try {
-        const updatedOrder = await orderStore.updateOrderPaymentLink(
+        const updatedOrder = await orderStore.updateOrderShortLink(
             selectedOrder.value.id,
-            paymentLinkInput.value
+            shortLinkInput.value
         );
 
         // Actualizar el orden seleccionado con la información actualizada
@@ -363,16 +416,16 @@ const updatePaymentLink = async () => {
 
         showToast({
             type: 'success',
-            message: 'Enlace de pago actualizado correctamente'
+            message: 'Enlace corto actualizado correctamente'
         });
     } catch (error) {
-        console.error('Error al actualizar el enlace de pago:', error);
+        console.error('Error al actualizar el enlace corto:', error);
         showToast({
             type: 'error',
-            message: 'Error al actualizar el enlace de pago'
+            message: 'Error al actualizar el enlace corto'
         });
     } finally {
-        updateLinkLoading.value = false;
+        shortLinkUpdateLoading.value = false;
     }
 };
 
@@ -532,7 +585,47 @@ const showOrderDetails = async (order: Order) => {
     showDetailsModal.value = true
     await loadOrderProducts()
     await loadProductImages()
+
+    // Inicializar los inputs con los valores existentes
+    paymentLinkInput.value = order.linkPago || '';
+    shortLinkInput.value = order.linkShort || '';
 }
+
+const updatePaymentLink = async () => {
+    if (!selectedOrder.value?.id || !paymentLinkInput.value) return;
+
+    if (selectedOrder.value.status !== 'processing') {
+        showToast({
+            type: 'warning',
+            message: 'Solo se puede actualizar el enlace de pago cuando la orden está en proceso'
+        });
+        return;
+    }
+
+    updateLinkLoading.value = true;
+    try {
+        const updatedOrder = await orderStore.updateOrderPaymentLink(
+            selectedOrder.value.id,
+            paymentLinkInput.value
+        );
+
+        // Actualizar el orden seleccionado con la información actualizada
+        selectedOrder.value = updatedOrder;
+
+        showToast({
+            type: 'success',
+            message: 'Enlace de pago actualizado correctamente'
+        });
+    } catch (error) {
+        console.error('Error al actualizar el enlace de pago:', error);
+        showToast({
+            type: 'error',
+            message: 'Error al actualizar el enlace de pago'
+        });
+    } finally {
+        updateLinkLoading.value = false;
+    }
+};
 
 const truncateProductName = (name: string, maxLength: number = 100): string => {
     if (!name) return '';
@@ -620,6 +713,23 @@ const updateStatus = async (orderId: any, newStatus: any) => {
     }
 };
 
+// Funciones para gestionar el modal de creación de pedidos
+const openCreateOrderModal = () => {
+    showCreateModal.value = true;
+};
+
+const closeCreateOrderModal = () => {
+    showCreateModal.value = false;
+};
+
+const handleOrderCreated = async (newOrder: Order) => {
+    await loadOrders(); // Recargar la lista de pedidos
+    showToast({
+        type: 'success',
+        message: `Pedido #${newOrder.id?.slice(-6)} creado exitosamente`
+    });
+};
+
 onMounted(async () => {
     await loadOrders()
 })
@@ -629,6 +739,7 @@ watch(
     (newOrder) => {
         if (newOrder) {
             paymentLinkInput.value = newOrder.linkPago || '';
+            shortLinkInput.value = newOrder.linkShort || '';
         }
     }
 );
@@ -639,6 +750,79 @@ watch(
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+}
+
+.current-link.horizontal {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+    flex-direction: row;
+    /* Asegura que los elementos se muestren en línea */
+}
+
+.current-link-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    color: #6366f1;
+    text-decoration: none;
+    word-break: break-all;
+    flex: 1;
+}
+
+.copy-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.375rem;
+    background-color: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    color: #4b5563;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    /* Evita que el botón se encoja */
+}
+
+.copy-button:hover {
+    background-color: #e5e7eb;
+    color: #1f2937;
+}
+
+.no-link-message {
+    font-size: 0.875rem;
+    color: #94a3b8;
+    font-style: italic;
+    margin-top: 0.25rem;
+}
+
+/* Botón de crear pedido y contenedor de botones */
+.action-buttons-container {
+    margin-left: 1rem;
+    display: flex;
+    gap: 0.75rem;
+}
+
+.create-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background-color: #22c55e;
+    border: none;
+    border-radius: 0.375rem;
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.create-button:hover {
+    background-color: #16a34a;
 }
 
 /* Estilos para la sección de detalles de pago */

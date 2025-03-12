@@ -130,6 +130,7 @@ const schema = a.schema({
       // Metodo de pago
       paymentMethod: a.string(),
       linkPago: a.string(),
+      linkShort: a.string(),
 
       createdAt: a.datetime(),
       updatedAt: a.datetime(),

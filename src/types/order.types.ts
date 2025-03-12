@@ -38,8 +38,9 @@ export interface Order {
   shipping: number;
   total: number;
   status: OrderStatus;
-  paymentMethod: string;
+  paymentMethod?: string;
   linkPago?: string;
+  linkShort?: string;
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }

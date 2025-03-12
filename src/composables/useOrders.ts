@@ -37,6 +37,11 @@ export function useOrders() {
     return await orderStore.updateOrderStatus(id, status);
   };
 
+  // Funciones de actualización de enlaces
+  const updateOrderShortLink = async (id: string, linkShort: string) => {
+    return await orderStore.updateOrderShortLink(id, linkShort);
+  };
+
   // Funciones específicas del negocio
   const getUserOrders = async (userEmail: string) => {
     return await orderStore.fetchUserOrders(userEmail);
@@ -80,6 +85,7 @@ export function useOrders() {
     loadOrders,
     createOrder,
     updateOrderStatus,
+    updateOrderShortLink,
     getUserOrders,
     getOrderDetails,
   };

@@ -40,6 +40,7 @@ export interface Order {
   status: OrderStatus;
   paymentMethod: string;
   linkPago?: string;
+  linkShort?: string;
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }

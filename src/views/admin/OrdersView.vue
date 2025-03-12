@@ -8,10 +8,15 @@
                     <input type="text" placeholder="Buscar pedidos..." class="search-input" v-model="searchQuery" />
                 </div>
             </div>
-            <button @click="loadOrders" class="refresh-button" :disabled="loading">
-                <RefreshCwIcon :size="20" :class="{ 'animate-spin': loading }" />
-                Actualizar
-            </button>
+            <div class="action-buttons-container">
+                <!-- Botón para crear un nuevo pedido -->
+                <button @click="openCreateOrderModal" class="create-button">
+                    <PlusIcon :size="20" />
+                </button>
+                <button @click="loadOrders" class="refresh-button" :disabled="loading">
+                    <RefreshCwIcon :size="20" :class="{ 'animate-spin': loading }" />
+                </button>
+            </div>
         </div>
 
         <!-- Estados de loading y error -->
@@ -225,11 +230,6 @@
                                     <input type="text" v-model="paymentLinkInput" class="payment-link-input"
                                         placeholder="Ingrese el enlace de pago"
                                         :disabled="selectedOrder?.status !== 'processing'" />
-                                    <button @click="updatePaymentLink" class="update-link-button"
-                                        :disabled="updateLinkLoading || selectedOrder?.status !== 'processing'">
-                                        <span v-if="!updateLinkLoading">Enviar</span>
-                                        <Loader2Icon v-else :size="16" class="animate-spin" />
-                                    </button>
                                 </div>
                                 <span v-if="selectedOrder?.status !== 'processing'" class="status-warning">
                                     Solo se puede actualizar el enlace de pago cuando la orden está en proceso
@@ -239,6 +239,27 @@
                                 <span class="current-link-label">Enlace actual:</span>
                                 <a :href="selectedOrder.linkPago" target="_blank" class="current-link-value">
                                     {{ truncateLink(selectedOrder.linkPago) }}
+                                    <ExternalLinkIcon :size="14" class="external-link-icon" />
+                                </a>
+                            </div>
+
+                            <div class="payment-link-field">
+                                <span class="label">Link Corto:</span>
+                                <div class="link-input-group">
+                                    <input type="text" v-model="shortLinkInput" class="payment-link-input"
+                                        placeholder="Ingrese el enlace corto"
+                                        :disabled="selectedOrder?.status !== 'processing'" />
+                                    <button @click="updateShortLink" class="update-link-button"
+                                        :disabled="shortLinkUpdateLoading || selectedOrder?.status !== 'processing'">
+                                        <span v-if="!shortLinkUpdateLoading">Enviar</span>
+                                        <Loader2Icon v-else :size="16" class="animate-spin" />
+                                    </button>
+                                </div>
+                            </div>
+                            <div v-if="selectedOrder?.linkShort" class="current-link">
+                                <span class="current-link-label">Enlace corto actual:</span>
+                                <a :href="selectedOrder.linkShort" target="_blank" class="current-link-value">
+                                    {{ truncateLink(selectedOrder.linkShort) }}
                                     <ExternalLinkIcon :size="14" class="external-link-icon" />
                                 </a>
                             </div>
@@ -268,6 +289,9 @@
         </ModalOrder>
     </div>
     <StockErrorModal :show="showStockModal" :invalidProducts="stockErrorProducts" @close="showStockModal = false" />
+
+    <!-- Modal de Creación de Pedido -->
+    <CreateOrderModal :show="showCreateModal" @close="closeCreateOrderModal" @order-created="handleOrderCreated" />
 </template>
 
 <script setup lang="ts">
@@ -288,7 +312,8 @@ import {
     PlayIcon,
     CheckIcon,
     XIcon,
-    ExternalLinkIcon
+    ExternalLinkIcon,
+    PlusIcon
 } from 'lucide-vue-next'
 import type { Order } from '@/types/order.types'
 import ModalOrder from '@/components/ModalOrder.vue'
@@ -296,6 +321,7 @@ import { useToast } from '@/composables/useToast'
 import { useOrderStore } from '@/stores/order';
 import { useOrderValidation } from '@/composables/useOrderValidation';
 import StockErrorModal from '@/components/StockErrorModal.vue'
+import CreateOrderModal from '@/components/CreateOrderModal.vue'
 
 const { orders, loading, error, loadOrders, updateOrderStatus, orderStats, getOrderDetails } = useOrders()
 const { validateOrderStock } = useOrderValidation();
@@ -314,15 +340,21 @@ const stockErrorProducts = ref<StockErrorProduct[]>([]);
 const orderStore = useOrderStore();
 const paymentLinkInput = ref('');
 const updateLinkLoading = ref(false);
+
+// Referencias para el link corto
+const shortLinkInput = ref('');
+const shortLinkUpdateLoading = ref(false);
+
 const searchQuery = ref('')
 const showDetailsModal = ref(false)
 const selectedOrder = ref<Order | null>(null)
-//const orderProducts = ref<Record<string, Product>>({})
 const productImages = ref<Record<string, string>>({})
+
+// Estado para el modal de creación de pedidos
+const showCreateModal = ref(false);
 
 const sortField = ref<keyof Order>('createdAt')
 const sortDirection = ref('desc')
-//const { products, loadProducts } = useProducts()
 
 const toggleSort = (field: any) => {
     if (sortField.value === field) {
@@ -340,22 +372,23 @@ const loadOrderProducts = async () => {
     // Ya no necesitamos cargar productos existentes
 }
 
-const updatePaymentLink = async () => {
-    if (!selectedOrder.value?.id || !paymentLinkInput.value) return;
+// Función para actualizar solo el enlace corto
+const updateShortLink = async () => {
+    if (!selectedOrder.value?.id || !shortLinkInput.value) return;
 
     if (selectedOrder.value.status !== 'processing') {
         showToast({
             type: 'warning',
-            message: 'Solo se puede actualizar el enlace de pago cuando la orden está en proceso'
+            message: 'Solo se puede actualizar el enlace corto cuando la orden está en proceso'
         });
         return;
     }
 
-    updateLinkLoading.value = true;
+    shortLinkUpdateLoading.value = true;
     try {
-        const updatedOrder = await orderStore.updateOrderPaymentLink(
+        const updatedOrder = await orderStore.updateOrderShortLink(
             selectedOrder.value.id,
-            paymentLinkInput.value
+            shortLinkInput.value
         );
 
         // Actualizar el orden seleccionado con la información actualizada
@@ -363,16 +396,16 @@ const updatePaymentLink = async () => {
 
         showToast({
             type: 'success',
-            message: 'Enlace de pago actualizado correctamente'
+            message: 'Enlace corto actualizado correctamente'
         });
     } catch (error) {
-        console.error('Error al actualizar el enlace de pago:', error);
+        console.error('Error al actualizar el enlace corto:', error);
         showToast({
             type: 'error',
-            message: 'Error al actualizar el enlace de pago'
+            message: 'Error al actualizar el enlace corto'
         });
     } finally {
-        updateLinkLoading.value = false;
+        shortLinkUpdateLoading.value = false;
     }
 };
 
@@ -532,6 +565,10 @@ const showOrderDetails = async (order: Order) => {
     showDetailsModal.value = true
     await loadOrderProducts()
     await loadProductImages()
+
+    // Inicializar los inputs con los valores existentes
+    paymentLinkInput.value = order.linkPago || '';
+    shortLinkInput.value = order.linkShort || '';
 }
 
 const truncateProductName = (name: string, maxLength: number = 100): string => {
@@ -620,6 +657,23 @@ const updateStatus = async (orderId: any, newStatus: any) => {
     }
 };
 
+// Funciones para gestionar el modal de creación de pedidos
+const openCreateOrderModal = () => {
+    showCreateModal.value = true;
+};
+
+const closeCreateOrderModal = () => {
+    showCreateModal.value = false;
+};
+
+const handleOrderCreated = async (newOrder: Order) => {
+    await loadOrders(); // Recargar la lista de pedidos
+    showToast({
+        type: 'success',
+        message: `Pedido #${newOrder.id?.slice(-6)} creado exitosamente`
+    });
+};
+
 onMounted(async () => {
     await loadOrders()
 })
@@ -629,6 +683,7 @@ watch(
     (newOrder) => {
         if (newOrder) {
             paymentLinkInput.value = newOrder.linkPago || '';
+            shortLinkInput.value = newOrder.linkShort || '';
         }
     }
 );
@@ -639,6 +694,32 @@ watch(
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+}
+
+/* Botón de crear pedido y contenedor de botones */
+.action-buttons-container {
+    margin-left: 1rem;
+    display: flex;
+    gap: 0.75rem;
+}
+
+.create-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background-color: #22c55e;
+    border: none;
+    border-radius: 0.375rem;
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.create-button:hover {
+    background-color: #16a34a;
 }
 
 /* Estilos para la sección de detalles de pago */

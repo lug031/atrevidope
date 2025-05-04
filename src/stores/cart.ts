@@ -120,7 +120,7 @@ export const useCartStore = defineStore("cart", () => {
             imageUrl: product.imageUrl,
             promotionStartDate: product.promotionStartDate,
             promotionEndDate: product.promotionEndDate,
-            promotionType: product.promotionType,
+            promotionType: product.promotionType || "percentage", // Valor por defecto si no existe
             categories: product.categories,
           },
           quantity,
@@ -128,8 +128,8 @@ export const useCartStore = defineStore("cart", () => {
           originalPrice: product.originalPrice,
           discountPercentage: product.discountPercentage,
           isPromoted: product.isPromoted,
-        }
-        //console.log("ITEM: ",newItem)
+          promotionType: product.promotionType || "percentage", // Añadido el campo promotionType con valor por defecto
+        };
         items.value.push(newItem);
         showNotification.value = true;
         setTimeout(() => {

@@ -292,7 +292,7 @@
                                                 </span>
                                                 <span v-if="item.isPromoted && isPromotionActive(item)"
                                                     class="discount-badge">
-                                                    -{{ item.discountPercentage }}%
+                                                    {{ formatDiscountBadge(item) }}
                                                 </span>
                                             </div>
                                         </div>
@@ -487,6 +487,18 @@ const loadingMessage = computed(() => {
     });
     productDetails.value = productsMap;
 };*/
+
+const formatDiscountBadge = (item: any) => {
+    if (!item.discountPercentage) return '';
+
+    // Si el tipo de promoción es 'fixed', mostrar con S/
+    if (item.promotionType === 'fixed') {
+        return `-S/${item.discountPercentage.toFixed(2)}`;
+    } else {
+        // Por defecto usar porcentaje
+        return `-${item.discountPercentage}%`;
+    }
+};
 
 const loadImageUrls = async () => {
     for (const item of validItems.value) {

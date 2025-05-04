@@ -11,6 +11,7 @@ export interface CartItem {
   originalPrice: number;
   discountPercentage: number;
   isPromoted: boolean;
+  promotionType: string;
 }
 
 export interface Cart {

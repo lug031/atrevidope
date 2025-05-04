@@ -37,12 +37,15 @@
                         <template v-if="isValidPromotion">
                             <p class="product-price">
                                 <span class="current-price">S/{{ formatPrice(calculateDiscountedPrice(currentProduct))
-                                }}</span>
+                                    }}</span>
                                 <span class="original-price">S/{{ formatPrice(currentProduct.originalPrice) }}</span>
                             </p>
-                            <div class="discount-badge">-{{ currentProduct.discountPercentage }}%</div>
-                            <div class="promotion-dates" :class="{ 'today-only': isSingleDayPromotion }">
-                                {{ getPromotionDateText(currentProduct) }}
+                            <!-- Badge de descuento y fechas debajo del precio -->
+                            <div class="promotion-info">
+                                <div class="discount-badge">{{ formatDiscountBadge(currentProduct) }}</div>
+                                <div class="promotion-dates" :class="{ 'today-only': isSingleDayPromotion }">
+                                    {{ getPromotionDateText(currentProduct) }}
+                                </div>
                             </div>
                         </template>
                         <template
@@ -130,6 +133,19 @@ const { showToast } = useToast();
 const quantity = ref(1);
 const isAddingToCart = ref(false);
 
+// Función para formatear el badge de descuento según el tipo
+const formatDiscountBadge = (product: Product): string => {
+    if (!product.discountPercentage) return '';
+
+    // Si el tipo de promoción es 'fixed', mostrar con S/
+    if (product.promotionType === 'fixed') {
+        return `- S/${product.discountPercentage.toFixed(2)}`;
+    } else {
+        // Por defecto usar porcentaje
+        return `- ${product.discountPercentage}%`;
+    }
+};
+
 const parseMarkdown = (text: string): string => {
     if (!text) return '';
 
@@ -177,7 +193,6 @@ const loadImageUrls = async () => {
     if (currentProduct.value?.imageUrl) {
         try {
             const { url } = await getUrl({ path: currentProduct.value.imageUrl });
-            //console.log('DETAIL Image URL:', url);
             imageUrls.value[currentProduct.value.id] = url.toString();
         } catch (error) {
             console.error("Error cargando imagen:", error);
@@ -400,7 +415,7 @@ const addToCart = async () => {
             let productPrice = currentProduct.value.price;
 
             if (isValidPromotion.value) {
-                // Active promotion - use discounted price
+                // Active promotion - use discounted price (with proper calculation based on type)
                 productPrice = calculateDiscountedPrice(currentProduct.value);
             } else if (hasExpiredPromotion(currentProduct.value) || hasUpcomingPromotion(currentProduct.value)) {
                 // Expired or upcoming promotion - use original price
@@ -698,9 +713,16 @@ watch(() => currentProduct.value, () => {
 
 .price-section {
     display: flex;
+    flex-direction: column;
+    /* Cambio clave: de row a column */
+    gap: 0.5rem;
+    margin: 20px 0;
+}
+
+.promotion-info {
+    display: flex;
     align-items: center;
     gap: 1rem;
-    margin: 20px 0;
 }
 
 .current-price {

@@ -35,18 +35,19 @@
             <div v-else class="products-grid">
                 <div v-for="product in sortedProducts" :key="product.id" class="product-card">
                     <router-link :to="{ name: 'ProductDetail', params: { id: product.id } }" class="product-content">
-                        <!-- Badge de promoción futura -->
+                        <!-- Badge de promoción futura - Modificado para mostrar el tipo de descuento -->
                         <div v-if="hasUpcomingPromotion(product) && product.promotionStartDate" class="promotion-badge">
                             <span class="promotion-date">Próximamente en promoción</span>
-                            <span class="promotion-discount">-{{ product.discountPercentage || 0 }}%</span>
+                            <span class="promotion-discount">{{ formatDiscountBadge(product) }}</span>
                             <span class="promotion-start">{{ formatPromotionDate(product.promotionStartDate) }}</span>
                         </div>
 
+                        <!-- Badge de promoción activa - Modificado para mostrar el tipo de descuento -->
                         <div v-if="hasActivePromotion(product)" class="active-promotion-badge"
                             :class="{ 'one-day-promotion': isOneDayPromotion(product) }">
                             <span class="promotion-text" v-if="isOneDayPromotion(product)">¡SOLO POR HOY!</span>
                             <span class="promotion-text" v-else>¡EN PROMOCIÓN!</span>
-                            <span class="promotion-discount">-{{ product.discountPercentage || 0 }}%</span>
+                            <span class="promotion-discount">{{ formatDiscountBadge(product) }}</span>
                             <span class="promotion-end" v-if="!isOneDayPromotion(product)">
                                 Hasta {{ formatPromotionDate(product.promotionEndDate) }}
                             </span>
@@ -94,11 +95,6 @@
                             </div>
                         </div>
                     </router-link>
-
-                    <!-- <button @click.stop="addToCart(product)" class="add-to-cart"
-                        :class="{ 'disabled': product.stock === 0 }" :disabled="product.stock === 0">
-                        {{ product.stock === 0 ? 'AGOTADO' : 'AÑADIR AL CARRITO' }}
-                    </button> -->
                 </div>
             </div>
         </div>
@@ -127,6 +123,20 @@ const { showToast } = useToast();
 const sortBy = ref('position');
 const loading = ref(true);
 const error = ref<string | null>(null);
+
+// Función para formatear el badge de descuento según el tipo
+const formatDiscountBadge = (product: Product): string => {
+    if (!product.discountPercentage) return '';
+
+    // Si el tipo de promoción es 'fixed', mostrar con S/
+    if (product.promotionType === 'fixed') {
+        return `-S/${product.discountPercentage.toFixed(2)}`;
+    } else {
+        // Por defecto usar porcentaje
+        return `-${product.discountPercentage}%`;
+    }
+};
+
 const truncateText = (text: string, maxLength: number = 100): string => {
     if (!text) return '';
 
@@ -216,13 +226,20 @@ const hasActivePromotion = (product: Product) => {
     return currentDate >= product.promotionStartDate && currentDate <= product.promotionEndDate;
 };
 
-// 2. Modificar el método calculateDiscountedPrice para que calcule correctamente el precio con descuento
+// Función modificada para calcular el precio con descuento según el tipo
 const calculateDiscountedPrice = (product: Product) => {
     if (!product.originalPrice || !product.discountPercentage) {
         return product.originalPrice || 0;
     }
-    const discountMultiplier = 1 - (product.discountPercentage / 100);
-    return (product.originalPrice * discountMultiplier).toFixed(2);
+
+    // Si el tipo de promoción es 'fixed', restar el monto directamente
+    if (product.promotionType === 'fixed') {
+        return Math.max(0, product.originalPrice - product.discountPercentage).toFixed(2);
+    } else {
+        // Descuento porcentual (comportamiento anterior)
+        const discountMultiplier = 1 - (product.discountPercentage / 100);
+        return (product.originalPrice * discountMultiplier).toFixed(2);
+    }
 };
 
 const hasUpcomingPromotion = (product: Product): boolean => {
@@ -262,11 +279,18 @@ const formatPromotionDate = (dateStr: string | undefined): string => {
     }).format(date);
 };
 
+// Función modificada para considerar el tipo de descuento
 const getEffectivePrice = (product: Product): number => {
     // Si hay promoción activa, usar precio con descuento
     if (hasActivePromotion(product)) {
-        const discountMultiplier = 1 - (product.discountPercentage / 100);
-        return product.originalPrice * discountMultiplier;
+        if (product.promotionType === 'fixed') {
+            // Descuento de monto fijo
+            return Math.max(0, product.originalPrice - product.discountPercentage);
+        } else {
+            // Descuento porcentual
+            const discountMultiplier = 1 - (product.discountPercentage / 100);
+            return product.originalPrice * discountMultiplier;
+        }
     }
     // Si es una promoción futura o expirada, usar originalPrice
     else if (hasUpcomingPromotion(product) || hasExpiredPromotion(product)) {

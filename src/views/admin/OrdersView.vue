@@ -204,7 +204,9 @@
                                                 </span>
                                             </div>
                                             <span class="discount-badge" v-if="hasDiscount(item)">
-                                                -{{ getDiscountPercentage(item) }}%
+                                                {{ item.productSnapshot?.promotionType === 'fixed'
+                                                    ? '-S/' + (item.productSnapshot?.discountPercentage || 0).toFixed(2)
+                                                : '-' + (item.productSnapshot?.discountPercentage || 0) + '%' }}
                                             </span>
                                         </div>
                                     </div>
@@ -461,8 +463,7 @@ const getCurrentPeruDate = () => {
 };
 
 const hasDiscount = (item: any) => {
-    return isPromotionActive(item) &&
-        item.productSnapshot?.discountPercentage > 0;
+    return isPromotionActive(item) && item.productSnapshot?.discountPercentage > 0;
 };
 
 const getOriginalPrice = (item: any) => {
@@ -474,9 +475,30 @@ const getOriginalPrice = (item: any) => {
 
 const getDiscountPercentage = (item: any) => {
     if (hasDiscount(item)) {
-        return item.productSnapshot?.discountPercentage;
+        // Si es un descuento de tipo fijo, calculamos el porcentaje equivalente
+        if (item.productSnapshot?.promotionType === 'fixed') {
+            const originalPrice = item.productSnapshot?.originalPrice || 0;
+            if (originalPrice <= 0) return 0;
+
+            // Calculamos qué porcentaje representa el monto fijo sobre el precio original
+            const fixedAmount = item.productSnapshot?.discountPercentage || 0;
+            return Math.round((fixedAmount / originalPrice) * 100);
+        } else {
+            // Si es un descuento porcentual, retornamos el valor directamente
+            return item.productSnapshot?.discountPercentage || 0;
+        }
     }
     return 0;
+};
+
+const formatDiscount = (item: any) => {
+    if (!hasDiscount(item)) return '';
+
+    if (item.productSnapshot?.promotionType === 'fixed') {
+        return `S/${(item.productSnapshot?.discountPercentage || 0).toFixed(2)}`;
+    } else {
+        return `${item.productSnapshot?.discountPercentage || 0}%`;
+    }
 };
 
 const loadProductImages = async () => {

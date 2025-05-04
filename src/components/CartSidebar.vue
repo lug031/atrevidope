@@ -38,7 +38,7 @@
                                             S/. {{ item.price.toFixed(2) }}
                                         </span>
                                         <span v-if="item.isPromoted && isPromotionActive(item)" class="discount-badge">
-                                            -{{ item.discountPercentage }}%
+                                            {{ formatDiscountBadge(item) }}
                                         </span>
                                     </div>
                                 </div>
@@ -146,6 +146,19 @@ const {
 
 const productStore = useProductStore();
 const { products } = storeToRefs(productStore);
+
+// Función para formatear el badge de descuento según el tipo
+const formatDiscountBadge = (item: CartItem): string => {
+    if (!item.discountPercentage) return '';
+
+    // Si el tipo de promoción es 'fixed', mostrar con S/
+    if (item.promotionType === 'fixed') {
+        return `-S/${item.discountPercentage.toFixed(2)}`;
+    } else {
+        // Por defecto usar porcentaje
+        return `-${item.discountPercentage}%`;
+    }
+};
 
 const initializeCart = async () => {
     cartInitializing.value = true;

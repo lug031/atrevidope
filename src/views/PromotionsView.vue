@@ -24,8 +24,11 @@
                         params: { id: product.id },
                         state: { fromPromotions: true }
                     }" class="product-content">
+                        <!-- Modificación: usar la función formatDiscountBadge para mostrar el descuento -->
                         <div class="discount-badge">
-                            -{{ product.discountPercentage }}%
+                            {{ product.promotionType === 'fixed'
+                                ? `-S/${product.discountPercentage.toFixed(2)}`
+                                : `-${product.discountPercentage}%` }}
                         </div>
 
                         <div class="promotion-dates" :class="{ 'today-only': isSingleDayPromotion(product) }">
@@ -43,7 +46,7 @@
                             <div class="price-container">
                                 <div class="price-wrapper">
                                     <span class="current-price">S/{{ formatPrice(calculateDiscountedPrice(product))
-                                    }}</span>
+                                        }}</span>
                                     <span class="original-price">S/{{ formatPrice(product.originalPrice) }}</span>
                                 </div>
                             </div>
@@ -58,11 +61,6 @@
                             </div>
                         </div>
                     </router-link>
-
-                    <!-- <button @click.stop="addToCart(product)" class="add-to-cart"
-                        :class="{ 'disabled': product.stock === 0 }" :disabled="product.stock === 0">
-                        {{ product.stock === 0 ? 'AGOTADO' : 'AÑADIR AL CARRITO' }}
-                    </button> -->
                 </div>
             </div>
 
@@ -96,6 +94,7 @@ const {
 } = usePromotions();
 const loading = ref(true);
 const error = ref<string | null>(null);
+
 const formatDateToSpanish = (dateStr: string): string => {
     const [year, month, day] = dateStr.split('-').map(Number);
     const date = new Date(year, month - 1, day);
@@ -186,15 +185,6 @@ const addToCart = (product: Product) => {
         return;
     }
 
-    /*const cartItem: CartItem = {
-        id: product.id,
-        name: product.name,
-        price: calculateDiscountedPrice(product),
-        quantity: 1,
-        imageUrl: product.imageUrl
-    };
-
-    cartStore.addItem(cartItem);*/
     showToast({
         type: 'success',
         message: 'Producto añadido'

@@ -64,8 +64,9 @@
                             <td>{{ product.brand }}</td>
                             <td>S/{{ product.originalPrice?.toFixed(2) || '0.00' }}</td>
                             <td>
+                                <!-- Mostrar el tipo de descuento (porcentual o fijo) -->
                                 <span :class="['discount-badge', product.discountPercentage > 0 ? 'active' : '']">
-                                    {{ product.discountPercentage }}%
+                                    {{ formatDiscount(product) }}
                                 </span>
                             </td>
                             <td>S/{{ product.price.toFixed(2) }}</td>
@@ -116,12 +117,6 @@
                                         title="Notificar">
                                         <BellIcon :size="18" />
                                     </button>
-                                    <!-- TODO: Implementar sistema de notificaciones para alertar a los clientes sobre:
-                                 - Nuevos productos
-                                 - Inicio de promociones
-                                 - Productos de vuelta en stock
-                                 - Últimas unidades disponibles
-                            -->
                                 </div>
                             </td>
                         </tr>
@@ -149,11 +144,6 @@
                         </option>
                     </select>
                 </div>
-
-                <!--<div class="form-group">
-                    <label for="description">Descripción</label>
-                    <textarea id="description" v-model="formData.description" class="form-input" required />
-                </div> -->
 
                 <div class="form-group">
                     <div class="description-header">
@@ -196,34 +186,13 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="discountPercentage">Descuento (%)</label>
-                        <input id="discountPercentage" v-model.number="formData.discountPercentage" type="number"
-                            min="0" max="100" class="form-input"
-                            :class="{ 'error': formData.isPromoted && (!formData.discountPercentage || formData.discountPercentage <= 0) }"
-                            :disabled="!formData.isPromoted" required />
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
                         <label for="price">Precio Final</label>
                         <input id="price" v-model.number="formData.price" type="number" step="0.01" class="form-input"
                             required />
                     </div>
-
-                    <div class="form-group">
-                        <div class="label-container">
-                            <label for="stock">Stock</label>
-                            <span v-if="formData.stock === 0" class="stock-tag">
-                                sin stock
-                            </span>
-                        </div>
-                        <input id="stock" v-model.number="formData.stock" type="number" min="0" class="form-input"
-                            required />
-                    </div>
                 </div>
 
-                <!-- Campos de promoción -->
+                <!-- Campos de promoción modificados -->
                 <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" v-model="formData.isPromoted" />
@@ -231,28 +200,34 @@
                     </label>
                 </div>
 
-                <div v-if="formData.isPromoted" class="form-row">
-                    <!--<div class="form-group">
-                        <label for="promotionStartDate">Inicio de promoción</label>
-                        <input type="date" id="promotionStartDate" v-model="formData.promotionStartDate"
-                            class="form-input" />
+                <!-- Tipo de descuento nuevo -->
+                <div v-if="formData.isPromoted" class="form-group">
+                    <label for="promotionType">Tipo de descuento</label>
+                    <div class="discount-types">
+                        <button type="button" class="discount-type-btn"
+                            :class="{ active: formData.promotionType === 'percentage' }"
+                            @click="setDiscountType('percentage')">
+                            <PercentIcon :size="16" />
+                            Porcentual (%)
+                        </button>
+                        <button type="button" class="discount-type-btn"
+                            :class="{ active: formData.promotionType === 'fixed' }" @click="setDiscountType('fixed')">
+                            <DollarSignIcon :size="16" />
+                            Monto fijo (S/)
+                        </button>
                     </div>
-
-                    <div class="form-group">
-                        <label for="promotionEndDate">Fin de promoción</label>
-                        <input type="date" id="promotionEndDate" v-model="formData.promotionEndDate"
-                            class="form-input" />
-                    </div>-->
                 </div>
 
-                <!--<div v-if="formData.isPromoted" class="form-group">
-                    <label for="promotionType">Tipo de promoción</label>
-                    <select id="promotionType" v-model="formData.promotionType" class="form-input">
-                        <option value="discount">Descuento porcentual</option>
-                        <option value="special">Oferta especial</option>
-                        <option value="clearance">Liquidación</option>
-                    </select>
-                </div> -->
+                <!-- Campo de descuento modificado -->
+                <div v-if="formData.isPromoted" class="form-group">
+                    <label for="discountPercentage">
+                        {{ formData.promotionType === 'percentage' ? 'Descuento (%)' : 'Monto de descuento (S/)' }}
+                    </label>
+                    <input id="discountPercentage" v-model.number="formData.discountPercentage" type="number" min="0"
+                        max="formData.promotionType === 'percentage' ? 100 : null" class="form-input"
+                        :class="{ 'error': formData.isPromoted && (!formData.discountPercentage || formData.discountPercentage <= 0) }"
+                        required />
+                </div>
 
                 <div v-if="formData.isPromoted" class="form-group promotion-dates">
                     <label class="promotion-dates-label">Periodo de promoción</label>
@@ -307,18 +282,18 @@
                     </div>
                 </div>
 
-                <!-- Campo de categoría -->
-                <!-- <div class="form-group">
-                    <label for="category">Categoría</label>
-                    <select id="category" v-model="formData.categoryID" class="form-input" required>
-                        <option value="">Selecciona una categoría</option>
-                        <option v-for="category in categories" :key="category.id" :value="category.id"
-                            :disabled="!category.active">
-                            {{ category.name }}
-                        </option>
-                    </select>
-                </div> -->
+                <div class="form-group">
+                    <label for="stock">Stock</label>
+                    <div class="label-container">
+                        <span v-if="formData.stock === 0" class="stock-tag">
+                            sin stock
+                        </span>
+                    </div>
+                    <input id="stock" v-model.number="formData.stock" type="number" min="0" class="form-input"
+                        required />
+                </div>
 
+                <!-- Campo de categoría -->
                 <div class="form-group">
                     <label>Categorías</label>
                     <div class="categories-container">
@@ -338,12 +313,6 @@
                         </span>
                     </div>
                 </div>
-
-                <!-- Campo de imagen
-                <div class="form-group">
-                    <label for="imageUrl">URL de la imagen</label>
-                    <input id="imageUrl" v-model="formData.imageUrl" type="text" class="form-input" />
-                </div> -->
 
                 <div class="form-group">
                     <label>Imagen del producto</label>
@@ -415,6 +384,8 @@ import {
     CalendarIcon,
     CalendarRangeIcon,
     MinusIcon,
+    PercentIcon,
+    DollarSignIcon
 } from 'lucide-vue-next'
 import { useProducts } from '@/composables/useProducts'
 import { useCategories } from '@/composables/useCategories'
@@ -434,6 +405,46 @@ const formError = ref('')
 const isSubmitting = ref(false)
 const { brands, loadBrands } = useBrands()
 
+// Formatear el descuento según el tipo (porcentual o fijo)
+const formatDiscount = (product: Product): string => {
+    if (!product.discountPercentage || product.discountPercentage <= 0) {
+        return '0';
+    }
+
+    if (product.promotionType === 'fixed') {
+        return `S/${product.discountPercentage.toFixed(2)}`;
+    } else {
+        return `${product.discountPercentage}%`;
+    }
+}
+
+// Establecer el tipo de descuento
+const setDiscountType = (type: 'percentage' | 'fixed') => {
+    formData.value.promotionType = type;
+
+    // Restablecer el valor del descuento para evitar confusiones
+    formData.value.discountPercentage = 0;
+
+    // Actualizar el precio final según el tipo de descuento
+    calculateFinalPrice();
+}
+
+// Calcular precio final basado en el tipo de descuento
+const calculateFinalPrice = () => {
+    if (!formData.value.isPromoted || !formData.value.discountPercentage) {
+        formData.value.price = formData.value.originalPrice;
+        return;
+    }
+
+    if (formData.value.promotionType === 'percentage') {
+        // Descuento porcentual
+        formData.value.price = formData.value.originalPrice * (1 - formData.value.discountPercentage / 100);
+    } else {
+        // Descuento de monto fijo
+        formData.value.price = Math.max(0, formData.value.originalPrice - formData.value.discountPercentage);
+    }
+}
+
 const validateForm = (): boolean => {
     // Limpiamos error previo
     formError.value = ''
@@ -450,6 +461,18 @@ const validateForm = (): boolean => {
 
     if (formData.value.isPromoted && (!formData.value.discountPercentage || formData.value.discountPercentage <= 0)) {
         formError.value = 'Cuando se aplica una promoción, el descuento debe ser mayor a 0'
+        return false
+    }
+
+    // Validación adicional para descuento porcentual
+    if (formData.value.isPromoted && formData.value.promotionType === 'percentage' && formData.value.discountPercentage > 100) {
+        formError.value = 'El descuento porcentual no puede ser mayor a 100%'
+        return false
+    }
+
+    // Validación para descuento fijo
+    if (formData.value.isPromoted && formData.value.promotionType === 'fixed' && formData.value.discountPercentage > formData.value.originalPrice) {
+        formError.value = 'El descuento fijo no puede ser mayor que el precio original'
         return false
     }
 
@@ -517,7 +540,6 @@ const handleNotify = (productId: string) => {
         type: 'success',
         message: `Notificacion enviada del producto con ID:  ${productId}`
     });
-    //console.log('Notify about product:', productId)
 }
 
 const setPromotionDuration = (type: 'single' | 'range') => {
@@ -678,7 +700,7 @@ const initialFormData = {
     imageUrl: '',
     promotionStartDate: '',
     promotionEndDate: '',
-    promotionType: 'discount'
+    promotionType: 'percentage' // Valor predeterminado: descuento porcentual
 }
 
 const toggleCategory = (categoryId: string) => {
@@ -693,16 +715,18 @@ const toggleCategory = (categoryId: string) => {
 const formData = ref({ ...initialFormData })
 const editingId = ref<string | null>(null)
 
-watch([() => formData.value.originalPrice, () => formData.value.discountPercentage],
-    ([newOriginalPrice, newDiscountPercentage]) => {
-        if (formData.value.isPromoted && newOriginalPrice && newDiscountPercentage) {
-            // Solo calculamos el precio con descuento si la promoción está activa
-            formData.value.price = newOriginalPrice * (1 - newDiscountPercentage / 100)
-        } else {
-            // Si no hay promoción, el precio final es igual al original
-            formData.value.price = newOriginalPrice
-        }
-    })
+// Observar cambios en los valores de descuento y precio original
+watch(
+    [
+        () => formData.value.originalPrice,
+        () => formData.value.discountPercentage,
+        () => formData.value.promotionType,
+        () => formData.value.isPromoted
+    ],
+    () => {
+        calculateFinalPrice();
+    }
+)
 
 const handleFileSelect = (event: Event) => {
     const input = event.target as HTMLInputElement
@@ -762,7 +786,6 @@ const getPromotionStatus = (product: Product): string => {
         }
     }
 
-    //console.log(product.promotionEndDate)
     if (today < product.promotionStartDate) {
         return `Inicia el ${formatDateToSpanish(product.promotionStartDate)}`;
     }
@@ -832,7 +855,7 @@ const handleEdit = (product: Product) => {
         imageUrl: product.imageUrl || '',
         promotionStartDate: product.promotionStartDate || '',
         promotionEndDate: product.promotionEndDate || '',
-        promotionType: product.promotionType || 'discount'
+        promotionType: product.promotionType || 'percentage' // Por defecto porcentual si no tiene tipo
     }
 
     if (product.imageUrl && imageUrls.value[product.id]) {
@@ -889,7 +912,7 @@ const handleSubmit = async () => {
             imageUrl: imageUrl || formData.value.imageUrl,
             promotionStartDate: formData.value.promotionStartDate || '',
             promotionEndDate: formData.value.promotionEndDate || '',
-            promotionType: formData.value.promotionType || 'discount'
+            promotionType: formData.value.promotionType || 'percentage'
         };
 
         if (editingId.value) {
@@ -918,17 +941,16 @@ const handleSubmit = async () => {
     }
 };
 
+// Manejar activación/desactivación de promoción
 watch(() => formData.value.isPromoted, (newValue) => {
     if (!newValue) {
-        // Si se desactiva la promoción, reseteamos el descuento a 0
-        formData.value.discountPercentage = 0
-        // También actualizamos el precio final para que sea igual al precio original
-        formData.value.price = formData.value.originalPrice
-        // Limpiamos cualquier mensaje de error que pudiera estar visible
-        formError.value = ''
+        // Si se desactiva la promoción, reseteamos los valores de descuento
+        formData.value.discountPercentage = 0;
+        formData.value.price = formData.value.originalPrice;
+        formError.value = '';
     } else if (newValue && (!formData.value.discountPercentage || formData.value.discountPercentage <= 0)) {
-        // Si se activa la promoción, validamos que el descuento sea mayor a 0
-        formError.value = 'Cuando se aplica una promoción, el descuento debe ser mayor a 0'
+        // Si se activa la promoción, establecemos valores predeterminados
+        formData.value.promotionType = 'percentage'; // Por defecto, descuento porcentual
     }
 })
 
@@ -969,7 +991,6 @@ watch([
 })
 
 watch(products, loadImageUrls, { immediate: true });
-
 </script>
 
 <style scoped>
@@ -1117,35 +1138,6 @@ watch(products, loadImageUrls, { immediate: true });
     overflow-y: auto;
 }
 
-.promotion-duration {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.duration-options {
-    display: flex;
-    gap: 1rem;
-}
-
-.duration-option {
-    flex: 1;
-    padding: 0.5rem;
-    border: 1px solid #cbd5e1;
-    border-radius: 0.375rem;
-    background: white;
-}
-
-.duration-option.active {
-    background: #6366f1;
-    color: white;
-    border-color: #6366f1;
-}
-
-.date-range {
-    margin-top: 0.5rem;
-}
-
 .promotion-dates {
     background-color: #f8fafc;
     border-radius: 0.5rem;
@@ -1180,6 +1172,38 @@ watch(products, loadImageUrls, { immediate: true });
     background-color: #e2e8f0;
     color: #1e293b;
     border-color: #cbd5e1;
+}
+
+/* Estilos para los botones de tipo de descuento */
+.discount-types {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.discount-type-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    flex: 1;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    background-color: white;
+    color: #64748b;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.discount-type-btn:hover {
+    background-color: #f1f5f9;
+}
+
+.discount-type-btn.active {
+    background-color: #3b82f6;
+    color: white;
+    border-color: #2563eb;
 }
 
 .date-inputs {
@@ -1591,6 +1615,11 @@ watch(products, loadImageUrls, { immediate: true });
 .stock-badge.low {
     background: #fee2e2;
     color: #991b1b;
+}
+
+.stock-badge.critical {
+    background: #fecdd3;
+    color: #be123c;
 }
 
 .status-badge {

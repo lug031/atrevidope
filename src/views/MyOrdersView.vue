@@ -173,7 +173,7 @@
                                                 </span>
                                             </div>
                                             <div class="discount-tag" v-if="hasDiscount(item)">
-                                                -{{ getDiscountPercentage(item) }}%
+                                                {{ formatDiscountBadge(item) }}
                                             </div>
                                         </div>
                                     </div>
@@ -306,7 +306,7 @@
                                                     <div class="info-row">
                                                         <span class="info-label">Monto:</span>
                                                         <span class="info-value highlight">S/ {{ order.total.toFixed(2)
-                                                        }}</span>
+                                                            }}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -729,6 +729,18 @@ const showCancellationNotification = (order: Order) => {
     } else {
         // Fallback a una alerta simple si no hay sistema de notificaciones
         alert(`El pedido #${order.id?.slice(-6)} ha sido cancelado.`);
+    }
+};
+
+const formatDiscountBadge = (item: any) => {
+    if (!hasDiscount(item) || !item.productSnapshot?.discountPercentage) return '';
+
+    // Si el tipo de promoción es 'fixed', mostrar con S/
+    if (item.productSnapshot?.promotionType === 'fixed') {
+        return `-S/${item.productSnapshot.discountPercentage.toFixed(2)}`;
+    } else {
+        // Por defecto usar porcentaje
+        return `-${item.productSnapshot.discountPercentage}%`;
     }
 };
 

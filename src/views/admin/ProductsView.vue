@@ -1188,7 +1188,7 @@ const filteredProducts = computed(() => {
     )
 })
 
-const handleEdit = (product: Product) => {
+async function handleEdit(product: Product) {
     const promotionExpired = isPromotionExpired(product);
     formData.value = {
         name: product.name,
@@ -1220,6 +1220,8 @@ const handleEdit = (product: Product) => {
 
     try {
         await loadImagesForEdit(product)
+        editingId.value = product.id
+        showCreateModal.value = true
     } catch (error) {
         console.error('Error al cargar las imágenes:', error)
         showToast({
@@ -1227,10 +1229,7 @@ const handleEdit = (product: Product) => {
             message: 'Error al cargar las imágenes del producto'
         })
     }
-
-    editingId.value = product.id;
-    showCreateModal.value = true;
-};
+}
 
 const cleanProductImages = async (productId: string) => {
     try {

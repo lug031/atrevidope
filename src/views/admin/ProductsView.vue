@@ -51,7 +51,7 @@
                         <tr v-for="product in filteredProducts" :key="product.id">
                             <td>
                                 <div class="product-info">
-                                    <img :src="imageUrls[product.id] || '/api/placeholder/40/40'"
+                                    <img :src="getProductMainImage(product)"
                                         class="product-image cursor-pointer hover:opacity-80 transition-opacity"
                                         @click="handleImageClick(product)" />
                                     <div class="product-details">
@@ -314,7 +314,7 @@
                     </div>
                 </div>
 
-                <div class="form-group">
+                <!-- <div class="form-group">
                     <label>Imagen del producto</label>
                     <div class="image-upload-container">
                         <input type="file" id="productImage" accept="image/*" @change="handleFileSelect"
@@ -331,6 +331,48 @@
                             </button>
                         </div>
                     </div>
+                    <p v-if="uploadProgress > 0" class="upload-status">
+                        Subiendo: {{ uploadProgress }}%
+                    </p>
+                </div>-->
+
+                <div class="form-group">
+                    <label>Imágenes del producto</label>
+                    <div class="images-upload-container">
+                        <input type="file" id="productImages" accept="image/*" multiple @change="handleFileSelect"
+                            class="file-input" hidden>
+                        <label for="productImages" class="upload-button">
+                            <UploadIcon :size="16" />
+                            {{ selectedFiles.length > 0 ? `${selectedFiles.length} archivo(s) seleccionado(s)` :
+                                'Seleccionar imágenes'
+                            }}
+                        </label>
+
+                        <div class="upload-info">
+                            <span class="text-sm text-gray-600">
+                                Máximo {{ maxImages }} imágenes. La primera será la imagen principal.
+                            </span>
+                        </div>
+
+                        <!-- Grid de previews -->
+                        <div v-if="imagePreviews.length > 0" class="images-preview-grid">
+                            <div v-for="(preview, index) in imagePreviews" :key="index" class="image-preview-item">
+                                <img :src="preview" :alt="`Vista previa ${index + 1}`" class="preview-image" />
+                                <button @click="removeImage(index)" class="remove-image-button" type="button">
+                                    <XIcon :size="16" />
+                                </button>
+                                <div v-if="index === 0" class="main-image-badge">
+                                    Principal
+                                </div>
+                            </div>
+                        </div>
+
+                        <button v-if="imagePreviews.length > 0" @click="clearAllImages" class="clear-all-button"
+                            type="button">
+                            Limpiar todas
+                        </button>
+                    </div>
+
                     <p v-if="uploadProgress > 0" class="upload-status">
                         Subiendo: {{ uploadProgress }}%
                     </p>
@@ -396,7 +438,10 @@ import ImageModal from '@/components/ImageModal.vue'
 import { useToast } from '@/composables/useToast';
 import { useBrands } from '@/composables/useBrands'
 
-const imageUrls = ref<Record<string, string>>({});
+const selectedFiles = ref<File[]>([])
+const imagePreviews = ref<string[]>([])
+const maxImages = 5
+const imageUrls = ref<Record<string, string[]>>({});
 const promotionDuration = ref('single')
 const markdownPreview = computed(() => {
     return simpleMarkdown(formData.value.description)
@@ -506,8 +551,22 @@ const togglePreview = () => {
     showPreview.value = !showPreview.value
 }
 
+const getProductMainImage = (product: Product): string => {
+    const productImageUrls = imageUrls.value[product.id]
+
+    if (productImageUrls && productImageUrls.length > 0) {
+        return productImageUrls[0]
+    }
+
+    return '/api/placeholder/40/40'
+}
+
 const handleImageClick = (product: Product) => {
-    const imageUrl = imageUrls.value[product.id] || '/api/placeholder/400/400'
+    const productImageUrls = imageUrls.value[product.id]
+    const imageUrl = (productImageUrls && productImageUrls.length > 0)
+        ? productImageUrls[0]
+        : '/api/placeholder/400/400'
+
     selectedImageUrl.value = imageUrl
     selectedProductName.value = product.name
     showImageModal.value = true
@@ -660,16 +719,31 @@ const increaseStock = async (product: Product) => {
 
 const loadImageUrls = async () => {
     for (const product of products.value) {
+        const urls: string[] = []
+
         if (product.imageUrl) {
             try {
-                const { url } = await getUrl({ path: product.imageUrl });
-                imageUrls.value[product.id] = url.toString();
+                const { url } = await getUrl({ path: product.imageUrl })
+                urls.push(url.toString())
             } catch (error) {
-                console.error("Error cargando imagen:", error);
+                console.error("Error cargando imagen principal:", error)
             }
         }
+
+        if (product.imageUrls && product.imageUrls.length > 0) {
+            for (const imagePath of product.imageUrls) {
+                try {
+                    const { url } = await getUrl({ path: imagePath })
+                    urls.push(url.toString())
+                } catch (error) {
+                    console.error("Error cargando imagen adicional:", error)
+                }
+            }
+        }
+
+        imageUrls.value[product.id] = urls
     }
-};
+}
 
 const formatMarkdown = (text: string): string => {
     return text
@@ -698,6 +772,7 @@ const initialFormData = {
     isPromoted: false,
     categoryIDs: [] as string[],
     imageUrl: '',
+    imageUrls: [] as string[],
     promotionStartDate: '',
     promotionEndDate: '',
     promotionType: 'percentage' // Valor predeterminado: descuento porcentual
@@ -731,9 +806,69 @@ watch(
 const handleFileSelect = (event: Event) => {
     const input = event.target as HTMLInputElement
     if (input.files?.length) {
-        selectedFile.value = input.files[0]
-        imagePreview.value = URL.createObjectURL(input.files[0])
+        const files = Array.from(input.files)
+
+        if (selectedFiles.value.length + files.length > maxImages) {
+            showToast({
+                type: 'warning',
+                message: `Solo puedes agregar máximo ${maxImages} imágenes`
+            })
+            return
+        }
+
+        selectedFiles.value.push(...files)
+
+        files.forEach(file => {
+            imagePreviews.value.push(URL.createObjectURL(file))
+        })
     }
+}
+
+const removeImage = (index: number) => {
+    selectedFiles.value.splice(index, 1)
+
+    if (imagePreviews.value[index]) {
+        URL.revokeObjectURL(imagePreviews.value[index])
+    }
+    imagePreviews.value.splice(index, 1)
+}
+
+const clearAllImages = () => {
+    imagePreviews.value.forEach(url => URL.revokeObjectURL(url))
+
+    selectedFiles.value = []
+    imagePreviews.value = []
+
+    const input = document.getElementById('productImages') as HTMLInputElement
+    if (input) input.value = ''
+}
+
+const uploadImages = async (): Promise<string[]> => {
+    if (selectedFiles.value.length === 0) {
+        return formData.value.imageUrls || []
+    }
+
+    const uploadPromises = selectedFiles.value.map(async (file, index) => {
+        const path = `products/${Date.now()}-${index}-${file.name.replace(/\s+/g, '-')}`
+
+        await uploadData({
+            data: file,
+            path: path,
+            options: {
+                contentType: file.type,
+                onProgress: ({ transferredBytes, totalBytes }) => {
+                    const progress = totalBytes
+                        ? Math.round((transferredBytes / totalBytes) * 100)
+                        : 0
+                    uploadProgress.value = progress
+                }
+            }
+        }).result
+
+        return path
+    })
+
+    return Promise.all(uploadPromises)
 }
 
 const clearImage = () => {
@@ -853,15 +988,17 @@ const handleEdit = (product: Product) => {
         isPromoted: product.isPromoted,
         categoryIDs: product.categories?.map(cat => cat.id) || [],
         imageUrl: product.imageUrl || '',
+        imageUrls: product.imageUrls || [], // ← NUEVA LÍNEA
         promotionStartDate: product.promotionStartDate || '',
         promotionEndDate: product.promotionEndDate || '',
-        promotionType: product.promotionType || 'percentage' // Por defecto porcentual si no tiene tipo
+        promotionType: product.promotionType || 'percentage'
     }
 
-    if (product.imageUrl && imageUrls.value[product.id]) {
-        imagePreview.value = imageUrls.value[product.id];
+    const productImageUrls = imageUrls.value[product.id]
+    if (productImageUrls && productImageUrls.length > 0) {
+        imagePreviews.value = [...productImageUrls]
     } else {
-        imagePreview.value = null;
+        imagePreviews.value = []
     }
 
     editingId.value = product.id
@@ -871,6 +1008,7 @@ const handleEdit = (product: Product) => {
 const resetForm = () => {
     formData.value = { ...initialFormData }
     editingId.value = null
+    clearAllImages()
 }
 
 const handleCloseModal = () => {
@@ -884,23 +1022,28 @@ const handleSubmit = async () => {
         showToast({
             type: 'error',
             message: formError.value
-        });
-        return;
+        })
+        return
     }
 
     try {
         isSubmitting.value = true
 
-        const imageUrl = await uploadImage();
+        // Subir nuevas imágenes
+        const uploadedImageUrls = await uploadImages()
 
-        const selectedBrand = brands.value.find(b => b.id === formData.value.brandID);
-        const brandName = selectedBrand ? selectedBrand.name : formData.value.brand;
+        // Combinar con imágenes existentes si estamos editando
+        const allImageUrls = editingId.value
+            ? [...(formData.value.imageUrls || []), ...uploadedImageUrls]
+            : uploadedImageUrls
 
-        // Asegurarnos de que el productData coincida con la interfaz Product
+        const selectedBrand = brands.value.find(b => b.id === formData.value.brandID)
+        const brandName = selectedBrand ? selectedBrand.name : formData.value.brand
+
         const productData: Omit<Product, 'id' | 'categories'> = {
             name: formData.value.name,
-            brand: brandName, // Usar el nombre de la marca
-            brandID: formData.value.brandID, // Agregar el ID de la marca
+            brand: brandName,
+            brandID: formData.value.brandID,
             description: formData.value.description,
             price: formData.value.price,
             originalPrice: formData.value.originalPrice,
@@ -909,11 +1052,12 @@ const handleSubmit = async () => {
             active: formData.value.active,
             carousel: formData.value.carousel,
             isPromoted: formData.value.isPromoted,
-            imageUrl: imageUrl || formData.value.imageUrl,
+            imageUrl: allImageUrls[0] || '', // Primera imagen como principal
+            imageUrls: allImageUrls, // ← NUEVA LÍNEA: Todas las imágenes
             promotionStartDate: formData.value.promotionStartDate || '',
             promotionEndDate: formData.value.promotionEndDate || '',
             promotionType: formData.value.promotionType || 'percentage'
-        };
+        }
 
         if (editingId.value) {
             await updateProduct(editingId.value, productData, formData.value.categoryIDs)
@@ -929,17 +1073,17 @@ const handleSubmit = async () => {
             })
         }
 
-        handleCloseModal();
+        handleCloseModal()
     } catch (error) {
-        console.error('Error al procesar el producto:', error);
+        console.error('Error al procesar el producto:', error)
         showToast({
             type: 'error',
             message: 'Error al guardar el producto'
-        });
+        })
     } finally {
         isSubmitting.value = false
     }
-};
+}
 
 // Manejar activación/desactivación de promoción
 watch(() => formData.value.isPromoted, (newValue) => {
@@ -1875,6 +2019,89 @@ watch(products, loadImageUrls, { immediate: true });
     background-color: #dcfce7;
     border-color: #bbf7d0;
     color: #16a34a;
+}
+
+.images-upload-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.upload-info {
+    margin-top: 0.5rem;
+}
+
+.images-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.image-preview-item {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border-radius: 0.375rem;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    background-color: #f8fafc;
+}
+
+.preview-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.remove-image-button {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.remove-image-button:hover {
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+.main-image-badge {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(59, 130, 246, 0.9);
+    color: white;
+    text-align: center;
+    font-size: 0.75rem;
+    padding: 0.25rem;
+    font-weight: 500;
+}
+
+.clear-all-button {
+    align-self: flex-start;
+    padding: 0.5rem 1rem;
+    background-color: #fee2e2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.clear-all-button:hover {
+    background-color: #fecaca;
 }
 
 @keyframes spin {

@@ -23,10 +23,7 @@
             </div>
 
             <div v-else-if="currentProduct" class="product-detail">
-                <div class="product-gallery">
-                    <img :src="imageUrls[currentProduct.id] || '/api/placeholder/40/40'" :alt="currentProduct.name"
-                        class="main-image" />
-                </div>
+                <ProductGallery :product="currentProduct" :images="productImages" :auto-slide="false" />
 
                 <div class="product-info">
                     <h1 class="brand-name">{{ currentProduct.brand }}</h1>
@@ -110,8 +107,9 @@ import { useToast } from '../composables/useToast';
 import { uploadData, getUrl } from 'aws-amplify/storage';
 import { useCart } from '@/composables/useCart';
 import type { CartItem } from '@/types/cart.types';
+import ProductGallery from '@/components/ProductGallery.vue';
 
-const imageUrls = ref<Record<string, string>>({});
+const imageUrls = ref<Record<string, string[]>>({});
 const route = useRoute();
 const router = useRouter();
 const { allProductsWeb, loading: productsLoading, error: productsError, loadAllProductsWeb } = useProducts();
@@ -133,15 +131,24 @@ const { showToast } = useToast();
 const quantity = ref(1);
 const isAddingToCart = ref(false);
 
-// Función para formatear el badge de descuento según el tipo
+const productImages = computed(() => {
+    if (!currentProduct.value) return [];
+
+    const images = imageUrls.value[currentProduct.value.id] || [];
+
+    if (images.length === 0) {
+        return ['/api/placeholder/600/750'];
+    }
+
+    return images;
+});
+
 const formatDiscountBadge = (product: Product): string => {
     if (!product.discountPercentage) return '';
 
-    // Si el tipo de promoción es 'fixed', mostrar con S/
     if (product.promotionType === 'fixed') {
         return `- S/${product.discountPercentage.toFixed(2)}`;
     } else {
-        // Por defecto usar porcentaje
         return `- ${product.discountPercentage}%`;
     }
 };
@@ -190,14 +197,31 @@ const isOutOfStock = computed(() =>
 );
 
 const loadImageUrls = async () => {
-    if (currentProduct.value?.imageUrl) {
+    if (!currentProduct.value) return;
+
+    const urls: string[] = [];
+
+    if (currentProduct.value.imageUrl) {
         try {
             const { url } = await getUrl({ path: currentProduct.value.imageUrl });
-            imageUrls.value[currentProduct.value.id] = url.toString();
+            urls.push(url.toString());
         } catch (error) {
-            console.error("Error cargando imagen:", error);
+            console.error("Error cargando imagen principal:", error);
         }
     }
+
+    if (currentProduct.value.imageUrls && currentProduct.value.imageUrls.length > 0) {
+        for (const imagePath of currentProduct.value.imageUrls) {
+            try {
+                const { url } = await getUrl({ path: imagePath });
+                urls.push(url.toString());
+            } catch (error) {
+                console.error("Error cargando imagen adicional:", error);
+            }
+        }
+    }
+
+    imageUrls.value[currentProduct.value.id] = urls;
 };
 
 const isSingleDayPromotion = computed(() => {
@@ -564,34 +588,6 @@ watch(() => currentProduct.value, () => {
     grid-template-columns: 1fr 1fr;
     gap: 20px;
     margin-top: 20px;
-}
-
-.product-gallery {
-    position: sticky;
-    top: 20px;
-    width: 100%;
-    /* Establecemos un aspect ratio máximo de 1080:1350 */
-    aspect-ratio: 1080/1350;
-    overflow: hidden;
-    border-radius: 8px;
-}
-
-.main-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    /* Esto hará que la imagen cubra el contenedor manteniendo su proporción */
-    object-position: center;
-    /* Centra la imagen vertical y horizontalmente */
-    border-radius: 8px;
-}
-
-/* Para pantallas más pequeñas, mantenemos la proporción */
-@media (max-width: 768px) {
-    .product-gallery {
-        aspect-ratio: 1080/1350;
-        margin: 0 auto;
-    }
 }
 
 .product-info {

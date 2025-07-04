@@ -16,6 +16,7 @@ export interface Product {
   isPromoted: boolean;
   categories?: Category[];
   imageUrl: string;
+  imageUrls?: string[];
   promotionStartDate: string;
   promotionEndDate: string;
   promotionType: string;

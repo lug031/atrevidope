@@ -656,11 +656,11 @@ watch(
 }
 
 .active-promotion-badge.one-day-promotion {
-    background-color: #d61c1c;
+    background-color: #0a0a0a;
     /* Rojo más intenso para destacar */
-    box-shadow: 0 2px 8px rgba(214, 28, 28, 0.4);
+    box-shadow: 0 2px 8px rgba(76, 76, 76, 0.4);
     /* Sombra para dar énfasis */
-    animation: pulse 1.5s infinite;
+    /*animation: pulse 1.5s infinite;*/
     /* Animación de pulso para llamar la atención */
 }
 
@@ -929,20 +929,6 @@ watch(
 
 .dot:nth-child(3) {
     animation-delay: 0.4s;
-}
-
-@keyframes pulse {
-
-    0%,
-    100% {
-        transform: scale(0.8);
-        opacity: 0.5;
-    }
-
-    50% {
-        transform: scale(1.2);
-        opacity: 1;
-    }
 }
 
 @keyframes rotation {

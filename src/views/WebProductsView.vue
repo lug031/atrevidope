@@ -580,7 +580,9 @@ watch(() => productsWeb.value, () => {
   border: 1px solid #eee;
   padding: 20px;
   text-align: center;
-  transition: transform 0.2s;
+  transition: all 0.3s ease;
+  position: relative;
+  border-radius: 8px;
 }
 
 .product-card:hover {

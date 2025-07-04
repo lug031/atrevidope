@@ -12,6 +12,15 @@
                     </button>
                 </Transition>
 
+                <Transition name="fade">
+                    <button v-if="!authStore.loading"
+                        class="flex items-center justify-center bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 p-2 rounded cursor-pointer text-gray-900 dark:text-gray-200 transition-colors duration-200"
+                        @click="toggleCategoriesSidebar" aria-label="Menú de categorías">
+                        <EyeIcon v-if="isAdmin" class="stroke-current stroke-[1.5px]" :size="24" />
+                        <MenuIcon v-else class="stroke-current stroke-[1.5px]" :size="24" />
+                    </button>
+                </Transition>
+
                 <RouterLink to="/" class="block w-[150px] h-[40px] md:w-[150px] no-underline">
                     <Transition name="logo-fade" mode="out-in">
                         <img :key="currentLogo" :src="currentLogo" alt="Logo"
@@ -317,6 +326,9 @@
     <!-- Admin Sidebar -->
     <AdminSidebar v-if="isAdmin" :is-open="isAdminSidebarOpen" @close="isAdminSidebarOpen = false" />
 
+    <!-- Categories Sidebar -->
+    <MainSidebar :is-open="isCategoriesSidebarOpen" @close="isCategoriesSidebarOpen = false" />
+
     <!-- Login Modal -->
     <LoginModal v-if="showLoginModal" @close="showLoginModal = false" />
 </template>
@@ -334,7 +346,15 @@ import {
     PackageIcon,
     SunIcon,
     MoonIcon,
-    ChevronDownIcon
+    ChevronDownIcon,
+    FolderIcon,
+    AlignJustifyIcon,
+    MoreVerticalIcon,
+    Grid3x3Icon,
+    ListIcon,
+    PlusIcon,
+    ChevronDownCircleIcon,
+    EyeIcon
 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import LoginModal from '@/components/LoginModal.vue'
@@ -347,7 +367,9 @@ import debounce from 'lodash/debounce'
 import CartSidebar from '@/components/CartSidebar.vue'
 import { useOrders } from '@/composables/useOrders'
 import { useTheme } from '@/composables/useTheme'
+import MainSidebar from './MainSidebar.vue'
 
+const isCategoriesSidebarOpen = ref(false)
 const { getUserOrders } = useOrders()
 const hasOrders = ref(false)
 const authStore = useAuthStore()
@@ -383,6 +405,12 @@ const defaultLogoDark = '/new-logo.png' // Versión para modo oscuro
 const altLogo = '/new-logo-atrevida.png'
 const altLogoDark = '/new-logo-atrevida.png' // Versión para modo oscuro
 const currentLogo = ref(defaultLogo)
+
+const toggleCategoriesSidebar = () => {
+    isCategoriesSidebarOpen.value = !isCategoriesSidebarOpen.value
+    // Close mobile menu if open
+    isMobileMenuOpen.value = false
+}
 
 // Función para manejar los cambios de logo
 const handleLogoChange = () => {
@@ -535,6 +563,7 @@ const closeMobileUserMenu = (event: MouseEvent) => {
 // Close mobile menu when clicking outside or changing route
 const closeMobileMenu = () => {
     isMobileMenuOpen.value = false
+    isCategoriesSidebarOpen.value = false
 }
 
 onUnmounted(() => {

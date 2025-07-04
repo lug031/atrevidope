@@ -1148,8 +1148,7 @@ const filteredProducts = computed(() => {
     )
 })
 
-const handleEdit = async (product: Product) => {
-
+async function handleEdit(product: Product) {
     formData.value = {
         name: product.name,
         brand: product.brand,
@@ -1170,10 +1169,17 @@ const handleEdit = async (product: Product) => {
         promotionType: product.promotionType || 'percentage'
     }
 
-    await loadImagesForEdit(product)
-
-    editingId.value = product.id
-    showCreateModal.value = true
+    try {
+        await loadImagesForEdit(product)
+        editingId.value = product.id
+        showCreateModal.value = true
+    } catch (error) {
+        console.error('Error al cargar las imágenes:', error)
+        showToast({
+            type: 'error',
+            message: 'Error al cargar las imágenes del producto'
+        })
+    }
 }
 
 const cleanProductImages = async (productId: string) => {

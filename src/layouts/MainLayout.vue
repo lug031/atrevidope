@@ -1,7 +1,7 @@
 <template>
   <div class="layout-container">
     <MainNavigation />
-    <CategoriesMenu />
+    <!-- <CategoriesMenu /> -->
     <main class="main-content">
       <slot></slot>
     </main>

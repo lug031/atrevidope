@@ -64,12 +64,11 @@
                             <td>{{ product.brand }}</td>
                             <td>S/{{ product.originalPrice?.toFixed(2) || '0.00' }}</td>
                             <td>
-                                <!-- Mostrar el tipo de descuento (porcentual o fijo) -->
                                 <span :class="['discount-badge', product.discountPercentage > 0 ? 'active' : '']">
-                                    {{ formatDiscount(product) }}
+                                    {{ getDisplayDiscount(product) > 0 ? formatDiscount(product) : '0' }}
                                 </span>
                             </td>
-                            <td>S/{{ product.price.toFixed(2) }}</td>
+                            <td>S/{{ getTablePrice(product).toFixed(2) }}</td>
                             <td>
                                 <div class="stock-control column">
                                     <span :class="['stock-badge', getStockClass(product.stock)]">
@@ -407,16 +406,18 @@ const { brands, loadBrands } = useBrands()
 
 // Formatear el descuento según el tipo (porcentual o fijo)
 const formatDiscount = (product: Product): string => {
-    if (!product.discountPercentage || product.discountPercentage <= 0) {
+    const effectiveDiscount = getDisplayDiscount(product);
+
+    if (effectiveDiscount <= 0) {
         return '0';
     }
 
     if (product.promotionType === 'fixed') {
-        return `S/${product.discountPercentage.toFixed(2)}`;
+        return `S/${effectiveDiscount.toFixed(2)}`;
     } else {
-        return `${product.discountPercentage}%`;
+        return `${effectiveDiscount}%`;
     }
-}
+};
 
 // Establecer el tipo de descuento
 const setDiscountType = (type: 'percentage' | 'fixed') => {
@@ -753,6 +754,22 @@ const isPromotionActive = (product: Product): boolean => {
     return product.promotionStartDate <= today && today <= product.promotionEndDate;
 };
 
+const isPromotionExpired = (product: Product): boolean => {
+    if (!product.isPromoted || !product.promotionEndDate) {
+        return false;
+    }
+
+    const today = getCurrentPeruDate();
+    return today > product.promotionEndDate;
+};
+
+const getDisplayDiscount = (product: Product): number => {
+    if (!product.isPromoted || !product.discountPercentage || isPromotionExpired(product)) {
+        return 0;
+    }
+    return product.discountPercentage;
+};
+
 const getCurrentPeruDate = (): string => {
     const date = new Date();
     const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
@@ -780,25 +797,48 @@ const getPromotionStatus = (product: Product): string => {
 
     const today = getCurrentPeruDate();
 
-    if (product.promotionStartDate === product.promotionEndDate) {
-        if (today === product.promotionStartDate) {
-            return '¡Solo por hoy!';
-        }
+    if (today > product.promotionEndDate) {
+        return 'Promoción finalizada';
     }
 
     if (today < product.promotionStartDate) {
         return `Inicia el ${formatDateToSpanish(product.promotionStartDate)}`;
     }
 
-    if (today > product.promotionEndDate) {
-        return 'Promoción finalizada';
-    }
-
     if (product.promotionStartDate === product.promotionEndDate) {
-        return `Solo por el ${formatDateToSpanish(product.promotionStartDate)}`;
+        return '¡Solo por hoy!';
     }
 
-    return `Válido del ${formatDateToSpanish(product.promotionStartDate)} al ${formatDateToSpanish(product.promotionEndDate)}`;
+    return `Válido hasta el ${formatDateToSpanish(product.promotionEndDate)}`;
+};
+
+const updateExpiredPromotions = async () => {
+    const expiredProducts = products.value.filter(product =>
+        product.isPromoted && isPromotionExpired(product)
+    );
+
+    for (const product of expiredProducts) {
+        try {
+            const updatedProduct = {
+                ...product,
+                isPromoted: false,
+                discountPercentage: 0,
+                price: product.originalPrice
+            };
+
+            const categoryIds = product.categories?.map(cat => cat.id) || [];
+            await updateProduct(product.id, updatedProduct, categoryIds);
+        } catch (error) {
+            console.error(`Error al actualizar promoción expirada para ${product.name}:`, error);
+        }
+    }
+
+    if (expiredProducts.length > 0) {
+        showToast({
+            type: 'info',
+            message: `Se han desactivado ${expiredProducts.length} promociones expiradas`
+        });
+    }
 };
 
 const uploadImage = async (): Promise<string> => {
@@ -839,23 +879,33 @@ const filteredProducts = computed(() => {
 })
 
 const handleEdit = (product: Product) => {
+    const promotionExpired = isPromotionExpired(product);
+
     formData.value = {
         name: product.name,
         brand: product.brand,
         brandID: product.brandID || '',
         description: product.description,
-        price: product.price,
+        price: promotionExpired ? product.originalPrice : product.price, // Usar precio original si expiró
         originalPrice: product.originalPrice,
-        discountPercentage: product.discountPercentage,
+        discountPercentage: promotionExpired ? 0 : product.discountPercentage, // 0 si expiró
         stock: product.stock,
         active: product.active,
         carousel: product.carousel,
-        isPromoted: product.isPromoted,
+        isPromoted: promotionExpired ? false : product.isPromoted, // Desactivar si expiró
         categoryIDs: product.categories?.map(cat => cat.id) || [],
         imageUrl: product.imageUrl || '',
         promotionStartDate: product.promotionStartDate || '',
         promotionEndDate: product.promotionEndDate || '',
-        promotionType: product.promotionType || 'percentage' // Por defecto porcentual si no tiene tipo
+        promotionType: product.promotionType || 'percentage'
+    };
+
+    // Mostrar mensaje si la promoción expiró
+    if (promotionExpired && product.isPromoted) {
+        showToast({
+            type: 'warning',
+            message: 'La promoción de este producto ha expirado y se ha desactivado automáticamente'
+        });
     }
 
     if (product.imageUrl && imageUrls.value[product.id]) {
@@ -864,9 +914,9 @@ const handleEdit = (product: Product) => {
         imagePreview.value = null;
     }
 
-    editingId.value = product.id
-    showCreateModal.value = true
-}
+    editingId.value = product.id;
+    showCreateModal.value = true;
+};
 
 const resetForm = () => {
     formData.value = { ...initialFormData }
@@ -975,9 +1025,21 @@ const getStockClass = (stock: number) => {
     return 'critical';
 }
 
+const getTablePrice = (product: Product): number => {
+    if (isPromotionExpired(product)) {
+        return product.originalPrice;
+    }
+    return product.price;
+};
+
 onMounted(async () => {
-    await Promise.all([loadProducts(), loadCategories(), loadBrands()])
-})
+    await Promise.all([loadProducts(), loadCategories(), loadBrands()]);
+
+    // Verificar y actualizar promociones expiradas después de cargar los productos
+    setTimeout(() => {
+        updateExpiredPromotions();
+    }, 1000);
+});
 
 watch([
     () => formData.value.promotionStartDate,

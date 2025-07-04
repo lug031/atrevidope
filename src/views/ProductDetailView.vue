@@ -23,10 +23,7 @@
             </div>
 
             <div v-else-if="currentProduct" class="product-detail">
-                <div class="product-gallery">
-                    <img :src="imageUrls[currentProduct.id] || '/api/placeholder/40/40'" :alt="currentProduct.name"
-                        class="main-image" />
-                </div>
+                <ProductGallery :product="currentProduct" :images="productImages" :auto-slide="false" />
 
                 <div class="product-info">
                     <h1 class="brand-name">{{ currentProduct.brand }}</h1>
@@ -37,7 +34,7 @@
                         <template v-if="isValidPromotion">
                             <p class="product-price">
                                 <span class="current-price">S/{{ formatPrice(calculateDiscountedPrice(currentProduct))
-                                    }}</span>
+                                }}</span>
                                 <span class="original-price">S/{{ formatPrice(currentProduct.originalPrice) }}</span>
                             </p>
                             <!-- Badge de descuento y fechas debajo del precio -->
@@ -107,11 +104,14 @@ import { useProducts } from '@/composables/useProducts';
 import { usePromotions } from '../composables/usePromotions';
 import type { Product } from '@/types/product.types';
 import { useToast } from '../composables/useToast';
-import { uploadData, getUrl } from 'aws-amplify/storage';
+import { getUrl } from 'aws-amplify/storage';
 import { useCart } from '@/composables/useCart';
-import type { CartItem } from '@/types/cart.types';
+import ProductGallery from '@/components/ProductGallery.vue';
+import { useImageCache } from '@/composables/useImageCache';
 
-const imageUrls = ref<Record<string, string>>({});
+const { getImageUrl, validateAndUpdateImage, imageCache } = useImageCache();
+
+const imageUrls = ref<Record<string, string[]>>({});
 const route = useRoute();
 const router = useRouter();
 const { allProductsWeb, loading: productsLoading, error: productsError, loadAllProductsWeb } = useProducts();
@@ -133,15 +133,38 @@ const { showToast } = useToast();
 const quantity = ref(1);
 const isAddingToCart = ref(false);
 
-// Función para formatear el badge de descuento según el tipo
+const productImages = computed(() => {
+    if (!currentProduct.value) return [];
+
+    const images: string[] = [];
+
+    const cachedMainImage = imageCache.value[`${currentProduct.value.id}-main`];
+    if (cachedMainImage) {
+        images.push(cachedMainImage);
+    }
+
+    if (currentProduct.value.imageUrls && currentProduct.value.imageUrls.length > 0) {
+        currentProduct.value.imageUrls.forEach((_: any, index: any) => {
+            const cachedImage = imageCache.value[`${currentProduct.value!.id}-${index}`];
+            if (cachedImage && !images.includes(cachedImage)) {
+                images.push(cachedImage);
+            }
+        });
+    }
+
+    if (images.length === 0) {
+        return ['/api/placeholder/600/750'];
+    }
+
+    return images;
+});
+
 const formatDiscountBadge = (product: Product): string => {
     if (!product.discountPercentage) return '';
 
-    // Si el tipo de promoción es 'fixed', mostrar con S/
     if (product.promotionType === 'fixed') {
         return `- S/${product.discountPercentage.toFixed(2)}`;
     } else {
-        // Por defecto usar porcentaje
         return `- ${product.discountPercentage}%`;
     }
 };
@@ -190,13 +213,65 @@ const isOutOfStock = computed(() =>
 );
 
 const loadImageUrls = async () => {
-    if (currentProduct.value?.imageUrl) {
-        try {
-            const { url } = await getUrl({ path: currentProduct.value.imageUrl });
-            imageUrls.value[currentProduct.value.id] = url.toString();
-        } catch (error) {
-            console.error("Error cargando imagen:", error);
+    if (!currentProduct.value) return;
+
+    try {
+        const loadPromises: Promise<void>[] = [];
+
+        const isValidImageUrl = (url: string): boolean => {
+            return typeof url === 'string' &&
+                url.trim() !== '' &&
+                !url.includes('placeholder') &&
+                !url.includes('api/placeholder');
+        };
+
+        if (currentProduct.value.imageUrl && isValidImageUrl(currentProduct.value.imageUrl)) {
+            const promise = getImageUrl(`${currentProduct.value.id}-main`, currentProduct.value.imageUrl)
+                .then(url => {
+                    //console.log('Main image loaded:', url);
+                })
+                .catch(error => {
+                    console.error('Error loading main image:', error);
+                });
+            loadPromises.push(promise);
         }
+
+        if (currentProduct.value.imageUrls && currentProduct.value.imageUrls.length > 0) {
+            currentProduct.value.imageUrls.forEach((imagePath: string, index: any) => {
+                if (isValidImageUrl(imagePath)) {
+                    const promise = getImageUrl(`${currentProduct.value!.id}-${index}`, imagePath)
+                        .then(url => {
+                            //console.log(`Additional image ${index} loaded:`, url);
+                        })
+                        .catch(error => {
+                            console.error(`Error loading additional image ${index}:`, error);
+                        });
+                    loadPromises.push(promise);
+                }
+            });
+        }
+
+        await Promise.all(loadPromises);
+
+    } catch (error) {
+        console.error('Error in loadImageUrls:', error);
+    }
+
+};
+
+const cleanupImageCache = () => {
+    if (!currentProduct.value) return;
+
+    if (currentProduct.value.imageUrl) {
+        validateAndUpdateImage(`${currentProduct.value.id}-main`, currentProduct.value.imageUrl);
+    }
+
+    if (currentProduct.value.imageUrls && currentProduct.value.imageUrls.length > 0) {
+        currentProduct.value.imageUrls.forEach((imagePath: string, index: any) => {
+            if (imagePath) {
+                validateAndUpdateImage(`${currentProduct.value!.id}-${index}`, imagePath);
+            }
+        });
     }
 };
 
@@ -462,9 +537,16 @@ onMounted(async () => {
     }
 });
 
-watch(() => currentProduct.value, () => {
-    loadImageUrls();
+watch(() => currentProduct.value, async (newProduct) => {
+    if (newProduct) {
+        await loadImageUrls();
+        cleanupImageCache();
+    }
 }, { immediate: true });
+
+watch(() => imageCache.value, () => {
+    //console.log('Image cache updated:', Object.keys(imageCache.value).length, 'images cached');
+}, { deep: true });
 </script>
 
 <style scoped>
@@ -564,34 +646,6 @@ watch(() => currentProduct.value, () => {
     grid-template-columns: 1fr 1fr;
     gap: 20px;
     margin-top: 20px;
-}
-
-.product-gallery {
-    position: sticky;
-    top: 20px;
-    width: 100%;
-    /* Establecemos un aspect ratio máximo de 1080:1350 */
-    aspect-ratio: 1080/1350;
-    overflow: hidden;
-    border-radius: 8px;
-}
-
-.main-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    /* Esto hará que la imagen cubra el contenedor manteniendo su proporción */
-    object-position: center;
-    /* Centra la imagen vertical y horizontalmente */
-    border-radius: 8px;
-}
-
-/* Para pantallas más pequeñas, mantenemos la proporción */
-@media (max-width: 768px) {
-    .product-gallery {
-        aspect-ratio: 1080/1350;
-        margin: 0 auto;
-    }
 }
 
 .product-info {

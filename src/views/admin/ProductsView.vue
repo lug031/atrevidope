@@ -1190,7 +1190,6 @@ const filteredProducts = computed(() => {
 
 const handleEdit = (product: Product) => {
     const promotionExpired = isPromotionExpired(product);
-
     formData.value = {
         name: product.name,
         brand: product.brand,
@@ -1219,7 +1218,15 @@ const handleEdit = (product: Product) => {
         });
     }
 
-    await loadImagesForEdit(product)
+    try {
+        await loadImagesForEdit(product)
+    } catch (error) {
+        console.error('Error al cargar las imágenes:', error)
+        showToast({
+            type: 'error',
+            message: 'Error al cargar las imágenes del producto'
+        })
+    }
 
     editingId.value = product.id;
     showCreateModal.value = true;

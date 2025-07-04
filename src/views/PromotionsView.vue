@@ -24,33 +24,37 @@
                         params: { id: product.id },
                         state: { fromPromotions: true }
                     }" class="product-content">
-                        <!-- Modificación: usar la función formatDiscountBadge para mostrar el descuento -->
-                        <div class="discount-badge">
-                            {{ product.promotionType === 'fixed'
-                                ? `-S/${product.discountPercentage.toFixed(2)}`
-                                : `-${product.discountPercentage}%` }}
-                        </div>
-
-                        <div class="promotion-dates" :class="{ 'today-only': isSingleDayPromotion(product) }">
-                            {{ getPromotionDateText(product) }}
+                        <!-- Badge de promoción activa -->
+                        <div class="active-promotion-badge"
+                            :class="{ 'one-day-promotion': isSingleDayPromotion(product) }">
+                            <span class="promotion-text" v-if="isSingleDayPromotion(product)">¡SOLO POR HOY!</span>
+                            <span class="promotion-text" v-else>¡EN PROMOCIÓN!</span>
+                            <span class="promotion-discount">{{ formatDiscountBadge(product) }}</span>
+                            <span class="promotion-end" v-if="!isSingleDayPromotion(product)">
+                                Hasta {{ formatPromotionDate(product.promotionEndDate) }}
+                            </span>
                         </div>
 
                         <div class="product-image">
-                            <img :src="imageUrls[product.id] || '/api/placeholder/40/40'" :alt="product.name">
+                            <img :src="imageUrls[product.id] || '/api/placeholder/40/40'" :alt="product.name"
+                                loading="lazy" />
                         </div>
 
                         <div class="product-info">
-                            <h3 class="brand">{{ product.brand }}</h3>
-                            <p class="name">{{ product.name }}</p>
+                            <h3 class="brand-name">{{ product.brand }}</h3>
+                            <p class="product-name">{{ product.name }}</p>
+                            <div class="formatted-description"
+                                v-html="parseMarkdown(truncateText(product.description, 100))" />
 
-                            <div class="price-container">
-                                <div class="price-wrapper">
-                                    <span class="current-price">S/{{ formatPrice(calculateDiscountedPrice(product))
-                                        }}</span>
-                                    <span class="original-price">S/{{ formatPrice(product.originalPrice) }}</span>
-                                </div>
+                            <!-- Precios -->
+                            <div class="price-info has-active-promotion">
+                                <p class="product-price">
+                                    <span class="original-price">S/{{ product.originalPrice.toFixed(2) }}</span>
+                                    <span class="discounted-price">S/{{ calculateDiscountedPrice(product) }}</span>
+                                </p>
                             </div>
 
+                            <!-- Stock Status -->
                             <div class="stock-status" :class="{
                                 'out-of-stock': product.stock === 0,
                                 'low-stock': product.stock > 0 && product.stock <= 5
@@ -103,6 +107,89 @@ const formatDateToSpanish = (dateStr: string): string => {
         day: 'numeric',
         month: 'long'
     }).format(date);
+};
+
+const formatDiscountBadge = (product: Product): string => {
+    if (!product.discountPercentage) return '';
+
+    // Si el tipo de promoción es 'fixed', mostrar con S/
+    if (product.promotionType === 'fixed') {
+        return `-S/${product.discountPercentage.toFixed(2)}`;
+    } else {
+        // Por defecto usar porcentaje
+        return `-${product.discountPercentage}%`;
+    }
+};
+
+const formatPromotionDate = (dateStr: string | undefined): string => {
+    if (!dateStr) return '';
+
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+
+    return new Intl.DateTimeFormat('es-PE', {
+        day: 'numeric',
+        month: 'long'
+    }).format(date);
+};
+
+const truncateText = (text: string, maxLength: number = 100): string => {
+    if (!text) return '';
+
+    // Si el texto es más corto que el máximo, retornarlo completo
+    if (text.length <= maxLength) return text;
+
+    // Cortar el texto hasta el máximo
+    let truncated = text.slice(0, maxLength);
+
+    // Asegurarse de no cortar a mitad de una palabra
+    const lastSpace = truncated.lastIndexOf(' ');
+    if (lastSpace > 0) {
+        truncated = truncated.slice(0, lastSpace);
+    }
+
+    // Asegurarse de no cortar a mitad de un formato markdown
+    const boldCount = (truncated.match(/\*\*/g) || []).length;
+    const italicCount = (truncated.match(/\*/g) || []).length;
+
+    // Si hay formatos markdown incompletos, ajustarlos
+    if (boldCount % 2 !== 0) {
+        truncated = truncated.replace(/\*\*[^*]*$/, '');
+    }
+    if ((italicCount - boldCount * 2) % 2 !== 0) {
+        truncated = truncated.replace(/\*[^*]*$/, '');
+    }
+
+    return truncated + '...';
+};
+
+const parseMarkdown = (text: string): string => {
+    if (!text) return '';
+
+    return text
+        // Headers
+        .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+        .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+        .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+        // Bold
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        // Italic
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        // Lists
+        .replace(/^\s*[-+*]\s+(.*)/gm, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+        // Links
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+        // Line breaks
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>')
+        // Wrap in paragraphs if not already wrapped
+        .replace(/^(.+?)(?:<br>|$)/gm, (_, text) => {
+            if (!/^<[h|p|ul|ol|li]/.test(text)) {
+                return `<p>${text}</p>`;
+            }
+            return text;
+        });
 };
 
 const isPromotionActive = (product: Product): boolean => {
@@ -252,25 +339,24 @@ watch(() => activePromotionsWithDates.value, () => {
 
 .products-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1.5rem;
-    padding: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 30px;
+    padding: 20px;
 }
 
 .product-card {
-    background: #fff;
-    border-radius: 8px;
-    padding: 1rem;
+    background: white;
+    border: 1px solid #eee;
+    padding: 20px;
+    text-align: center;
+    transition: all 0.3s ease;
     position: relative;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    transition: transform 0.2s;
+    border-radius: 8px;
 }
 
 .product-card:hover {
     transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
 /* New styles for the router-link wrapper */
@@ -279,7 +365,6 @@ watch(() => activePromotionsWithDates.value, () => {
     text-decoration: none;
     color: inherit;
     cursor: pointer;
-    flex: 1;
 }
 
 .discount-badge {
@@ -299,13 +384,11 @@ watch(() => activePromotionsWithDates.value, () => {
     position: relative;
     width: 100%;
     height: 400px;
-    /* Altura fija para todas las imágenes */
     display: flex;
     align-items: center;
     justify-content: center;
     background-color: #f8f8f8;
     margin-bottom: 15px;
-
     overflow: hidden;
     border-radius: 4px;
 }
@@ -314,7 +397,6 @@ watch(() => activePromotionsWithDates.value, () => {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    /* Mantiene la proporción y cubre el espacio */
     object-position: center;
     transition: transform 0.3s ease;
 }
@@ -424,9 +506,10 @@ watch(() => activePromotionsWithDates.value, () => {
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 0.8rem;
-    margin: 0.5rem 0;
+    margin: 10px 0;
     background-color: #e8f5e9;
     color: #2e7d32;
+    font-weight: 500;
 }
 
 .stock-status.low-stock {
@@ -446,6 +529,184 @@ watch(() => activePromotionsWithDates.value, () => {
 
 .add-to-cart.disabled:hover {
     background-color: #ccc;
+}
+
+.active-promotion-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #000000;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    z-index: 10;
+}
+
+.active-promotion-badge .promotion-text {
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.active-promotion-badge .promotion-discount {
+    font-size: 1rem;
+    font-weight: bold;
+}
+
+.active-promotion-badge .promotion-end {
+    font-size: 0.75rem;
+    color: #ffd700;
+}
+
+.active-promotion-badge.one-day-promotion {
+    background-color: #d61c1c;
+    box-shadow: 0 2px 8px rgba(214, 28, 28, 0.4);
+    animation: pulse 1.5s infinite;
+}
+
+.one-day-promotion .promotion-text {
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+
+.brand-name {
+    font-size: 0.9rem;
+    color: #666;
+    margin: 0;
+}
+
+.brand-name {
+    font-size: 0.9rem;
+    color: #666;
+    margin: 0;
+}
+
+.product-name {
+    font-size: 1.1rem;
+    margin: 5px 0;
+    color: #1a1a1a;
+    font-weight: 500;
+}
+
+.product-price {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin: 10px 0;
+    color: #1a1a1a;
+}
+
+.formatted-description {
+    line-height: 1.6;
+    color: #374151;
+    font-size: 0.9rem;
+    margin: 5px 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.formatted-description :deep(h1),
+.formatted-description :deep(h2),
+.formatted-description :deep(h3) {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+}
+
+.formatted-description :deep(p) {
+    margin: 0;
+    display: inline;
+}
+
+.formatted-description :deep(strong) {
+    font-weight: 600;
+    color: #444;
+}
+
+.formatted-description :deep(em) {
+    font-style: italic;
+}
+
+.price-info.has-active-promotion {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.price-info .original-price {
+    font-size: 0.9rem;
+    color: #666;
+    text-decoration: line-through;
+    margin-right: 6px;
+}
+
+.price-info .discounted-price {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #000;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 0.5;
+    }
+
+    50% {
+        transform: scale(1.2);
+        opacity: 1;
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .products-grid {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 20px;
+        padding: 15px;
+    }
+
+    .product-card {
+        padding: 15px;
+    }
+
+    .active-promotion-badge {
+        top: 10px;
+        right: 10px;
+        padding: 6px 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .promotions-page {
+        padding: 0 10px;
+    }
+
+    .products-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+        padding: 10px;
+    }
 }
 
 @keyframes rotation {

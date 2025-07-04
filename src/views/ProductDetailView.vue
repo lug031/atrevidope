@@ -34,7 +34,7 @@
                         <template v-if="isValidPromotion">
                             <p class="product-price">
                                 <span class="current-price">S/{{ formatPrice(calculateDiscountedPrice(currentProduct))
-                                    }}</span>
+                                }}</span>
                                 <span class="original-price">S/{{ formatPrice(currentProduct.originalPrice) }}</span>
                             </p>
                             <!-- Badge de descuento y fechas debajo del precio -->
@@ -104,10 +104,12 @@ import { useProducts } from '@/composables/useProducts';
 import { usePromotions } from '../composables/usePromotions';
 import type { Product } from '@/types/product.types';
 import { useToast } from '../composables/useToast';
-import { uploadData, getUrl } from 'aws-amplify/storage';
+import { getUrl } from 'aws-amplify/storage';
 import { useCart } from '@/composables/useCart';
-import type { CartItem } from '@/types/cart.types';
 import ProductGallery from '@/components/ProductGallery.vue';
+import { useImageCache } from '@/composables/useImageCache';
+
+const { getImageUrl, validateAndUpdateImage, imageCache } = useImageCache();
 
 const imageUrls = ref<Record<string, string[]>>({});
 const route = useRoute();
@@ -134,7 +136,21 @@ const isAddingToCart = ref(false);
 const productImages = computed(() => {
     if (!currentProduct.value) return [];
 
-    const images = imageUrls.value[currentProduct.value.id] || [];
+    const images: string[] = [];
+
+    const cachedMainImage = imageCache.value[`${currentProduct.value.id}-main`];
+    if (cachedMainImage) {
+        images.push(cachedMainImage);
+    }
+
+    if (currentProduct.value.imageUrls && currentProduct.value.imageUrls.length > 0) {
+        currentProduct.value.imageUrls.forEach((_: any, index: any) => {
+            const cachedImage = imageCache.value[`${currentProduct.value!.id}-${index}`];
+            if (cachedImage && !images.includes(cachedImage)) {
+                images.push(cachedImage);
+            }
+        });
+    }
 
     if (images.length === 0) {
         return ['/api/placeholder/600/750'];
@@ -199,29 +215,64 @@ const isOutOfStock = computed(() =>
 const loadImageUrls = async () => {
     if (!currentProduct.value) return;
 
-    const urls: string[] = [];
+    try {
+        const loadPromises: Promise<void>[] = [];
+
+        const isValidImageUrl = (url: string): boolean => {
+            return typeof url === 'string' &&
+                url.trim() !== '' &&
+                !url.includes('placeholder') &&
+                !url.includes('api/placeholder');
+        };
+
+        if (currentProduct.value.imageUrl && isValidImageUrl(currentProduct.value.imageUrl)) {
+            const promise = getImageUrl(`${currentProduct.value.id}-main`, currentProduct.value.imageUrl)
+                .then(url => {
+                    //console.log('Main image loaded:', url);
+                })
+                .catch(error => {
+                    console.error('Error loading main image:', error);
+                });
+            loadPromises.push(promise);
+        }
+
+        if (currentProduct.value.imageUrls && currentProduct.value.imageUrls.length > 0) {
+            currentProduct.value.imageUrls.forEach((imagePath: string, index: any) => {
+                if (isValidImageUrl(imagePath)) {
+                    const promise = getImageUrl(`${currentProduct.value!.id}-${index}`, imagePath)
+                        .then(url => {
+                            //console.log(`Additional image ${index} loaded:`, url);
+                        })
+                        .catch(error => {
+                            console.error(`Error loading additional image ${index}:`, error);
+                        });
+                    loadPromises.push(promise);
+                }
+            });
+        }
+
+        await Promise.all(loadPromises);
+
+    } catch (error) {
+        console.error('Error in loadImageUrls:', error);
+    }
+
+};
+
+const cleanupImageCache = () => {
+    if (!currentProduct.value) return;
 
     if (currentProduct.value.imageUrl) {
-        try {
-            const { url } = await getUrl({ path: currentProduct.value.imageUrl });
-            urls.push(url.toString());
-        } catch (error) {
-            console.error("Error cargando imagen principal:", error);
-        }
+        validateAndUpdateImage(`${currentProduct.value.id}-main`, currentProduct.value.imageUrl);
     }
 
     if (currentProduct.value.imageUrls && currentProduct.value.imageUrls.length > 0) {
-        for (const imagePath of currentProduct.value.imageUrls) {
-            try {
-                const { url } = await getUrl({ path: imagePath });
-                urls.push(url.toString());
-            } catch (error) {
-                console.error("Error cargando imagen adicional:", error);
+        currentProduct.value.imageUrls.forEach((imagePath: string, index: any) => {
+            if (imagePath) {
+                validateAndUpdateImage(`${currentProduct.value!.id}-${index}`, imagePath);
             }
-        }
+        });
     }
-
-    imageUrls.value[currentProduct.value.id] = urls;
 };
 
 const isSingleDayPromotion = computed(() => {
@@ -486,9 +537,16 @@ onMounted(async () => {
     }
 });
 
-watch(() => currentProduct.value, () => {
-    loadImageUrls();
+watch(() => currentProduct.value, async (newProduct) => {
+    if (newProduct) {
+        await loadImageUrls();
+        cleanupImageCache();
+    }
 }, { immediate: true });
+
+watch(() => imageCache.value, () => {
+    //console.log('Image cache updated:', Object.keys(imageCache.value).length, 'images cached');
+}, { deep: true });
 </script>
 
 <style scoped>

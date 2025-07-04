@@ -45,7 +45,7 @@
         </div>
 
         <!-- Miniaturas -->
-        <div v-if="images.length > 1" class="thumbnails-container">
+        <!--<div v-if="images.length > 1" class="thumbnails-container">
             <div class="thumbnails-grid">
                 <button v-for="(image, index) in images" :key="index" @click="setCurrentImage(index)" class="thumbnail"
                     :class="{ 'thumbnail-active': index === currentIndex }">
@@ -53,7 +53,7 @@
                         class="thumbnail-image" />
                 </button>
             </div>
-        </div>
+        </div>-->
 
         <!-- Lightbox Modal -->
         <Teleport to="body">
@@ -71,7 +71,7 @@
                     </div>
 
                     <!-- Navegación en lightbox -->
-                    <div v-if="images.length > 1" class="lightbox-navigation">
+                    <!--<div v-if="images.length > 1" class="lightbox-navigation">
                         <button @click="previousImage" class="lightbox-nav-button lightbox-nav-left"
                             :disabled="currentIndex === 0">
                             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -87,7 +87,7 @@
                                 </path>
                             </svg>
                         </button>
-                    </div>
+                    </div>-->
                 </div>
             </div>
         </Teleport>
@@ -445,7 +445,7 @@ onUnmounted(() => {
 }
 
 .lightbox-content {
-    max-width: 64rem;
+    max-width: 30rem;
     max-height: 100%;
     display: flex;
     align-items: center;

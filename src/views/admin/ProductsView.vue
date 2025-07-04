@@ -337,67 +337,101 @@
                 </div>-->
 
                 <div class="form-group">
-                    <label>Imágenes del producto</label>
+                    <label>Imágenes del producto <span class="required">*</span></label>
                     <div class="images-upload-container">
+                        <!-- <div class="images-info">
+                            <span class="text-sm text-gray-600">
+                                {{ imageInfo.existing }} existentes, {{ imageInfo.newFiles }} nuevas
+                                <span v-if="imageInfo.toDelete > 0" class="text-red-600">
+                                    ({{ imageInfo.toDelete }} se eliminarán)
+                                </span>
+                                ({{ imageInfo.total }}/{{ maxImages }})
+                            </span>
+                            <span v-if="!imageInfo.hasMinimumImages" class="text-red-600 text-sm block">
+                                ⚠️ Se requiere al menos una imagen
+                            </span>
+                        </div>-->
+
                         <input type="file" id="productImages" accept="image/*" multiple @change="handleFileSelect"
-                            class="file-input" hidden>
-                        <label for="productImages" class="upload-button">
+                            class="file-input" hidden :disabled="!imageInfo.canAddMore">
+                        <label for="productImages" class="upload-button" :class="{ 'disabled': !imageInfo.canAddMore }">
                             <UploadIcon :size="16" />
-                            {{ selectedFiles.length > 0 ? `${selectedFiles.length} archivo(s) seleccionado(s)` :
-                                'Seleccionar imágenes'
+                            {{ imageInfo.canAddMore
+                                ? (selectedFiles.length > 0 ? `${selectedFiles.length} archivo(s) seleccionado(s)` :
+                                    'Seleccionar imágenes')
+                                : 'Límite alcanzado'
                             }}
                         </label>
 
-                        <div class="upload-info">
-                            <span class="text-sm text-gray-600">
-                                Máximo {{ maxImages }} imágenes. La primera será la imagen principal.
-                            </span>
-                        </div>
-
                         <!-- Grid de previews -->
                         <div v-if="imagePreviews.length > 0" class="images-preview-grid">
-                            <div v-for="(preview, index) in imagePreviews" :key="index" class="image-preview-item">
+                            <div v-for="(preview, index) in imagePreviews" :key="`preview-${index}`"
+                                class="image-preview-item" :class="{ 'main-image-item': index === mainImageIndex }">
                                 <img :src="preview" :alt="`Vista previa ${index + 1}`" class="preview-image" />
-                                <button @click="removeImage(index)" class="remove-image-button" type="button">
+
+                                <!-- Botón para eliminar imagen -->
+                                <button @click="removeImageWithVerification(index)" class="remove-image-button"
+                                    :class="{ 'disabled': !canRemoveImage(index) }" :disabled="!canRemoveImage(index)"
+                                    type="button"
+                                    :title="canRemoveImage(index) ? 'Eliminar imagen' : 'Debe haber al menos una imagen'">
                                     <XIcon :size="16" />
                                 </button>
-                                <div v-if="index === 0" class="main-image-badge">
+
+                                <!-- Botón para establecer como imagen principal -->
+                                <button v-if="index !== mainImageIndex" @click="setAsMainImage(index)"
+                                    class="set-main-button" type="button" title="Establecer como imagen principal">
+                                    <StarIcon :size="16" />
+                                </button>
+
+                                <!-- Badge de imagen principal -->
+                                <div v-if="index === mainImageIndex" class="main-image-badge">
+                                    <StarIcon :size="12" class="star-icon" />
                                     Principal
                                 </div>
+
+                                <!-- Indicador de imagen existente vs nueva -->
+                                <div class="image-type-badge"
+                                    :class="index < existingImageUrls.length ? 'existing' : 'new'">
+                                    {{ index < existingImageUrls.length ? 'Existente' : 'Nueva' }} </div>
+                                        <div class="image-order-badge">{{ index + 1 }}</div>
+                                </div>
                             </div>
+
+                            <!-- <button v-if="imagePreviews.length > 1" @click="handleClearAllImages"
+                                class="clear-all-button" type="button" :disabled="imageInfo.total <= 1">
+                                Limpiar todas
+                                <span v-if="imageInfo.toDelete > 0" class="text-red-600">
+                                    ({{ imageInfo.toDelete }} se eliminarán del servidor)
+                                </span>
+                            </button> -->
                         </div>
 
-                        <button v-if="imagePreviews.length > 0" @click="clearAllImages" class="clear-all-button"
-                            type="button">
-                            Limpiar todas
-                        </button>
+                        <!-- <p v-if="uploadProgress > 0" class="upload-status">
+                            Subiendo: {{ uploadProgress }}%
+                        </p>-->
                     </div>
 
-                    <p v-if="uploadProgress > 0" class="upload-status">
-                        Subiendo: {{ uploadProgress }}%
-                    </p>
-                </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" v-model="formData.active" />
+                            Producto activo
+                        </label>
 
-                <div class="form-group">
-                    <label class="checkbox-label">
-                        <input type="checkbox" v-model="formData.active" />
-                        Producto activo
-                    </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" v-model="formData.carousel" />
+                            Producto carousel
+                        </label>
+                    </div>
 
-                    <label class="checkbox-label">
-                        <input type="checkbox" v-model="formData.carousel" />
-                        Producto carousel
-                    </label>
-                </div>
-
-                <div class="modal-footer">
-                    <button type="button" class="secondary-button" @click="handleCloseModal" :disabled="isSubmitting">
-                        Cancelar
-                    </button>
-                    <button type="submit" class="primary-button" :disabled="isSubmitting">
-                        {{ editingId ? 'Actualizar' : 'Crear' }}
-                    </button>
-                </div>
+                    <div class="modal-footer">
+                        <button type="button" class="secondary-button" @click="handleCloseModal"
+                            :disabled="isSubmitting">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="primary-button" :disabled="isSubmitting">
+                            {{ editingId ? 'Actualizar' : 'Crear' }}
+                        </button>
+                    </div>
             </form>
         </Modal>
 
@@ -427,19 +461,23 @@ import {
     CalendarRangeIcon,
     MinusIcon,
     PercentIcon,
-    DollarSignIcon
+    DollarSignIcon,
+    StarIcon
 } from 'lucide-vue-next'
 import { useProducts } from '@/composables/useProducts'
 import { useCategories } from '@/composables/useCategories'
 import type { Product } from '@/types/product.types'
 import Modal from '@/components/Modal.vue'
-import { uploadData, getUrl } from 'aws-amplify/storage';
+import { uploadData, getUrl, remove } from 'aws-amplify/storage';
 import ImageModal from '@/components/ImageModal.vue'
 import { useToast } from '@/composables/useToast';
 import { useBrands } from '@/composables/useBrands'
 
+const mainImageIndex = ref(0)
 const selectedFiles = ref<File[]>([])
 const imagePreviews = ref<string[]>([])
+const existingImageUrls = ref<string[]>([])
+const imagesToDelete = ref<string[]>([])
 const maxImages = 5
 const imageUrls = ref<Record<string, string[]>>({});
 const promotionDuration = ref('single')
@@ -450,7 +488,41 @@ const formError = ref('')
 const isSubmitting = ref(false)
 const { brands, loadBrands } = useBrands()
 
-// Formatear el descuento según el tipo (porcentual o fijo)
+const setAsMainImage = (index: number) => {
+    if (index < 0 || index >= imagePreviews.value.length) return
+
+    mainImageIndex.value = index
+    reorganizeImagesForMainImage(index)
+
+    showToast({
+        type: 'success',
+        message: 'Imagen principal actualizada'
+    })
+}
+
+const reorganizeImagesForMainImage = (newMainIndex: number) => {
+    if (newMainIndex === 0) return
+
+    const newMainPreview = imagePreviews.value[newMainIndex]
+    imagePreviews.value.splice(newMainIndex, 1)
+    imagePreviews.value.unshift(newMainPreview)
+
+    if (newMainIndex < existingImageUrls.value.length) {
+        const newMainExisting = existingImageUrls.value[newMainIndex]
+        existingImageUrls.value.splice(newMainIndex, 1)
+        existingImageUrls.value.unshift(newMainExisting)
+    } else {
+        const fileIndex = newMainIndex - existingImageUrls.value.length
+        if (fileIndex >= 0 && fileIndex < selectedFiles.value.length) {
+            const newMainFile = selectedFiles.value[fileIndex]
+            selectedFiles.value.splice(fileIndex, 1)
+            selectedFiles.value.unshift(newMainFile)
+        }
+    }
+
+    mainImageIndex.value = 0
+}
+
 const formatDiscount = (product: Product): string => {
     if (!product.discountPercentage || product.discountPercentage <= 0) {
         return '0';
@@ -463,18 +535,14 @@ const formatDiscount = (product: Product): string => {
     }
 }
 
-// Establecer el tipo de descuento
 const setDiscountType = (type: 'percentage' | 'fixed') => {
     formData.value.promotionType = type;
 
-    // Restablecer el valor del descuento para evitar confusiones
     formData.value.discountPercentage = 0;
 
-    // Actualizar el precio final según el tipo de descuento
     calculateFinalPrice();
 }
 
-// Calcular precio final basado en el tipo de descuento
 const calculateFinalPrice = () => {
     if (!formData.value.isPromoted || !formData.value.discountPercentage) {
         formData.value.price = formData.value.originalPrice;
@@ -482,16 +550,13 @@ const calculateFinalPrice = () => {
     }
 
     if (formData.value.promotionType === 'percentage') {
-        // Descuento porcentual
         formData.value.price = formData.value.originalPrice * (1 - formData.value.discountPercentage / 100);
     } else {
-        // Descuento de monto fijo
         formData.value.price = Math.max(0, formData.value.originalPrice - formData.value.discountPercentage);
     }
 }
 
 const validateForm = (): boolean => {
-    // Limpiamos error previo
     formError.value = ''
 
     if (!formData.value.brandID) {
@@ -504,18 +569,28 @@ const validateForm = (): boolean => {
         return false
     }
 
+    const validExistingImages = existingImageUrls.value.filter(url =>
+        isValidImagePath(url) && !imagesToDelete.value.includes(url)
+    ).length
+
+    const newImages = selectedFiles.value.length
+    const totalValidImages = validExistingImages + newImages
+
+    if (totalValidImages === 0) {
+        formError.value = 'Debes agregar al menos una imagen del producto'
+        return false
+    }
+
     if (formData.value.isPromoted && (!formData.value.discountPercentage || formData.value.discountPercentage <= 0)) {
         formError.value = 'Cuando se aplica una promoción, el descuento debe ser mayor a 0'
         return false
     }
 
-    // Validación adicional para descuento porcentual
     if (formData.value.isPromoted && formData.value.promotionType === 'percentage' && formData.value.discountPercentage > 100) {
         formError.value = 'El descuento porcentual no puede ser mayor a 100%'
         return false
     }
 
-    // Validación para descuento fijo
     if (formData.value.isPromoted && formData.value.promotionType === 'fixed' && formData.value.discountPercentage > formData.value.originalPrice) {
         formError.value = 'El descuento fijo no puede ser mayor que el precio original'
         return false
@@ -563,11 +638,13 @@ const getProductMainImage = (product: Product): string => {
 
 const handleImageClick = (product: Product) => {
     const productImageUrls = imageUrls.value[product.id]
-    const imageUrl = (productImageUrls && productImageUrls.length > 0)
-        ? productImageUrls[0]
-        : '/api/placeholder/400/400'
 
-    selectedImageUrl.value = imageUrl
+    if (productImageUrls && productImageUrls.length > 0) {
+        selectedImageUrl.value = productImageUrls[0]
+    } else {
+        selectedImageUrl.value = '/api/placeholder/400/400'
+    }
+
     selectedProductName.value = product.name
     showImageModal.value = true
 }
@@ -637,19 +714,16 @@ const decreaseStock = async (product: Product) => {
             stock: product.stock - 1
         };
 
-        // Obtener los IDs de las categorías actuales del producto
         const categoryIds = product.categories?.map(cat => cat.id) || [];
 
         await updateProduct(product.id, updatedProduct, categoryIds);
 
-        // Animación del badge
         const badge = document.querySelector(`[data-product-id="${product.id}"] .stock-badge`);
         if (badge) {
             badge.classList.add('animate');
             setTimeout(() => badge.classList.remove('animate'), 500);
         }
 
-        // Notificación de stock bajo
         if (updatedProduct.stock <= 5) {
             showToast({
                 type: 'warning',
@@ -672,7 +746,6 @@ const toggleCarousel = async (product: Product) => {
             carousel: !product.carousel
         };
 
-        // Obtener los IDs de las categorías actuales del producto
         const categoryIds = product.categories?.map(cat => cat.id) || [];
 
         await updateProduct(product.id, updatedProduct, categoryIds);
@@ -697,12 +770,10 @@ const increaseStock = async (product: Product) => {
             stock: product.stock + 1
         };
 
-        // Obtener los IDs de las categorías actuales del producto
         const categoryIds = product.categories?.map(cat => cat.id) || [];
 
         await updateProduct(product.id, updatedProduct, categoryIds);
 
-        // Animación del badge
         const badge = document.querySelector(`[data-product-id="${product.id}"] .stock-badge`);
         if (badge) {
             badge.classList.add('animate');
@@ -721,7 +792,7 @@ const loadImageUrls = async () => {
     for (const product of products.value) {
         const urls: string[] = []
 
-        if (product.imageUrl) {
+        if (product.imageUrl && product.imageUrl.trim() !== '') {
             try {
                 const { url } = await getUrl({ path: product.imageUrl })
                 urls.push(url.toString())
@@ -732,16 +803,22 @@ const loadImageUrls = async () => {
 
         if (product.imageUrls && product.imageUrls.length > 0) {
             for (const imagePath of product.imageUrls) {
-                try {
-                    const { url } = await getUrl({ path: imagePath })
-                    urls.push(url.toString())
-                } catch (error) {
-                    console.error("Error cargando imagen adicional:", error)
+                if (imagePath && imagePath.trim() !== '') {
+                    try {
+                        const { url } = await getUrl({ path: imagePath })
+                        urls.push(url.toString())
+                    } catch (error) {
+                        console.error("Error cargando imagen adicional:", error)
+                    }
                 }
             }
         }
 
-        imageUrls.value[product.id] = urls
+        if (urls.length > 0) {
+            imageUrls.value[product.id] = urls
+        } else {
+            imageUrls.value[product.id] = []
+        }
     }
 }
 
@@ -775,7 +852,7 @@ const initialFormData = {
     imageUrls: [] as string[],
     promotionStartDate: '',
     promotionEndDate: '',
-    promotionType: 'percentage' // Valor predeterminado: descuento porcentual
+    promotionType: 'percentage'
 }
 
 const toggleCategory = (categoryId: string) => {
@@ -790,7 +867,6 @@ const toggleCategory = (categoryId: string) => {
 const formData = ref({ ...initialFormData })
 const editingId = ref<string | null>(null)
 
-// Observar cambios en los valores de descuento y precio original
 watch(
     [
         () => formData.value.originalPrice,
@@ -808,10 +884,16 @@ const handleFileSelect = (event: Event) => {
     if (input.files?.length) {
         const files = Array.from(input.files)
 
-        if (selectedFiles.value.length + files.length > maxImages) {
+        const validExistingImages = existingImageUrls.value.filter(url =>
+            isValidImagePath(url) && !imagesToDelete.value.includes(url)
+        ).length
+
+        const totalImages = validExistingImages + selectedFiles.value.length + files.length
+
+        if (totalImages > maxImages) {
             showToast({
                 type: 'warning',
-                message: `Solo puedes agregar máximo ${maxImages} imágenes`
+                message: `Solo puedes tener máximo ${maxImages} imágenes en total`
             })
             return
         }
@@ -821,31 +903,155 @@ const handleFileSelect = (event: Event) => {
         files.forEach(file => {
             imagePreviews.value.push(URL.createObjectURL(file))
         })
+
+        if (imagePreviews.value.length === files.length) {
+            mainImageIndex.value = 0
+        }
     }
 }
 
-const removeImage = (index: number) => {
-    selectedFiles.value.splice(index, 1)
+const loadImagesForEdit = async (product: Product) => {
+    existingImageUrls.value = []
+    imagePreviews.value = []
+    imagesToDelete.value = []
+    mainImageIndex.value = 0
 
-    if (imagePreviews.value[index]) {
+    const isValidImageUrl = (url: string): boolean => {
+        return !!url &&
+            url.trim() !== '' &&
+            !url.includes('placeholder') &&
+            !url.includes('api/placeholder') &&
+            !url.includes('/placeholder')
+    }
+
+    const orderedImagePaths: string[] = []
+
+    if (product.imageUrls && product.imageUrls.length > 0) {
+        product.imageUrls.forEach(imagePath => {
+            if (isValidImageUrl(imagePath)) {
+                orderedImagePaths.push(imagePath)
+            }
+        })
+    }
+
+    if (product.imageUrl && isValidImageUrl(product.imageUrl)) {
+        if (!orderedImagePaths.includes(product.imageUrl)) {
+            orderedImagePaths.unshift(product.imageUrl)
+        }
+    }
+
+    if (orderedImagePaths.length === 0) {
+        return
+    }
+
+    for (const imagePath of orderedImagePaths) {
+        try {
+            const { url } = await getUrl({ path: imagePath })
+            existingImageUrls.value.push(imagePath)
+            imagePreviews.value.push(url.toString())
+        } catch (error) {
+            console.error(`Error cargando imagen ${imagePath}:`, error)
+        }
+    }
+}
+
+const isValidImagePath = (path: string): boolean => {
+    return !!(path &&
+        path.trim() !== '' &&
+        !path.includes('placeholder') &&
+        !path.includes('api/placeholder'))
+}
+
+const removeImage = (index: number) => {
+
+    const validExisting = existingImageUrls.value.filter(url =>
+        url && url.trim() !== '' && !imagesToDelete.value.includes(url)
+    ).length
+
+    const totalImagesAfterRemoval = (validExisting + selectedFiles.value.length) - 1
+
+    if (totalImagesAfterRemoval < 1) {
+        showToast({
+            type: 'warning',
+            message: 'Debe haber al menos una imagen del producto'
+        })
+        return
+    }
+
+    if (index < existingImageUrls.value.length) {
+        const imageToDelete = existingImageUrls.value[index]
+
+        imagesToDelete.value.push(imageToDelete)
+
+        existingImageUrls.value.splice(index, 1)
+    } else {
+        const fileIndex = index - existingImageUrls.value.length
+
+        if (fileIndex >= 0 && fileIndex < selectedFiles.value.length) {
+            selectedFiles.value.splice(fileIndex, 1)
+        }
+    }
+
+    if (imagePreviews.value[index] && imagePreviews.value[index].startsWith('blob:')) {
         URL.revokeObjectURL(imagePreviews.value[index])
     }
+
     imagePreviews.value.splice(index, 1)
 }
 
 const clearAllImages = () => {
-    imagePreviews.value.forEach(url => URL.revokeObjectURL(url))
+    const validExistingImages = existingImageUrls.value.filter(url =>
+        isValidImagePath(url) && !imagesToDelete.value.includes(url)
+    ).length
 
+    const totalValidImages = validExistingImages + selectedFiles.value.length
+
+    if (editingId.value && totalValidImages > 0) {
+        if (totalValidImages <= 1) {
+            showToast({
+                type: 'warning',
+                message: 'No puedes eliminar todas las imágenes. Debe haber al menos una imagen del producto'
+            })
+            return
+        }
+    }
+
+    const validImagesToDelete = existingImageUrls.value.filter(url => isValidImagePath(url))
+    imagesToDelete.value.push(...validImagesToDelete)
+
+    existingImageUrls.value = []
     selectedFiles.value = []
+
+    imagePreviews.value.forEach(url => {
+        if (url.startsWith('blob:')) {
+            URL.revokeObjectURL(url)
+        }
+    })
     imagePreviews.value = []
 
     const input = document.getElementById('productImages') as HTMLInputElement
     if (input) input.value = ''
 }
 
+const deleteImagesFromS3 = async (imageUrls: string[]) => {
+    const deletePromises = imageUrls.map(async (imageUrl) => {
+        try {
+            const path = imageUrl.includes('products/')
+                ? imageUrl.split('products/')[1].split('?')[0]
+                : imageUrl
+
+            await remove({ path: `products/${path}` })
+        } catch (error) {
+            console.error(`Error eliminando imagen ${imageUrl}:`, error)
+        }
+    })
+
+    await Promise.all(deletePromises)
+}
+
 const uploadImages = async (): Promise<string[]> => {
     if (selectedFiles.value.length === 0) {
-        return formData.value.imageUrls || []
+        return []
     }
 
     const uploadPromises = selectedFiles.value.map(async (file, index) => {
@@ -868,14 +1074,9 @@ const uploadImages = async (): Promise<string[]> => {
         return path
     })
 
-    return Promise.all(uploadPromises)
-}
+    const uploadedUrls = await Promise.all(uploadPromises)
 
-const clearImage = () => {
-    selectedFile.value = null
-    imagePreview.value = null
-    const input = document.getElementById('productImage') as HTMLInputElement
-    if (input) input.value = ''
+    return uploadedUrls
 }
 
 const isPromotionActive = (product: Product): boolean => {
@@ -936,32 +1137,6 @@ const getPromotionStatus = (product: Product): string => {
     return `Válido del ${formatDateToSpanish(product.promotionStartDate)} al ${formatDateToSpanish(product.promotionEndDate)}`;
 };
 
-const uploadImage = async (): Promise<string> => {
-    if (!selectedFile.value) return formData.value.imageUrl;
-
-    try {
-        const path = `products/${Date.now()}-${selectedFile.value.name.replace(/\s+/g, '-')}`;
-
-        await uploadData({
-            data: selectedFile.value,
-            path: path,
-            options: {
-                contentType: selectedFile.value.type,
-                onProgress: ({ transferredBytes, totalBytes }) => {
-                    uploadProgress.value = totalBytes
-                        ? Math.round((transferredBytes / totalBytes) * 100)
-                        : 0;
-                }
-            }
-        }).result;
-
-        return path;
-    } catch (error) {
-        console.error("Error subiendo imagen:", error);
-        throw error;
-    }
-};
-
 const filteredProducts = computed(() => {
     if (!searchQuery.value) return products.value
 
@@ -973,7 +1148,8 @@ const filteredProducts = computed(() => {
     )
 })
 
-const handleEdit = (product: Product) => {
+const handleEdit = async (product: Product) => {
+
     formData.value = {
         name: product.name,
         brand: product.brand,
@@ -988,33 +1164,100 @@ const handleEdit = (product: Product) => {
         isPromoted: product.isPromoted,
         categoryIDs: product.categories?.map(cat => cat.id) || [],
         imageUrl: product.imageUrl || '',
-        imageUrls: product.imageUrls || [], // ← NUEVA LÍNEA
+        imageUrls: product.imageUrls || [],
         promotionStartDate: product.promotionStartDate || '',
         promotionEndDate: product.promotionEndDate || '',
         promotionType: product.promotionType || 'percentage'
     }
 
-    const productImageUrls = imageUrls.value[product.id]
-    if (productImageUrls && productImageUrls.length > 0) {
-        imagePreviews.value = [...productImageUrls]
-    } else {
-        imagePreviews.value = []
-    }
+    await loadImagesForEdit(product)
 
     editingId.value = product.id
     showCreateModal.value = true
 }
 
+const cleanProductImages = async (productId: string) => {
+    try {
+        const product = products.value.find(p => p.id === productId)
+        if (!product) return
+
+        let needsUpdate = false
+        const updateData: any = {}
+
+        if (product.imageUrl && product.imageUrl.includes('placeholder')) {
+            updateData.imageUrl = ''
+            needsUpdate = true
+        }
+
+        if (product.imageUrls && product.imageUrls.length > 0) {
+            const cleanUrls = product.imageUrls.filter(url =>
+                url && !url.includes('placeholder')
+            )
+            if (cleanUrls.length !== product.imageUrls.length) {
+                updateData.imageUrls = cleanUrls
+                needsUpdate = true
+            }
+        }
+
+        if (needsUpdate) {
+            await updateProduct(productId, updateData, product.categories?.map(cat => cat.id) || [])
+        }
+
+    } catch (error) {
+        console.error('Error limpiando imágenes:', error)
+    }
+}
+
 const resetForm = () => {
     formData.value = { ...initialFormData }
     editingId.value = null
-    clearAllImages()
+    existingImageUrls.value = []
+    imagesToDelete.value = []
+    selectedFiles.value = []
+    mainImageIndex.value = 0
+
+    imagePreviews.value.forEach(url => {
+        if (url.startsWith('blob:')) {
+            URL.revokeObjectURL(url)
+        }
+    })
+    imagePreviews.value = []
+
+    const input = document.getElementById('productImages') as HTMLInputElement
+    if (input) input.value = ''
 }
 
 const handleCloseModal = () => {
     showCreateModal.value = false
     resetForm()
-    clearImage()
+}
+
+const imageInfo = computed(() => {
+    const validExisting = existingImageUrls.value.filter(url =>
+        isValidImagePath(url) && !imagesToDelete.value.includes(url)
+    ).length
+
+    const newFiles = selectedFiles.value.length
+    const toDelete = imagesToDelete.value.filter(url => isValidImagePath(url)).length
+    const total = validExisting + newFiles
+
+    return {
+        existing: validExisting,
+        newFiles,
+        toDelete,
+        total,
+        canAddMore: total < maxImages,
+        hasMinimumImages: total >= 1
+    }
+})
+
+const canRemoveImage = (index: number) => {
+    const validExisting = existingImageUrls.value.filter(url =>
+        isValidImagePath(url) && !imagesToDelete.value.includes(url)
+    ).length
+
+    const totalImagesAfterRemoval = (validExisting + selectedFiles.value.length) - 1
+    return totalImagesAfterRemoval >= 1
 }
 
 const handleSubmit = async () => {
@@ -1029,13 +1272,15 @@ const handleSubmit = async () => {
     try {
         isSubmitting.value = true
 
-        // Subir nuevas imágenes
+        if (imagesToDelete.value.length > 0) {
+            await deleteImagesFromS3(imagesToDelete.value)
+        }
+
         const uploadedImageUrls = await uploadImages()
 
-        // Combinar con imágenes existentes si estamos editando
-        const allImageUrls = editingId.value
-            ? [...(formData.value.imageUrls || []), ...uploadedImageUrls]
-            : uploadedImageUrls
+        const finalImageUrls = [...existingImageUrls.value, ...uploadedImageUrls]
+
+        const uniqueImageUrls = Array.from(new Set(finalImageUrls))
 
         const selectedBrand = brands.value.find(b => b.id === formData.value.brandID)
         const brandName = selectedBrand ? selectedBrand.name : formData.value.brand
@@ -1052,8 +1297,8 @@ const handleSubmit = async () => {
             active: formData.value.active,
             carousel: formData.value.carousel,
             isPromoted: formData.value.isPromoted,
-            imageUrl: allImageUrls[0] || '', // Primera imagen como principal
-            imageUrls: allImageUrls, // ← NUEVA LÍNEA: Todas las imágenes
+            imageUrl: uniqueImageUrls[0] || '',
+            imageUrls: uniqueImageUrls,
             promotionStartDate: formData.value.promotionStartDate || '',
             promotionEndDate: formData.value.promotionEndDate || '',
             promotionType: formData.value.promotionType || 'percentage'
@@ -1085,16 +1330,67 @@ const handleSubmit = async () => {
     }
 }
 
-// Manejar activación/desactivación de promoción
+const mainImageInfo = computed(() => {
+    if (imagePreviews.value.length === 0) return null
+
+    const isExisting = mainImageIndex.value < existingImageUrls.value.length
+    const imagePath = isExisting
+        ? existingImageUrls.value[mainImageIndex.value]
+        : `Nueva imagen ${mainImageIndex.value - existingImageUrls.value.length + 1}`
+
+    return {
+        index: mainImageIndex.value,
+        isExisting,
+        path: imagePath,
+        preview: imagePreviews.value[mainImageIndex.value]
+    }
+})
+
+const verifyImageState = () => {
+    const remaining = existingImageUrls.value.filter(url =>
+        !imagesToDelete.value.includes(url)
+    )
+
+    return remaining.length + selectedFiles.value.length
+}
+
+const removeImageWithVerification = (index: number) => {
+    removeImage(index)
+
+    if (index === mainImageIndex.value) {
+        mainImageIndex.value = 0
+        showToast({
+            type: 'info',
+            message: 'Nueva imagen principal establecida automáticamente'
+        })
+    } else if (index < mainImageIndex.value) {
+        mainImageIndex.value--
+    }
+
+    verifyImageState()
+}
+
+const handleClearAllImages = () => {
+    const totalImages = existingImageUrls.value.length + selectedFiles.value.length
+
+    if (totalImages <= 1) {
+        showToast({
+            type: 'warning',
+            message: 'Debe haber al menos una imagen del producto'
+        })
+        return
+    }
+
+    clearAllImages()
+}
+
 watch(() => formData.value.isPromoted, (newValue) => {
     if (!newValue) {
-        // Si se desactiva la promoción, reseteamos los valores de descuento
         formData.value.discountPercentage = 0;
         formData.value.price = formData.value.originalPrice;
         formError.value = '';
     } else if (newValue && (!formData.value.discountPercentage || formData.value.discountPercentage <= 0)) {
-        // Si se activa la promoción, establecemos valores predeterminados
-        formData.value.promotionType = 'percentage'; // Por defecto, descuento porcentual
+        formData.value.promotionType = 'percentage';
     }
 })
 
@@ -1138,6 +1434,10 @@ watch(products, loadImageUrls, { immediate: true });
 </script>
 
 <style scoped>
+.required {
+    color: #ef4444;
+}
+
 .products-page {
     display: flex;
     flex-direction: column;
@@ -1400,6 +1700,7 @@ watch(products, loadImageUrls, { immediate: true });
     border-radius: 0.375rem;
     cursor: pointer;
     transition: background-color 0.2s;
+    width: 300px;
 }
 
 .upload-button:hover {
@@ -2055,37 +2356,22 @@ watch(products, loadImageUrls, { immediate: true });
     object-fit: cover;
 }
 
-.remove-image-button {
+.images-info {
+    margin-bottom: 0.5rem;
+}
+
+.upload-button.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.image-type-badge {
     position: absolute;
     top: 0.25rem;
-    right: 0.25rem;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: rgba(0, 0, 0, 0.5);
-    color: white;
-    border-radius: 50%;
-    border: none;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.remove-image-button:hover {
-    background-color: rgba(0, 0, 0, 0.7);
-}
-
-.main-image-badge {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background-color: rgba(59, 130, 246, 0.9);
-    color: white;
-    text-align: center;
-    font-size: 0.75rem;
-    padding: 0.25rem;
+    left: 0.25rem;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    font-size: 0.625rem;
     font-weight: 500;
 }
 
@@ -2102,6 +2388,140 @@ watch(products, loadImageUrls, { immediate: true });
 
 .clear-all-button:hover {
     background-color: #fecaca;
+}
+
+.clear-all-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #f3f4f6;
+    color: #9ca3af;
+}
+
+.clear-all-button:disabled:hover {
+    background-color: #f3f4f6;
+}
+
+.main-image-item {
+    border: 2px solid #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.set-main-button {
+    position: absolute;
+    top: 4.5rem;
+    right: 2rem;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(251, 191, 36, 0.9);
+    color: white;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.set-main-button:hover {
+    background-color: rgba(251, 191, 36, 1);
+    transform: scale(1.1);
+}
+
+.main-image-badge {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(59, 130, 246, 0.95);
+    color: white;
+    text-align: center;
+    font-size: 0.75rem;
+    padding: 0.25rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+}
+
+.star-icon {
+    width: 12px;
+    height: 12px;
+}
+
+.image-order-badge {
+    position: absolute;
+    top: 0.25rem;
+    left: 0.25rem;
+    width: 20px;
+    height: 20px;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.625rem;
+    font-weight: 600;
+}
+
+.image-type-badge {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    font-size: 0.625rem;
+    font-weight: 500;
+    z-index: 1;
+}
+
+.image-type-badge.existing {
+    background-color: rgba(59, 130, 246, 0.9);
+    color: white;
+}
+
+.image-type-badge.new {
+    background-color: rgba(34, 197, 94, 0.9);
+    color: white;
+}
+
+.remove-image-button {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(239, 68, 68, 0.9);
+    color: white;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    z-index: 2;
+}
+
+.remove-image-button:hover {
+    background-color: rgba(239, 68, 68, 1);
+}
+
+.remove-image-button.disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    background-color: #f3f4f6;
+}
+
+.remove-image-button.disabled:hover {
+    background-color: #f3f4f6;
+}
+
+.image-preview-item:hover .set-main-button+.remove-image-button,
+.image-preview-item .set-main-button+.remove-image-button {
+    right: 3rem;
 }
 
 @keyframes spin {

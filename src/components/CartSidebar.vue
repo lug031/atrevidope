@@ -21,7 +21,7 @@
                             <span class="loader"></span>
                         </div>
                         <div v-for="item in items" :key="item.id" class="cart-item">
-                            <img :src="imageUrls[item.productID] || '/api/placeholder/80/80'"
+                            <img :src="imageCache[item.productID] || '/api/placeholder/80/80'"
                                 :alt="productDetails[item.productID]?.name || 'Product image'" class="item-image"
                                 @error="handleImageError(item.productID)" />
 
@@ -107,6 +107,7 @@ import {
 } from 'lucide-vue-next';
 import { useCart } from '@/composables/useCart';
 import { useRouter } from 'vue-router';
+import { useImageCache } from '@/composables/useImageCache';
 import { getUrl } from 'aws-amplify/storage';
 import type { CartItem } from '@/types/cart.types';
 import type { Product } from '@/types/product.types';
@@ -124,7 +125,8 @@ const emit = defineEmits<{
 }>();
 
 const router = useRouter();
-const imageUrls = ref<Record<string, string>>({});
+const { imageCache, getImageUrl, preloadImages } = useImageCache();
+//const imageUrls = ref<Record<string, string>>({});
 const productDetails = ref<Record<string, Product>>({});
 const cartInitializing = ref(true);
 const cartOperationLoading = ref(false);
@@ -208,23 +210,22 @@ const updateProductDetails = () => {
 };
 
 const handleImageError = (productId: string) => {
-    imageUrls.value[productId] = '/api/placeholder/80/80';
+    console.warn(`Error loading image for product ${productId}`);
 };
 
 const loadImageUrls = async () => {
-    for (const item of items.value) {
-        const product = productDetails.value[item.productID];
+    const productsToLoad = items.value
+        .map(item => {
+            const product = productDetails.value[item.productID];
+            return product?.imageUrl ? {
+                id: item.productID,
+                imageUrl: product.imageUrl
+            } : null;
+        })
+        .filter(Boolean) as Array<{ id: string; imageUrl: string }>;
 
-        if (product?.imageUrl) {
-            try {
-                const { url } = await getUrl({ path: product.imageUrl });
-                imageUrls.value[item.productID] = url.toString();
-            } catch (error) {
-                imageUrls.value[item.productID] = '/api/placeholder/80/80';
-            }
-        } else {
-            imageUrls.value[item.productID] = '/api/placeholder/80/80';
-        }
+    if (productsToLoad.length > 0) {
+        await preloadImages(productsToLoad);
     }
 };
 

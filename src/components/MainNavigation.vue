@@ -2,8 +2,8 @@
     <nav
         class="fixed top-0 left-0 right-0 w-full h-[72px] md:h-[74px] px-4 flex items-center bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 z-[1000] transition-colors duration-300">
         <div class="flex justify-between items-center max-w-[1200px] mx-auto w-full">
-            <div class="flex items-center gap-4">
-                <!-- Admin Menu Button -->
+            <div class="flex items-center gap-2 md:gap-4">
+                <!-- Admin Menu Button (solo para admin) -->
                 <Transition name="fade">
                     <button v-if="!authStore.loading && isAdmin"
                         class="flex items-center justify-center bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 p-2 rounded cursor-pointer text-gray-900 dark:text-gray-200 transition-colors duration-200"
@@ -12,17 +12,23 @@
                     </button>
                 </Transition>
 
+                <!-- Categories Button -->
                 <Transition name="fade">
                     <button v-if="!authStore.loading"
-                        class="flex items-center gap-2 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-200 px-4 py-2 rounded-full border border-gray-200 dark:border-gray-700 transition-colors duration-200 text-sm font-medium"
+                        class="flex items-center justify-center bg-transparent p-2 rounded cursor-pointer text-gray-900 dark:text-gray-200 transition-colors duration-200"
                         @click="toggleCategoriesSidebar" aria-label="Menú de categorías">
-                        <span>Categorías</span>
-                        <ChevronDownIcon :class="{ 'rotate-180': isCategoriesSidebarOpen }"
-                            class="transition-transform duration-300" :size="16" />
+                        <span
+                            class="hidden md:inline-flex items-center gap-2 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 px-4 py-2 rounded-full border border-gray-200 dark:border-gray-700 font-medium text-sm">
+                            <span>Categorías</span>
+                            <ChevronDownIcon :class="{ 'rotate-180': isCategoriesSidebarOpen }"
+                                class="transition-transform duration-300" :size="16" />
+                        </span>
+                        <MenuIcon class="md:hidden stroke-current stroke-[1.5px]" :size="24" />
                     </button>
                 </Transition>
 
-                <RouterLink to="/" class="block w-[150px] h-[40px] md:w-[150px] no-underline">
+                <!-- Logo -->
+                <RouterLink to="/" class="block w-[120px] md:w-[150px] h-[40px] no-underline md:mr-8">
                     <Transition name="logo-fade" mode="out-in">
                         <img :key="currentLogo" :src="currentLogo" alt="Logo"
                             class="w-full h-full object-cover object-center scale-90 dark:invert dark:brightness-100" />
@@ -32,9 +38,9 @@
 
             <!-- Search button for mobile -->
             <button
-                class="md:hidden flex items-center justify-center bg-transparent border-0 p-2 cursor-pointer text-gray-900 dark:text-gray-200 ml-auto mr-4"
+                class="md:hidden flex items-center justify-center bg-transparent border-0 p-1.5 cursor-pointer text-gray-900 dark:text-gray-200"
                 @click="toggleMobileSearch">
-                <SearchIcon class="stroke-current stroke-[1.5px]" :size="24" />
+                <SearchIcon class="stroke-current stroke-[1.5px]" :size="22" />
             </button>
 
             <!-- Desktop search bar -->
@@ -206,7 +212,7 @@
             </div>
 
             <!-- Mobile menu toggle and dropdown -->
-            <div class="md:hidden flex items-center">
+            <div class="md:hidden flex items-center gap-2">
                 <!-- Mobile menu button -->
                 <button
                     class="bg-transparent border-0 cursor-pointer p-2 flex items-center justify-center text-gray-900 dark:text-gray-200 hover:text-gray-600 dark:hover:text-gray-400 transition-colors duration-200"
@@ -216,7 +222,7 @@
                         :size="22" />
                 </button>
 
-                <!-- Primary visible elements on mobile (Cart only) -->
+                <!-- Cart button -->
                 <Transition name="fade">
                     <div v-if="!authStore.loading" class="relative inline-block">
                         <button

@@ -5,167 +5,104 @@ import { getUrl } from "aws-amplify/storage";
 interface ImageCache {
   url: string;
   timestamp: number;
-  version: string;
-}
-
-interface StoredCache {
-  [key: string]: ImageCache;
+  imageUrl: string;
 }
 
 export function useImageCache(cacheDuration = 24 * 60 * 60 * 1000) {
   const imageCache = ref<Record<string, string>>({});
-
-  // Cargar caché inicial desde localStorage
-  const loadCacheFromStorage = () => {
-    try {
-      const storedCache = localStorage.getItem("image-cache");
-      if (storedCache) {
-        const parsedCache = JSON.parse(storedCache) as StoredCache;
-        const now = Date.now();
-
-        Object.entries(parsedCache).forEach(([key, value]) => {
-          if (now - value.timestamp < cacheDuration) {
-            imageCache.value[key] = value.url;
-          }
-        });
-      }
-    } catch (error) {
-      console.error("Error loading image cache:", error);
-    }
-  };
-
-  // Guardar caché en localStorage con versión
-  const updateStorage = (productId: string, url: string, version: string) => {
-    try {
-      const storedCache = localStorage.getItem("image-cache");
-      const cache: StoredCache = storedCache ? JSON.parse(storedCache) : {};
-
-      cache[productId] = {
-        url,
-        timestamp: Date.now(),
-        version,
-      };
-
-      localStorage.setItem("image-cache", JSON.stringify(cache));
-    } catch (error) {
-      console.error("Error updating image cache:", error);
-    }
-  };
-
-  // Generar versión única para una URL de imagen
-  const generateImageVersion = (imageUrl: string): string => {
-    return `${imageUrl}-${Date.now()}`;
-  };
-
-  // Obtener la versión almacenada de una imagen
-  const getStoredVersion = (productId: string): string | null => {
-    try {
-      const storedCache = localStorage.getItem("image-cache");
-      if (storedCache) {
-        const cache = JSON.parse(storedCache) as StoredCache;
-        return cache[productId]?.version || null;
-      }
-    } catch (error) {
-      console.error("Error getting stored version:", error);
-    }
-    return null;
-  };
+  const memoryCache = ref<Record<string, ImageCache>>({});
 
   // Función principal para obtener URLs de imágenes
   const getImageUrl = async (
     productId: string,
     imageUrl: string
   ): Promise<string> => {
-    const currentVersion = generateImageVersion(imageUrl);
-    const storedVersion = getStoredVersion(productId);
-
-    // Si la versión almacenada es diferente o no existe, actualizar el caché
-    if (storedVersion !== currentVersion || !imageCache.value[productId]) {
-      try {
-        const { url } = await getUrl({ path: imageUrl });
-        const urlString = url.toString();
-
-        imageCache.value[productId] = urlString;
-        updateStorage(productId, urlString, currentVersion);
-
-        return urlString;
-      } catch (error) {
-        console.error(`Error loading image for product ${productId}:`, error);
-        return "/api/placeholder/40/40";
+    // Si ya está en caché y no ha expirado, retornarlo
+    const cached = memoryCache.value[productId];
+    if (cached) {
+      const now = Date.now();
+      // Verificar si no ha expirado y la URL es la misma
+      if (
+        now - cached.timestamp < cacheDuration &&
+        cached.imageUrl === imageUrl
+      ) {
+        imageCache.value[productId] = cached.url;
+        return cached.url;
       }
     }
 
-    return imageCache.value[productId];
+    // Si no está en caché o ha expirado, obtener nueva URL
+    try {
+      const { url } = await getUrl({ path: imageUrl });
+      const urlString = url.toString();
+
+      // Actualizar ambos caches
+      imageCache.value[productId] = urlString;
+      memoryCache.value[productId] = {
+        url: urlString,
+        timestamp: Date.now(),
+        imageUrl: imageUrl,
+      };
+
+      return urlString;
+    } catch (error) {
+      console.error(`Error loading image for product ${productId}:`, error);
+      return "/api/placeholder/800/500";
+    }
   };
 
-  // Precargar un conjunto de imágenes
+  // Precargar un conjunto de imágenes en paralelo (pero limitado)
   const preloadImages = async (
     products: Array<{ id: string; imageUrl: string }>
   ) => {
-    const loadPromises = products.map((product) => {
-      if (product.imageUrl) {
-        return getImageUrl(product.id, product.imageUrl);
-      }
-      return Promise.resolve();
-    });
+    // Procesar en lotes para evitar sobrecarga
+    const batchSize = 5;
+    const batches = [];
 
-    await Promise.all(loadPromises);
+    for (let i = 0; i < products.length; i += batchSize) {
+      batches.push(products.slice(i, i + batchSize));
+    }
+
+    for (const batch of batches) {
+      const loadPromises = batch.map((product) => {
+        if (product.imageUrl) {
+          return getImageUrl(product.id, product.imageUrl);
+        }
+        return Promise.resolve();
+      });
+
+      await Promise.all(loadPromises);
+    }
+  };
+
+  // Precargar una imagen específica sin esperar
+  const preloadImage = (productId: string, imageUrl: string) => {
+    if (imageUrl && !imageCache.value[productId]) {
+      getImageUrl(productId, imageUrl).catch(console.error);
+    }
   };
 
   // Eliminar una imagen del caché
   const removeFromCache = (productId: string) => {
-    try {
-      // Eliminar de la memoria
-      delete imageCache.value[productId];
-
-      // Eliminar del localStorage
-      const storedCache = localStorage.getItem("image-cache");
-      if (storedCache) {
-        const cache = JSON.parse(storedCache) as StoredCache;
-        delete cache[productId];
-        localStorage.setItem("image-cache", JSON.stringify(cache));
-      }
-    } catch (error) {
-      console.error("Error removing from cache:", error);
-    }
+    delete imageCache.value[productId];
+    delete memoryCache.value[productId];
   };
 
-  // Limpiar caché expirado y entradas huérfanas
+  // Limpiar caché expirado
   const cleanExpiredCache = (activeProductIds: string[]) => {
-    try {
-      const storedCache = localStorage.getItem("image-cache");
-      if (storedCache) {
-        const cache = JSON.parse(storedCache) as StoredCache;
-        const now = Date.now();
+    const now = Date.now();
 
-        const updatedCache = Object.entries(cache).reduce<StoredCache>(
-          (acc, [key, value]) => {
-            // Mantener solo si no ha expirado y el producto sigue existiendo
-            if (
-              now - value.timestamp < cacheDuration &&
-              activeProductIds.includes(key)
-            ) {
-              acc[key] = value;
-            }
-            return acc;
-          },
-          {}
-        );
+    Object.keys(memoryCache.value).forEach((productId) => {
+      const cached = memoryCache.value[productId];
 
-        localStorage.setItem("image-cache", JSON.stringify(updatedCache));
-
-        // Actualizar el caché en memoria
-        imageCache.value = Object.entries(updatedCache).reduce(
-          (acc, [key, value]) => {
-            acc[key] = value.url;
-            return acc;
-          },
-          {} as Record<string, string>
-        );
+      // Eliminar si ha expirado o el producto ya no existe
+      if (
+        now - cached.timestamp >= cacheDuration ||
+        !activeProductIds.includes(productId)
+      ) {
+        removeFromCache(productId);
       }
-    } catch (error) {
-      console.error("Error cleaning cache:", error);
-    }
+    });
   };
 
   // Verificar y actualizar una imagen específica
@@ -181,14 +118,19 @@ export function useImageCache(cacheDuration = 24 * 60 * 60 * 1000) {
     await getImageUrl(productId, imageUrl);
   };
 
-  loadCacheFromStorage();
+  // Obtener imagen desde caché o placeholder
+  const getCachedImage = (productId: string): string => {
+    return imageCache.value[productId] || "/api/placeholder/800/500";
+  };
 
   return {
     imageCache,
     getImageUrl,
     preloadImages,
+    preloadImage,
     cleanExpiredCache,
     removeFromCache,
     validateAndUpdateImage,
+    getCachedImage,
   };
 }

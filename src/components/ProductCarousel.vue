@@ -5,8 +5,12 @@
             <div v-for="(product, index) in allProductsCarousel" :key="product.id" class="slide"
                 :style="{ left: `${index * 100}%` }">
                 <div class="slide-content">
-                    <img :src="imageCache[product.id] || '/api/placeholder/800/500'" :alt="product.name"
-                        class="slide-image" loading="lazy" />
+                    <!-- Mostrar placeholder mientras carga -->
+                    <div v-if="!getCachedImage(product.id)" class="slide-placeholder">
+                        <div class="loading-spinner"></div>
+                    </div>
+                    <img v-else :src="getCachedImage(product.id)" :alt="product.name" class="slide-image" loading="lazy"
+                        @load="onImageLoad(product.id)" @error="onImageError(product.id)" />
                     <div class="slide-overlay">
                         <div class="slide-text">
                             <h2>{{ product.name }}</h2>
@@ -37,7 +41,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-vue-next';
 import { useProducts } from '@/composables/useProducts';
@@ -46,53 +50,96 @@ import { useImageCache } from '@/composables/useImageCache';
 const router = useRouter();
 const currentSlide = ref(0);
 const autoplayInterval = ref<number | null>(null);
+const loadedImages = ref<Set<string>>(new Set());
 
 const { allProductsCarousel, loadAllProductsCarousel } = useProducts();
-const { imageCache, preloadImages } = useImageCache();
+const { imageCache, getImageUrl, preloadImage, getCachedImage } = useImageCache();
 
-// Optimizada la función de carga de imágenes
+// Cargar imágenes de manera inteligente
 const loadImageUrls = async () => {
-    if (!allProductsCarousel.value) return;
+    if (!allProductsCarousel.value?.length) return;
 
-    const productsToLoad = allProductsCarousel.value
-        .filter(product => product.imageUrl)
-        .map(product => ({
-            id: product.id,
-            imageUrl: product.imageUrl || ''
-        }));
+    // Primero cargar la imagen actual
+    const currentProduct = allProductsCarousel.value[currentSlide.value];
+    if (currentProduct?.imageUrl) {
+        await getImageUrl(currentProduct.id, currentProduct.imageUrl);
+    }
 
-    await preloadImages(productsToLoad);
+    // Luego cargar las siguientes 2 imágenes en segundo plano
+    const totalSlides = allProductsCarousel.value.length;
+    for (let i = 1; i <= 2; i++) {
+        const nextIndex = (currentSlide.value + i) % totalSlides;
+        const nextProduct = allProductsCarousel.value[nextIndex];
+        if (nextProduct?.imageUrl) {
+            // Precargar sin esperar
+            preloadImage(nextProduct.id, nextProduct.imageUrl);
+        }
+    }
+
+    // Finalmente cargar el resto de manera asíncrona
+    setTimeout(() => {
+        allProductsCarousel.value.forEach((product, index) => {
+            if (product.imageUrl && index !== currentSlide.value) {
+                preloadImage(product.id, product.imageUrl);
+            }
+        });
+    }, 100);
 };
 
-// Función para precargar la siguiente imagen
-const preloadNextImage = () => {
-    if (!allProductsCarousel.value) return;
+const onImageLoad = (productId: string) => {
+    loadedImages.value.add(productId);
+};
+
+const onImageError = (productId: string) => {
+    console.error(`Error loading image for product ${productId}`);
+};
+
+// Precargar la siguiente imagen antes de cambiar
+const preloadNextImage = async () => {
+    if (!allProductsCarousel.value?.length) return;
 
     const nextIndex = (currentSlide.value + 1) % allProductsCarousel.value.length;
     const nextProduct = allProductsCarousel.value[nextIndex];
 
-    if (nextProduct && nextProduct.imageUrl) {
-        preloadImages([{
-            id: nextProduct.id,
-            imageUrl: nextProduct.imageUrl
-        }]);
+    if (nextProduct?.imageUrl && !getCachedImage(nextProduct.id)) {
+        await getImageUrl(nextProduct.id, nextProduct.imageUrl);
     }
 };
 
-const nextSlide = () => {
-    if (!allProductsCarousel.value) return;
+const nextSlide = async () => {
+    if (!allProductsCarousel.value?.length) return;
+
+    // Precargar la siguiente imagen antes de cambiar
+    await preloadNextImage();
+
     currentSlide.value = (currentSlide.value + 1) % allProductsCarousel.value.length;
-    preloadNextImage(); // Precargar la siguiente imagen
 };
 
-const prevSlide = () => {
-    if (!allProductsCarousel.value) return;
-    currentSlide.value = currentSlide.value === 0 ? allProductsCarousel.value.length - 1 : currentSlide.value - 1;
+const prevSlide = async () => {
+    if (!allProductsCarousel.value?.length) return;
+
+    const prevIndex = currentSlide.value === 0 ? allProductsCarousel.value.length - 1 : currentSlide.value - 1;
+    const prevProduct = allProductsCarousel.value[prevIndex];
+
+    // Precargar la imagen anterior si no está cargada
+    if (prevProduct?.imageUrl && !getCachedImage(prevProduct.id)) {
+        await getImageUrl(prevProduct.id, prevProduct.imageUrl);
+    }
+
+    currentSlide.value = prevIndex;
 };
 
-const goToSlide = (index: number) => {
+const goToSlide = async (index: number) => {
+    if (!allProductsCarousel.value?.length) return;
+
+    const targetProduct = allProductsCarousel.value[index];
+
+    // Precargar la imagen del slide objetivo
+    if (targetProduct?.imageUrl && !getCachedImage(targetProduct.id)) {
+        await getImageUrl(targetProduct.id, targetProduct.imageUrl);
+    }
+
     currentSlide.value = index;
-    preloadNextImage(); // Precargar la siguiente imagen cuando se cambia manualmente
 };
 
 const startAutoplay = () => {
@@ -108,8 +155,16 @@ const stopAutoplay = () => {
 };
 
 onMounted(async () => {
+    // Cargar productos primero
     await loadAllProductsCarousel();
+
+    // Esperar a que Vue actualice el DOM
+    await nextTick();
+
+    // Cargar imágenes de manera inteligente
     await loadImageUrls();
+
+    // Iniciar autoplay después de cargar las imágenes iniciales
     startAutoplay();
 });
 
@@ -119,14 +174,15 @@ onBeforeUnmount(() => {
 
 // Observar cambios en los productos
 watch(() => allProductsCarousel.value, async (newProducts) => {
-    if (newProducts && newProducts.length > 0) {
+    if (newProducts?.length > 0) {
         await loadImageUrls();
     }
-}, { immediate: true });
+}, { immediate: false });
 
-// Observar cambios en el slide actual para precargar la siguiente imagen
+// Precargar imágenes cuando cambia el slide
 watch(() => currentSlide.value, () => {
-    preloadNextImage();
+    // Precargar la siguiente imagen en background
+    setTimeout(preloadNextImage, 100);
 });
 </script>
 
@@ -157,6 +213,37 @@ watch(() => currentSlide.value, () => {
     position: relative;
     width: 100%;
     height: 100%;
+}
+
+.slide-placeholder {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top: 4px solid #ffffff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .slide-image {
@@ -287,23 +374,6 @@ watch(() => currentSlide.value, () => {
 .dot.active {
     background-color: #fff;
     transform: scale(1.2);
-}
-
-/* Animaciones para transiciones de slides */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: scale(1.1);
-    }
-
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
-.slide-enter-active {
-    animation: fadeIn 0.5s ease-out;
 }
 
 /* Estilos responsivos */

@@ -43,6 +43,7 @@ const schema = a.schema({
       brandID: a.string(),
       brand: a.belongsTo("Brand", "brandID"),
       imageUrl: a.string(),
+      imageUrls: a.string().array(),
       promotionStartDate: a.string(),
       promotionEndDate: a.string(),
       promotionType: a.string(),

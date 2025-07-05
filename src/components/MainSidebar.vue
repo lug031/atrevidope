@@ -65,30 +65,6 @@
                                 </router-link>
                             </div>
 
-                            <!-- Banner Promocional
-                            <div
-                                class="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl p-6 text-white relative overflow-hidden">
-                                <div class="absolute inset-0 bg-black/10"></div>
-                                <div class="relative z-10 flex flex-col md:flex-row items-center justify-between">
-                                    <div class="flex-1 mb-4 md:mb-0">
-                                        <h3 class="text-2xl md:text-3xl font-bold mb-2">
-                                            <span class="text-blue-100 animate-pulse">¡OFERTAS!</span> hasta
-                                            <span class="text-4xl animate-pulse">50%</span>
-                                        </h3>
-                                        <p class="text-blue-100 text-sm md:text-base">
-                                            En productos seleccionados • Envío gratis desde S/.159
-                                        </p>
-                                    </div>
-                                    <div class="flex items-center gap-4">
-                                        <div class="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
-                                            <span class="text-sm font-medium">Código:</span>
-                                            <span class="text-lg font-bold text-blue-100">JUANSAONA</span>
-                                        </div>
-                                        <ChevronRightIcon :size="20" class="text-white/70" />
-                                    </div>
-                                </div>
-                            </div> -->
-
                             <!-- Categories Section -->
                             <div>
                                 <h3
@@ -131,9 +107,17 @@
                                         query: { name: brand.name }
                                     }" class="group flex items-center p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-200 border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
                                         @click="handleCategoryClick">
-                                        <div class="flex items-center justify-center w-8 h-8 rounded-lg mr-3 transition-all duration-200"
-                                            :class="getBrandColor(index)">
-                                            <StarIcon :size="14" class="text-white" />
+                                        <!-- Brand Logo Container -->
+                                        <div
+                                            class="flex items-center justify-center w-8 h-8 rounded-lg mr-3 overflow-hidden bg-gray-100 dark:bg-gray-700 transition-all duration-200">
+                                            <img v-if="brandLogos[brand.id]" :src="brandLogos[brand.id]"
+                                                :alt="brand.name"
+                                                class="w-full h-full object-contain filter grayscale group-hover:grayscale-0 transition-all duration-200" />
+                                            <div v-else
+                                                class="flex items-center justify-center w-full h-full transition-all duration-200"
+                                                :class="getBrandColor(index)">
+                                                <StarIcon :size="14" class="text-white" />
+                                            </div>
                                         </div>
                                         <div class="flex-1 min-w-0">
                                             <span
@@ -155,7 +139,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import {
     XIcon,
     ChevronRightIcon,
@@ -165,6 +149,7 @@ import {
 } from 'lucide-vue-next'
 import { useCategories } from '@/composables/useCategories'
 import { useBrands } from '@/composables/useBrands'
+import { getUrl } from 'aws-amplify/storage'
 
 defineProps<{
     isOpen: boolean
@@ -176,6 +161,9 @@ const emit = defineEmits<{
 
 const { categories, loading: categoriesLoading, error: categoriesError, loadCategories } = useCategories()
 const { brands, loading: brandsLoading, error: brandsError, loadBrands } = useBrands()
+
+// Ref para almacenar las URLs de los logos de las marcas
+const brandLogos = ref<Record<string, string>>({})
 
 const activeBrands = computed(() => {
     return brands.value
@@ -191,6 +179,24 @@ const activeCategories = computed(() => {
 
 const loading = computed(() => categoriesLoading.value || brandsLoading.value)
 const error = computed(() => categoriesError.value || brandsError.value)
+
+// Función para cargar los logos de las marcas
+const loadBrandLogos = async () => {
+    try {
+        for (const brand of activeBrands.value) {
+            if (brand.logo) {
+                try {
+                    const { url } = await getUrl({ path: brand.logo })
+                    brandLogos.value[brand.id] = url.toString()
+                } catch (error) {
+                    console.error(`Error cargando logo para marca ${brand.id}:`, error)
+                }
+            }
+        }
+    } catch (err) {
+        console.error("Error cargando logos de marcas:", err)
+    }
+}
 
 // Función para asignar colores a las categorías
 const getCategoryColor = (index: number) => {
@@ -209,7 +215,7 @@ const getCategoryColor = (index: number) => {
     return colors[index % colors.length]
 }
 
-// Función para colores de marcas
+// Función para colores de marcas (fallback cuando no hay logo)
 const getBrandColor = (index: number) => {
     const colors = [
         'bg-[#2563EB]',
@@ -230,9 +236,12 @@ const handleCategoryClick = () => {
     emit('close')
 }
 
-const handleOverlayClick = (event: MouseEvent) => {
-    emit('close')
-}
+// Observar cambios en las marcas activas para cargar sus logos
+watch(activeBrands, async (newBrands) => {
+    if (newBrands.length > 0) {
+        await loadBrandLogos()
+    }
+}, { immediate: true })
 
 onMounted(async () => {
     const promises = []
@@ -246,6 +255,11 @@ onMounted(async () => {
     }
 
     await Promise.all(promises)
+
+    // Cargar los logos después de cargar las marcas
+    if (activeBrands.value.length > 0) {
+        await loadBrandLogos()
+    }
 })
 </script>
 

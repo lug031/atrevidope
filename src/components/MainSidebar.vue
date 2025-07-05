@@ -1,27 +1,17 @@
 <template>
-    <Transition name="slide">
-        <aside v-if="isOpen" class="fixed inset-0 z-[2000] flex" @click="$emit('close')">
-            <!-- Overlay -->
-            <div class="absolute inset-0 bg-black/10"></div>
+    <Transition name="dropdown">
+        <div v-if="isOpen" class="fixed inset-0 z-[2000]" @click="$emit('close')">
+            <!-- Overlay 
+            <div class="absolute inset-0 bg-black/20"></div>-->
 
-            <!-- Sidebar -->
-            <div class="relative w-80 h-full bg-white dark:bg-gray-900 shadow-2xl">
-                <!-- Header -->
-                <div
-                    class="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-other-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700">
-                    <div class="flex items-center gap-3">
-                        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Categorías</h2>
-                    </div>
-                    <button @click="$emit('close')"
-                        class="p-2 rounded-lg hover:bg-white/50 dark:hover:bg-gray-700/50 transition-colors duration-200 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
-                        <XIcon :size="20" />
-                    </button>
-                </div>
+            <!-- Dropdown Menu -->
+            <div class="absolute top-[72px] md:top-[74px] left-0 right-0 w-full max-h-[calc(100vh-100px)] bg-white dark:bg-gray-800 shadow-2xl overflow-hidden"
+                @click.stop>
 
                 <!-- Content -->
-                <div class="h-[calc(100%-88px)] overflow-hidden">
+                <div class="max-h-[calc(100vh-140px)] overflow-hidden">
                     <!-- Loading State -->
-                    <div v-if="loading" class="flex flex-col items-center justify-center h-full p-6">
+                    <div v-if="loading" class="flex flex-col items-center justify-center h-48 p-6">
                         <div class="relative">
                             <div
                                 class="w-12 h-12 border-4 border-other-200 dark:border-gray-600 rounded-full animate-spin border-t-other-600 dark:border-t-other-400">
@@ -31,7 +21,7 @@
                     </div>
 
                     <!-- Error State -->
-                    <div v-else-if="error" class="flex flex-col items-center justify-center h-full p-6 text-center">
+                    <div v-else-if="error" class="flex flex-col items-center justify-center h-48 p-6 text-center">
                         <div class="p-3 bg-red-100 dark:bg-red-900/20 rounded-full mb-4">
                             <AlertCircleIcon :size="24" class="text-red-600 dark:text-red-400" />
                         </div>
@@ -39,46 +29,73 @@
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Por favor, intenta de nuevo</p>
                     </div>
 
-                    <!-- Categories and Brands List -->
+                    <!-- Categories and Brands Grid -->
                     <div v-else
-                        class="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
-                        <div class="p-4 space-y-2">
-                            <!-- All Products Option -->
-                            <router-link to="/web-products"
-                                class="group flex items-center p-4 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-other-300 dark:hover:border-other-500 hover:bg-other-50 dark:hover:bg-other-900/20 transition-all duration-200"
-                                @click="handleCategoryClick">
-                                <div class="flex-1">
-                                    <span
-                                        class="text-sm font-medium text-gray-900 dark:text-white group-hover:text-other-700 dark:group-hover:text-other-300">
-                                        Todos los productos
-                                    </span>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">Ver catálogo completo</p>
-                                </div>
-                                <ChevronRightIcon :size="16"
-                                    class="text-gray-400 group-hover:text-other-600 dark:group-hover:text-other-400 group-hover:translate-x-1 transition-all duration-200" />
-                            </router-link>
+                        class="overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent max-h-[calc(100vh-180px)]">
+                        <div class="p-6 space-y-6">
+                            <!-- Quick Actions -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <router-link to="/web-products"
+                                    class="group flex items-center p-4 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-other-300 dark:hover:border-other-500 hover:bg-other-50 dark:hover:bg-other-900/20 transition-all duration-200"
+                                    @click="handleCategoryClick">
+                                    <div class="flex-1">
+                                        <span
+                                            class="text-sm font-medium text-gray-900 dark:text-white group-hover:text-other-700 dark:group-hover:text-other-300">
+                                            Todos los productos
+                                        </span>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">Ver catálogo completo</p>
+                                    </div>
+                                    <ChevronRightIcon :size="16"
+                                        class="text-gray-400 group-hover:text-other-600 dark:group-hover:text-other-400 group-hover:translate-x-1 transition-all duration-200" />
+                                </router-link>
 
-                            <router-link to="/promotions"
-                                class="group flex items-center p-4 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-other-300 dark:hover:border-other-500 hover:bg-other-50 dark:hover:bg-other-900/20 transition-all duration-200"
-                                @click="handleCategoryClick">
-                                <div class="flex-1">
-                                    <span
-                                        class="text-sm font-medium text-gray-900 dark:text-white group-hover:text-other-700 dark:group-hover:text-other-300">
-                                        Promociones
-                                    </span>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400">Revisa nuestras promociones</p>
-                                </div>
-                                <ChevronRightIcon :size="16"
-                                    class="text-gray-400 group-hover:text-other-600 dark:group-hover:text-other-400 group-hover:translate-x-1 transition-all duration-200" />
-                            </router-link>
+                                <router-link to="/promotions"
+                                    class="group flex items-center p-4 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-other-300 dark:hover:border-other-500 hover:bg-other-50 dark:hover:bg-other-900/20 transition-all duration-200"
+                                    @click="handleCategoryClick">
+                                    <div class="flex-1">
+                                        <span
+                                            class="text-sm font-medium text-gray-900 dark:text-white group-hover:text-other-700 dark:group-hover:text-other-300">
+                                            Promociones
+                                        </span>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">Revisa nuestras promociones
+                                        </p>
+                                    </div>
+                                    <ChevronRightIcon :size="16"
+                                        class="text-gray-400 group-hover:text-other-600 dark:group-hover:text-other-400 group-hover:translate-x-1 transition-all duration-200" />
+                                </router-link>
+                            </div>
 
-                            <!-- Categories -->
-                            <div class="pt-2">
+                            <!-- Banner Promocional
+                            <div
+                                class="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl p-6 text-white relative overflow-hidden">
+                                <div class="absolute inset-0 bg-black/10"></div>
+                                <div class="relative z-10 flex flex-col md:flex-row items-center justify-between">
+                                    <div class="flex-1 mb-4 md:mb-0">
+                                        <h3 class="text-2xl md:text-3xl font-bold mb-2">
+                                            <span class="text-blue-100 animate-pulse">¡OFERTAS!</span> hasta
+                                            <span class="text-4xl animate-pulse">50%</span>
+                                        </h3>
+                                        <p class="text-blue-100 text-sm md:text-base">
+                                            En productos seleccionados • Envío gratis desde S/.159
+                                        </p>
+                                    </div>
+                                    <div class="flex items-center gap-4">
+                                        <div class="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
+                                            <span class="text-sm font-medium">Código:</span>
+                                            <span class="text-lg font-bold text-blue-100">JUANSAONA</span>
+                                        </div>
+                                        <ChevronRightIcon :size="20" class="text-white/70" />
+                                    </div>
+                                </div>
+                            </div> -->
+
+                            <!-- Categories Section -->
+                            <div>
                                 <h3
-                                    class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-2">
+                                    class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4 px-2">
                                     Por categoría
                                 </h3>
-                                <div class="space-y-1">
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                     <router-link v-for="(category, index) in activeCategories" :key="category.id" :to="{
                                         name: 'CategoryProducts',
                                         params: { categoryId: category.id },
@@ -101,13 +118,13 @@
                                 </div>
                             </div>
 
-                            <!-- ← NUEVA SECCIÓN: MARCAS -->
-                            <div class="pt-4">
+                            <!-- Brands Section -->
+                            <div>
                                 <h3
-                                    class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 px-2">
+                                    class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4 px-2">
                                     Por marca
                                 </h3>
-                                <div class="space-y-1">
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                                     <router-link v-for="(brand, index) in activeBrands" :key="brand.id" :to="{
                                         name: 'BrandProducts',
                                         params: { brandId: brand.id },
@@ -130,19 +147,10 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Footer -->
-                        <div class="p-4 border-t border-gray-200 dark:border-gray-700 mt-6">
-                            <div class="text-center space-y-1">
-                                <p class="text-xs text-gray-500 dark:text-gray-400">
-                                    {{ activeCategories.length }} categorías • {{ activeBrands.length }} marcas
-                                </p>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
-        </aside>
+        </div>
     </Transition>
 </template>
 
@@ -150,15 +158,13 @@
 import { computed, onMounted } from 'vue'
 import {
     XIcon,
-    FolderIcon,
     ChevronRightIcon,
-    GridIcon,
     AlertCircleIcon,
     TagIcon,
-    StarIcon // ← AGREGAR ESTE ICONO PARA MARCAS
+    StarIcon
 } from 'lucide-vue-next'
 import { useCategories } from '@/composables/useCategories'
-import { useBrands } from '@/composables/useBrands' // ← AGREGAR ESTA IMPORTACIÓN
+import { useBrands } from '@/composables/useBrands'
 
 defineProps<{
     isOpen: boolean
@@ -169,9 +175,8 @@ const emit = defineEmits<{
 }>()
 
 const { categories, loading: categoriesLoading, error: categoriesError, loadCategories } = useCategories()
-const { brands, loading: brandsLoading, error: brandsError, loadBrands } = useBrands() // ← AGREGAR ESTO
+const { brands, loading: brandsLoading, error: brandsError, loadBrands } = useBrands()
 
-// ← AGREGAR COMPUTED PARA MARCAS ACTIVAS
 const activeBrands = computed(() => {
     return brands.value
         .filter(brand => brand.active)
@@ -184,45 +189,48 @@ const activeCategories = computed(() => {
         .sort((a, b) => a.name.localeCompare(b.name))
 })
 
-// ← ACTUALIZAR COMPUTED PARA ESTADOS DE LOADING Y ERROR
 const loading = computed(() => categoriesLoading.value || brandsLoading.value)
 const error = computed(() => categoriesError.value || brandsError.value)
 
 // Función para asignar colores a las categorías
 const getCategoryColor = (index: number) => {
     const colors = [
-        'bg-[#2563EB]',    // Azul base (igual a tu referencia)
-        'bg-blue-800',     // Azul oscuro
-        'bg-blue-700',     // Azul medio-oscuro
-        'bg-blue-600',     // Azul medio
-        'bg-indigo-800',   // Índigo oscuro
-        'bg-indigo-700',   // Índigo medio-oscuro
-        'bg-indigo-600',   // Índigo medio
-        'bg-sky-800',      // Azul cielo oscuro
-        'bg-sky-700',      // Azul cielo medio-oscuro
-        'bg-cyan-800',     // Cian oscuro
+        'bg-[#2563EB]',
+        'bg-blue-800',
+        'bg-blue-700',
+        'bg-blue-600',
+        'bg-indigo-800',
+        'bg-indigo-700',
+        'bg-indigo-600',
+        'bg-sky-800',
+        'bg-sky-700',
+        'bg-cyan-800',
     ]
     return colors[index % colors.length]
 }
 
-// Función para colores de marcas (misma paleta)
+// Función para colores de marcas
 const getBrandColor = (index: number) => {
     const colors = [
-        'bg-[#2563EB]',    // Azul base (igual a tu referencia)
-        'bg-blue-800',     // Azul oscuro
-        'bg-blue-700',     // Azul medio-oscuro
-        'bg-blue-600',     // Azul medio
-        'bg-indigo-800',   // Índigo oscuro
-        'bg-indigo-700',   // Índigo medio-oscuro
-        'bg-indigo-600',   // Índigo medio
-        'bg-sky-800',      // Azul cielo oscuro
-        'bg-sky-700',      // Azul cielo medio-oscuro
-        'bg-cyan-800',     // Cian oscuro
+        'bg-[#2563EB]',
+        'bg-blue-800',
+        'bg-blue-700',
+        'bg-blue-600',
+        'bg-indigo-800',
+        'bg-indigo-700',
+        'bg-indigo-600',
+        'bg-sky-800',
+        'bg-sky-700',
+        'bg-cyan-800',
     ]
     return colors[index % colors.length]
 }
 
 const handleCategoryClick = () => {
+    emit('close')
+}
+
+const handleOverlayClick = (event: MouseEvent) => {
     emit('close')
 }
 
@@ -234,7 +242,7 @@ onMounted(async () => {
     }
 
     if (brands.value.length === 0) {
-        promises.push(loadBrands()) // ← AGREGAR CARGA DE MARCAS
+        promises.push(loadBrands())
     }
 
     await Promise.all(promises)
@@ -243,20 +251,22 @@ onMounted(async () => {
 
 <style scoped>
 /* Transition animations */
-.slide-enter-active,
-.slide-leave-active {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+.dropdown-enter-active,
+.dropdown-leave-active {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.slide-enter-from {
-    transform: translateX(-100%);
+.dropdown-enter-from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
 }
 
-.slide-leave-to {
-    transform: translateX(-100%);
+.dropdown-leave-to {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
 }
 
-/* Custom scrollbar para navegadores webkit */
+/* Custom scrollbar */
 .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
 }
@@ -283,9 +293,10 @@ onMounted(async () => {
 }
 
 /* Responsive adjustments */
-@media (max-width: 480px) {
-    .sidebar-content {
-        width: 280px;
+@media (max-width: 768px) {
+    .dropdown-menu {
+        margin: 1rem;
+        max-width: calc(100vw - 2rem);
     }
 }
 </style>

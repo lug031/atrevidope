@@ -14,10 +14,11 @@
 
                 <Transition name="fade">
                     <button v-if="!authStore.loading"
-                        class="flex items-center justify-center bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800 p-2 rounded cursor-pointer text-gray-900 dark:text-gray-200 transition-colors duration-200"
+                        class="flex items-center gap-2 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-900 dark:text-gray-200 px-4 py-2 rounded-full border border-gray-200 dark:border-gray-700 transition-colors duration-200 text-sm font-medium"
                         @click="toggleCategoriesSidebar" aria-label="Menú de categorías">
-                        <EyeIcon v-if="isAdmin" class="stroke-current stroke-[1.5px]" :size="24" />
-                        <MenuIcon v-else class="stroke-current stroke-[1.5px]" :size="24" />
+                        <span>Categorías</span>
+                        <ChevronDownIcon :class="{ 'rotate-180': isCategoriesSidebarOpen }"
+                            class="transition-transform duration-300" :size="16" />
                     </button>
                 </Transition>
 

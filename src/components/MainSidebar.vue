@@ -65,6 +65,30 @@
                                 </router-link>
                             </div>
 
+                            <!-- Banner Promocional -->
+                            <div
+                                class="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl p-6 text-white relative overflow-hidden">
+                                <div class="absolute inset-0 bg-black/10"></div>
+                                <div class="relative z-10 flex flex-col md:flex-row items-center justify-between">
+                                    <div class="flex-1 mb-4 md:mb-0">
+                                        <h3 class="text-2xl md:text-3xl font-bold mb-2">
+                                            <span class="text-blue-100 animate-pulse">¡OFERTAS!</span> hasta
+                                            <span class="text-4xl animate-pulse">50%</span>
+                                        </h3>
+                                        <p class="text-blue-100 text-sm md:text-base">
+                                            En productos seleccionados • Envío gratis desde S/.159
+                                        </p>
+                                    </div>
+                                    <div class="flex items-center gap-4">
+                                        <div class="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
+                                            <span class="text-sm font-medium">Código:</span>
+                                            <span class="text-lg font-bold text-blue-100">JUANSAONA</span>
+                                        </div>
+                                        <ChevronRightIcon :size="20" class="text-white/70" />
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Categories Section -->
                             <div>
                                 <h3

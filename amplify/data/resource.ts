@@ -125,7 +125,7 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
       allow.authenticated().to(["read"]),
-      allow.publicApiKey().to(["read","update"]),
+      allow.publicApiKey().to(["read"]),
     ]),
 
   StoryInteraction: a
@@ -139,7 +139,7 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
       allow.authenticated().to(["read", "create"]),
-      allow.publicApiKey().to(["create"]), // Para permitir vistas sin autenticación
+      allow.publicApiKey().to(["read", "create"]),
     ]),
 
   Order: a

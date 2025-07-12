@@ -66,11 +66,13 @@ export function useStories() {
         await navigator.share(shareData);
       } catch (error) {
         // Fallback a copiar al clipboard
-        await navigator.clipboard.writeText(shareData.url);
+        const shareText = `MIRA ESTA HISTORIA EN ATREVIDOPE.COM\n\n${shareData.url}`;
+        await navigator.clipboard.writeText(shareText);
       }
     } else {
       // Fallback para navegadores que no soportan Web Share API
-      await navigator.clipboard.writeText(shareData.url);
+      const shareText = `MIRA ESTA HISTORIA EN ATREVIDOPE.COM\n\n${shareData.url}`;
+      await navigator.clipboard.writeText(shareText);
     }
   };
 
@@ -83,7 +85,7 @@ export function useStories() {
   };
 
   const wantStory = async (storyId: string, userEmail: string) => {
-    await storyStore.toggleStoryWant(storyId, userEmail); // Cambiar aquí
+    await storyStore.toggleStoryWant(storyId, userEmail);
   };
 
   const checkIfUserWanted = async (storyId: string, userEmail: string) => {
@@ -107,9 +109,9 @@ export function useStories() {
     activeStories,
     // Admin methods
     loadStories,
-    createStory, // NUEVO
-    updateStory, // NUEVO
-    deleteStory, // NUEVO
+    createStory,
+    updateStory,
+    deleteStory,
     // Public methods
     loadActiveStories,
     getStoryById,

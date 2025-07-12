@@ -48,6 +48,7 @@ const schema = a.schema({
       promotionEndDate: a.string(),
       promotionType: a.string(),
       cartItems: a.hasMany("CartItem", "productID"),
+      stories: a.hasMany("Story", "productID"),
     })
     .authorization((allow) => [
       allow.groups(["admin"]).to(["read", "create", "update", "delete"]),

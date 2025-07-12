@@ -1,184 +1,187 @@
 <template>
     <div class="stories-section">
-        <div class="stories-header">
-            <!-- <h2 class="stories-title">Historias</h2> -->
-            <div v-if="!loading" class="stories-nav">
-                <button @click="scrollLeft" class="nav-button" :disabled="!canScrollLeft">
-                    <ChevronLeftIcon :size="20" />
-                </button>
-                <button @click="scrollRight" class="nav-button" :disabled="!canScrollRight">
-                    <ChevronRightIcon :size="20" />
-                </button>
-            </div>
-        </div>
-
-        <!-- Loading Skeleton -->
-        <div v-if="loading" class="stories-skeleton">
-            <div v-for="i in 5" :key="i" class="skeleton-item">
-                <div class="skeleton-ring"></div>
-                <div class="skeleton-title"></div>
-            </div>
-        </div>
-
-        <!-- Stories Container -->
-        <div v-else class="stories-container" ref="storiesContainer" @scroll="updateScrollButtons">
-            <div class="stories-list">
-                <div v-for="story in stories" :key="story.id" class="story-item" @click="openStory(story)">
-                    <div class="story-ring">
-                        <img :src="getStoryImage(story)" :alt="story.title" class="story-image" />
-                        <div class="story-overlay">
-                            <PlayIcon :size="24" class="play-icon" />
-                        </div>
-                    </div>
-                    <span class="story-title">{{ truncateTitle(story.title) }}</span>
+        <div v-if="loading || hasStories" class="stories-section">
+            <div class="stories-header">
+                <!-- <h2 class="stories-title">Historias</h2> -->
+                <div v-if="!loading" class="stories-nav">
+                    <button @click="scrollLeft" class="nav-button" :disabled="!canScrollLeft">
+                        <ChevronLeftIcon :size="20" />
+                    </button>
+                    <button @click="scrollRight" class="nav-button" :disabled="!canScrollRight">
+                        <ChevronRightIcon :size="20" />
+                    </button>
                 </div>
             </div>
-        </div>
 
-        <!-- Modal de Historia -->
-        <div v-if="activeStory" class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[1000]">
-            <!-- Navegación externa con mejor posicionamiento y eventos -->
-            <button v-if="currentIndex > 0" @click.stop="previousStory"
-                class="absolute left-4 top-1/2 transform -translate-y-1/2 w-14 h-14 flex items-center justify-center bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-30 transition-all backdrop-blur-sm z-[1050]"
-                style="margin-left: calc(50vw - 280px);">
-                <ChevronLeftIcon :size="28" />
-            </button>
-            <button v-if="currentIndex < stories.length - 1" @click.stop="nextStory"
-                class="absolute right-4 top-1/2 transform -translate-y-1/2 w-14 h-14 flex items-center justify-center bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-30 transition-all backdrop-blur-sm z-[1050]"
-                style="margin-right: calc(50vw - 280px);">
-                <ChevronRightIcon :size="28" />
-            </button>
+            <!-- Loading Skeleton -->
+            <div v-if="loading" class="stories-skeleton">
+                <div v-for="i in 5" :key="i" class="skeleton-item">
+                    <div class="skeleton-ring"></div>
+                    <div class="skeleton-title"></div>
+                </div>
+            </div>
 
-            <!-- Close overlay -->
-            <div class="absolute inset-0 z-[1000]" @click="closeStory"></div>
-
-            <!-- Story Container -->
-            <div class="relative w-full max-w-sm h-screen max-h-[650px] bg-gray-900 rounded-xl overflow-hidden flex flex-col z-[1020]"
-                @click.stop>
-
-                <!-- Skeleton de carga entre historias -->
-                <div v-if="isStoryLoading" class="absolute inset-0 bg-gray-900 z-40 flex flex-col">
-                    <!-- Progress bar skeleton -->
-                    <div class="absolute top-3 left-3 right-3 z-20">
-                        <div class="w-full h-1 bg-gray-700 rounded-full animate-pulse"></div>
-                    </div>
-
-                    <!-- Header skeleton -->
-                    <div class="relative z-20 flex justify-between items-center p-6">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-gray-700 animate-pulse"></div>
-                            <div class="h-4 w-24 bg-gray-700 rounded animate-pulse"></div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <div class="w-8 h-8 rounded-full bg-gray-700 animate-pulse"></div>
-                            <div class="w-8 h-8 rounded-full bg-gray-700 animate-pulse"></div>
-                            <div class="w-8 h-8 rounded-full bg-gray-700 animate-pulse"></div>
-                        </div>
-                    </div>
-
-                    <!-- Content skeleton -->
-                    <div class="flex-1 relative bg-black flex items-center justify-center min-h-0">
-                        <div class="w-64 h-80 bg-gray-700 rounded-lg animate-pulse"></div>
-                    </div>
-
-                    <!-- Footer skeleton -->
-                    <div class="relative z-20 bg-gradient-to-t from-black via-black/90 to-transparent p-4 space-y-4">
-                        <div class="space-y-2">
-                            <div class="h-4 w-full bg-gray-700 rounded animate-pulse"></div>
-                            <div class="h-4 w-3/4 bg-gray-700 rounded animate-pulse"></div>
-                        </div>
-                        <div class="flex items-center justify-center gap-6">
-                            <div class="flex flex-col items-center gap-1">
-                                <div class="w-6 h-6 bg-gray-700 rounded animate-pulse"></div>
-                                <div class="h-3 w-12 bg-gray-700 rounded animate-pulse"></div>
-                            </div>
-                            <div class="flex flex-col items-center gap-1">
-                                <div class="w-6 h-6 bg-gray-700 rounded animate-pulse"></div>
-                                <div class="h-3 w-12 bg-gray-700 rounded animate-pulse"></div>
-                            </div>
-                            <div class="flex flex-col items-center gap-1">
-                                <div class="w-6 h-6 bg-gray-700 rounded animate-pulse"></div>
-                                <div class="h-3 w-12 bg-gray-700 rounded animate-pulse"></div>
+            <!-- Stories Container -->
+            <div v-else-if="hasStories" class="stories-container" ref="storiesContainer" @scroll="updateScrollButtons">
+                <div class="stories-list">
+                    <div v-for="story in stories" :key="story.id" class="story-item" @click="openStory(story)">
+                        <div class="story-ring">
+                            <img :src="getStoryImage(story)" :alt="story.title" class="story-image" />
+                            <div class="story-overlay">
+                                <PlayIcon :size="24" class="play-icon" />
                             </div>
                         </div>
+                        <span class="story-title">{{ truncateTitle(story.title) }}</span>
                     </div>
                 </div>
+            </div>
 
-                <!-- Contenido real (mostrar solo cuando no está cargando) -->
-                <div v-show="!isStoryLoading" class="h-full flex flex-col">
-                    <!-- Progress bar -->
-                    <div class="absolute top-3 left-3 right-3 z-[1030]">
-                        <div class="w-full h-1 bg-white bg-opacity-30 rounded-full overflow-hidden">
-                            <div class="h-full bg-white transition-all ease-linear"
-                                :style="{ width: `${progressPercentage}%`, transitionDuration: isPlaying ? '100ms' : '0ms' }">
+            <!-- Modal de Historia -->
+            <div v-if="activeStory"
+                class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[1000]">
+                <!-- Navegación externa con mejor posicionamiento y eventos -->
+                <button v-if="currentIndex > 0" @click.stop="previousStory"
+                    class="absolute left-4 top-1/2 transform -translate-y-1/2 w-14 h-14 flex items-center justify-center bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-30 transition-all backdrop-blur-sm z-[1050]"
+                    style="margin-left: calc(50vw - 280px);">
+                    <ChevronLeftIcon :size="28" />
+                </button>
+                <button v-if="currentIndex < stories.length - 1" @click.stop="nextStory"
+                    class="absolute right-4 top-1/2 transform -translate-y-1/2 w-14 h-14 flex items-center justify-center bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-30 transition-all backdrop-blur-sm z-[1050]"
+                    style="margin-right: calc(50vw - 280px);">
+                    <ChevronRightIcon :size="28" />
+                </button>
+
+                <!-- Close overlay -->
+                <div class="absolute inset-0 z-[1000]" @click="closeStory"></div>
+
+                <!-- Story Container -->
+                <div class="relative w-full max-w-sm h-screen max-h-[650px] bg-gray-900 rounded-xl overflow-hidden flex flex-col z-[1020]"
+                    @click.stop>
+
+                    <!-- Skeleton de carga entre historias -->
+                    <div v-if="isStoryLoading" class="absolute inset-0 bg-gray-900 z-40 flex flex-col">
+                        <!-- Progress bar skeleton -->
+                        <div class="absolute top-3 left-3 right-3 z-20">
+                            <div class="w-full h-1 bg-gray-700 rounded-full animate-pulse"></div>
+                        </div>
+
+                        <!-- Header skeleton -->
+                        <div class="relative z-20 flex justify-between items-center p-6">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-gray-700 animate-pulse"></div>
+                                <div class="h-4 w-24 bg-gray-700 rounded animate-pulse"></div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="w-8 h-8 rounded-full bg-gray-700 animate-pulse"></div>
+                                <div class="w-8 h-8 rounded-full bg-gray-700 animate-pulse"></div>
+                                <div class="w-8 h-8 rounded-full bg-gray-700 animate-pulse"></div>
+                            </div>
+                        </div>
+
+                        <!-- Content skeleton -->
+                        <div class="flex-1 relative bg-black flex items-center justify-center min-h-0">
+                            <div class="w-64 h-80 bg-gray-700 rounded-lg animate-pulse"></div>
+                        </div>
+
+                        <!-- Footer skeleton -->
+                        <div
+                            class="relative z-20 bg-gradient-to-t from-black via-black/90 to-transparent p-4 space-y-4">
+                            <div class="space-y-2">
+                                <div class="h-4 w-full bg-gray-700 rounded animate-pulse"></div>
+                                <div class="h-4 w-3/4 bg-gray-700 rounded animate-pulse"></div>
+                            </div>
+                            <div class="flex items-center justify-center gap-6">
+                                <div class="flex flex-col items-center gap-1">
+                                    <div class="w-6 h-6 bg-gray-700 rounded animate-pulse"></div>
+                                    <div class="h-3 w-12 bg-gray-700 rounded animate-pulse"></div>
+                                </div>
+                                <div class="flex flex-col items-center gap-1">
+                                    <div class="w-6 h-6 bg-gray-700 rounded animate-pulse"></div>
+                                    <div class="h-3 w-12 bg-gray-700 rounded animate-pulse"></div>
+                                </div>
+                                <div class="flex flex-col items-center gap-1">
+                                    <div class="w-6 h-6 bg-gray-700 rounded animate-pulse"></div>
+                                    <div class="h-3 w-12 bg-gray-700 rounded animate-pulse"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Header -->
-                    <div class="relative z-[1030] flex justify-between items-center p-6">
-                        <div class="flex items-center gap-3">
-                            <img :src="getStoryImage(activeStory)" :alt="activeStory.title"
-                                class="w-8 h-8 rounded-full object-cover" />
-                            <span class="text-white font-medium text-sm">{{ activeStory.title }}</span>
+                    <!-- Contenido real (mostrar solo cuando no está cargando) -->
+                    <div v-show="!isStoryLoading" class="h-full flex flex-col">
+                        <!-- Progress bar -->
+                        <div class="absolute top-3 left-3 right-3 z-[1030]">
+                            <div class="w-full h-1 bg-white bg-opacity-30 rounded-full overflow-hidden">
+                                <div class="h-full bg-white transition-all ease-linear"
+                                    :style="{ width: `${progressPercentage}%`, transitionDuration: isPlaying ? '100ms' : '0ms' }">
+                                </div>
+                            </div>
                         </div>
 
-                        <!-- Controls agrupados arriba a la derecha -->
-                        <div class="flex items-center gap-2">
-                            <button v-if="activeStory.audioUrl" @click="toggleAudio"
-                                class="w-8 h-8 flex items-center justify-center bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-30 transition-all">
-                                <VolumeXIcon v-if="isMuted" :size="16" />
-                                <Volume2Icon v-else :size="16" />
-                            </button>
+                        <!-- Header -->
+                        <div class="relative z-[1030] flex justify-between items-center p-6">
+                            <div class="flex items-center gap-3">
+                                <img :src="getStoryImage(activeStory)" :alt="activeStory.title"
+                                    class="w-8 h-8 rounded-full object-cover" />
+                                <span class="text-white font-medium text-sm">{{ activeStory.title }}</span>
+                            </div>
 
-                            <button @click="togglePlayback"
-                                class="w-8 h-8 flex items-center justify-center bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-30 transition-all">
-                                <PauseIcon v-if="isPlaying" :size="16" />
-                                <PlayIcon v-else :size="16" />
-                            </button>
+                            <!-- Controls agrupados arriba a la derecha -->
+                            <div class="flex items-center gap-2">
+                                <button v-if="activeStory.audioUrl" @click="toggleAudio"
+                                    class="w-8 h-8 flex items-center justify-center bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-30 transition-all">
+                                    <VolumeXIcon v-if="isMuted" :size="16" />
+                                    <Volume2Icon v-else :size="16" />
+                                </button>
 
-                            <button @click="closeStory"
-                                class="w-8 h-8 flex items-center justify-center bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-30 transition-all">
-                                <XIcon :size="16" />
-                            </button>
-                        </div>
-                    </div>
+                                <button @click="togglePlayback"
+                                    class="w-8 h-8 flex items-center justify-center bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-30 transition-all">
+                                    <PauseIcon v-if="isPlaying" :size="16" />
+                                    <PlayIcon v-else :size="16" />
+                                </button>
 
-                    <!-- Contenido principal -->
-                    <div class="flex-1 relative bg-black flex items-center justify-center min-h-0">
-                        <img :src="getStoryImage(activeStory)" :alt="activeStory.title"
-                            class="max-w-full max-h-full object-contain" />
-
-                        <!-- Audio element -->
-                        <audio v-if="activeStory.audioUrl" ref="audioElement" :src="getAudioUrl(activeStory)"
-                            @ended="onAudioEnded" @loadedmetadata="setupAudio" preload="metadata"></audio>
-                    </div>
-
-                    <!-- Footer con descripción y botones de acción -->
-                    <div
-                        class="relative z-[1030] bg-gradient-to-t from-black via-black/90 to-transparent p-4 space-y-4">
-                        <!-- Descripción -->
-                        <div class="text-white space-y-2">
-                            <p class="text-sm leading-relaxed">{{ activeStory.description }}</p>
-                            <a v-if="activeStory.externalLink" :href="activeStory.externalLink" target="_blank"
-                                class="inline-flex items-center gap-1 text-blue-400 text-sm font-medium hover:underline">
-                                Ver más
-                                <ExternalLinkIcon :size="14" />
-                            </a>
-                        </div>
-
-                        <!-- Action buttons horizontales -->
-                        <div class="flex items-center justify-center gap-6">
-                            <div class="tooltip-container">
-                                <button @click="handleLike"
-                                    class="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-white hover:bg-opacity-10 transition-all"
-                                    :class="{ 'text-red-500': isLiked, 'text-white': !isLiked }">
-                                    <HeartIcon :size="24" :class="isLiked ? 'fill-current' : ''" />
-                                    <span class="text-xs">Me gusta</span>
+                                <button @click="closeStory"
+                                    class="w-8 h-8 flex items-center justify-center bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-30 transition-all">
+                                    <XIcon :size="16" />
                                 </button>
                             </div>
+                        </div>
 
-                            <!-- <div class="tooltip-container">
+                        <!-- Contenido principal -->
+                        <div class="flex-1 relative bg-black flex items-center justify-center min-h-0">
+                            <img :src="getStoryImage(activeStory)" :alt="activeStory.title"
+                                class="max-w-full max-h-full object-contain" />
+
+                            <!-- Audio element -->
+                            <audio v-if="activeStory.audioUrl" ref="audioElement" :src="getAudioUrl(activeStory)"
+                                @ended="onAudioEnded" @loadedmetadata="setupAudio" preload="metadata"></audio>
+                        </div>
+
+                        <!-- Footer con descripción y botones de acción -->
+                        <div
+                            class="relative z-[1030] bg-gradient-to-t from-black via-black/90 to-transparent p-4 space-y-4">
+                            <!-- Descripción -->
+                            <div class="text-white space-y-2">
+                                <p class="text-sm leading-relaxed">{{ activeStory.description }}</p>
+                                <a v-if="activeStory.externalLink" :href="activeStory.externalLink" target="_blank"
+                                    class="inline-flex items-center gap-1 text-blue-400 text-sm font-medium hover:underline">
+                                    Ver más
+                                    <ExternalLinkIcon :size="14" />
+                                </a>
+                            </div>
+
+                            <!-- Action buttons horizontales -->
+                            <div class="flex items-center justify-center gap-6">
+                                <div class="tooltip-container">
+                                    <button @click="handleLike"
+                                        class="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-white hover:bg-opacity-10 transition-all"
+                                        :class="{ 'text-red-500': isLiked, 'text-white': !isLiked }">
+                                        <HeartIcon :size="24" :class="isLiked ? 'fill-current' : ''" />
+                                        <span class="text-xs">Me gusta</span>
+                                    </button>
+                                </div>
+
+                                <!-- <div class="tooltip-container">
                                 <button @click="handleWant"
                                     class="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-white hover:bg-opacity-10 transition-all"
                                     :class="{ 'text-yellow-500': isWanted, 'text-white': !isWanted }">
@@ -187,29 +190,30 @@
                                 </button>
                             </div>-->
 
-                            <div class="tooltip-container">
-                                <button @click="handleShare"
-                                    class="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-white hover:bg-opacity-10 transition-all text-white">
-                                    <ShareIcon :size="24" />
-                                    <span class="text-xs">Compartir</span>
-                                </button>
+                                <div class="tooltip-container">
+                                    <button @click="handleShare"
+                                        class="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-white hover:bg-opacity-10 transition-all text-white">
+                                        <ShareIcon :size="24" />
+                                        <span class="text-xs">Compartir</span>
+                                    </button>
+                                </div>
+
+                                <div v-if="activeStory.product" class="tooltip-container">
+                                    <button @click="goToProduct"
+                                        class="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-white hover:bg-opacity-10 transition-all text-white">
+                                        <TagIcon :size="24" />
+                                        <span class="text-xs">Comprar</span>
+                                    </button>
+                                </div>
                             </div>
 
-                            <div v-if="activeStory.product" class="tooltip-container">
-                                <button @click="goToProduct"
-                                    class="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-white hover:bg-opacity-10 transition-all text-white">
-                                    <TagIcon :size="24" />
-                                    <span class="text-xs">Comprar</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Contador de likes centrado 
+                            <!-- Contador de likes centrado 
                     <div v-if="activeStory.likes && activeStory.likes > 0" class="flex justify-center">
                         <div class="text-white text-sm font-medium bg-white bg-opacity-10 rounded-full px-3 py-1">
                             {{ activeStory.likes }} {{ activeStory.likes === 1 ? 'like' : 'likes' }}
                         </div>
                     </div>-->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -285,6 +289,10 @@ const storyAudios = ref<Record<string, string>>({})
 const isStoryLoading = ref(false)
 let progressTimer: NodeJS.Timeout | null = null
 let isNavigating = ref(false)
+
+const hasStories = computed(() => {
+    return stories.value.length > 0
+})
 
 const truncateTitle = (title: string) => {
     return title.length > 12 ? title.substring(0, 12) + '...' : title
@@ -730,8 +738,19 @@ watch(() => route.query.story, () => {
 /* Loading Skeleton */
 .stories-skeleton {
     display: flex;
-    gap: 1rem;
+    gap: 1.5rem;
+    /* Mismo gap que .stories-list */
     padding: 0.5rem 0;
+    justify-content: center;
+    /* Agregar centrado */
+    overflow-x: auto;
+    /* Mismo comportamiento de scroll */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.stories-skeleton::-webkit-scrollbar {
+    display: none;
 }
 
 .skeleton-item {

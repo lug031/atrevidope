@@ -207,7 +207,7 @@
                     <label for="externalLink">Enlace externo (opcional)</label>
                     <input id="externalLink" v-model="formData.externalLink" type="url" class="form-input"
                         placeholder="https://tiktok.com/@usuario/video..." />
-                    <span class="form-hint">Enlace a TikTok, Instagram, YouTube, etc.</span>
+                    <!-- <span class="form-hint">Enlace a TikTok, Instagram, YouTube, etc.</span>-->
                 </div>
 
                 <!-- Configuración de duración y orden -->
@@ -216,13 +216,13 @@
                         <label for="duration">Duración (segundos)</label>
                         <input id="duration" v-model.number="formData.duration" type="number" min="3" max="30"
                             class="form-input" required />
-                        <span class="form-hint">Entre 3 y 30 segundos</span>
+                        <span class="form-hint">Entre 3 y 30 segundos como maximo</span>
                     </div>
-                    <div class="form-group">
+                    <!-- <div class="form-group">
                         <label for="order">Orden de aparición</label>
                         <input id="order" v-model.number="formData.order" type="number" min="0" class="form-input"
                             required />
-                    </div>
+                    </div>-->
                 </div>
 
                 <!-- Imagen de la historia -->

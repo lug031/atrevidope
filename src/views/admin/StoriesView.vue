@@ -69,10 +69,10 @@
                     <thead>
                         <tr>
                             <th>Historia</th>
-                            <th>Producto</th>
+                            <!-- <th>Producto</th> -->
                             <th>Vistas</th>
                             <th>Likes</th>
-                            <th>Wants</th>
+                            <!-- <th>Wants</th> -->
                             <th>Estado</th>
                             <th>Orden</th>
                             <th>Fecha</th>
@@ -103,7 +103,7 @@
                                     </div>
                                 </div>
                             </td>
-                            <td>
+                            <!-- <td>
                                 <div v-if="story.product" class="product-ref">
                                     <img :src="story.product.imageUrl || '/api/placeholder/30/30'"
                                         :alt="story.product.name" class="product-thumb" />
@@ -113,16 +113,16 @@
                                     </div>
                                 </div>
                                 <span v-else class="no-product">Sin producto</span>
-                            </td>
+                            </td>-->
                             <td>
                                 <span class="stat-number views">{{ story.views || 0 }}</span>
                             </td>
                             <td>
                                 <span class="stat-number likes">{{ story.likes || 0 }}</span>
                             </td>
-                            <td>
+                            <!-- <td>
                                 <span class="stat-number wants">{{ story.wants || 0 }}</span>
-                            </td>
+                            </td>-->
                             <td>
                                 <span :class="['status-badge', story.active ? 'active' : 'inactive']">
                                     {{ story.active ? 'Activa' : 'Inactiva' }}
@@ -151,20 +151,20 @@
                             </td>
                             <td>
                                 <div class="action-buttons">
-                                    <button class="icon-button preview" @click="previewStory(story)"
+                                    <!-- <button class="icon-button preview" @click="previewStory(story)"
                                         title="Vista previa">
                                         <PlayIcon :size="18" />
-                                    </button>
+                                    </button> -->
                                     <button class="icon-button edit" @click="handleEdit(story)" title="Editar">
-                                        <EditIcon :size="18" />
+                                        <EditIcon :size="16" />
                                     </button>
-                                    <button class="icon-button toggle" @click="toggleStoryStatus(story)"
+                                    <!-- <button class="icon-button toggle" @click="toggleStoryStatus(story)"
                                         :title="story.active ? 'Desactivar' : 'Activar'">
                                         <ToggleRightIcon v-if="story.active" :size="18" />
                                         <ToggleLeftIcon v-else :size="18" />
-                                    </button>
+                                    </button> -->
                                     <button class="icon-button delete" @click="handleDelete(story.id)" title="Eliminar">
-                                        <Trash2Icon :size="18" />
+                                        <Trash2Icon :size="16" />
                                     </button>
                                 </div>
                             </td>
@@ -236,6 +236,12 @@
                             {{ selectedImageFile ? 'Cambiar imagen' : 'Seleccionar imagen' }}
                         </label>
 
+                        <!-- Advertencia sobre cambio de imagen -->
+                        <div v-if="editingId && selectedImageFile" class="warning-message">
+                            <AlertTriangleIcon :size="16" />
+                            <span>⚠️ Al cambiar la imagen se reiniciarán los contadores de vistas y likes</span>
+                        </div>
+
                         <div v-if="imagePreview" class="media-preview">
                             <img :src="imagePreview" alt="Vista previa" class="preview-image" />
                             <button v-if="selectedImageFile" @click="clearImage" class="clear-media-button"
@@ -293,7 +299,8 @@
         </Modal>
 
         <!-- Modal de vista previa -->
-        <StoryPreviewModal v-if="showPreviewModal" :story="previewStoryData" @close="showPreviewModal = false" />
+        <StoryPreviewModal v-if="showPreviewModal && previewStoryData" :story="previewStoryData"
+            @close="showPreviewModal = false" />
     </div>
 </template>
 
@@ -328,10 +335,10 @@ import type { Product } from '@/types/product.types'
 import Modal from '@/components/Modal.vue'
 import { uploadData, getUrl, remove } from 'aws-amplify/storage'
 import { useToast } from '@/composables/useToast'
-import StoryModal from '@/components/StoryModal.vue'
+import StoryPreviewModal from '@/components/StoryPreviewModal.vue'
 
 // Composables
-const { stories, loading, error, loadStories } = useStories()
+const { stories, loading, error, loadStories, createStory, updateStory, deleteStory, refreshStoryStats } = useStories()
 const { allProductsWeb: availableProducts, loadAllProductsWeb } = useProducts()
 const { showToast } = useToast()
 
@@ -394,10 +401,17 @@ const storyStats = computed(() => {
     return stats
 })
 
+// Reemplaza el computed isFormValid
 const isFormValid = computed(() => {
-    return formData.value.title.trim() !== '' &&
-        formData.value.description.trim() !== '' &&
-        (selectedImageFile.value !== null || editingId.value !== null)
+    const hasTitle = formData.value.title.trim() !== ''
+    const hasDescription = formData.value.description.trim() !== ''
+
+    // En modo edición, no requerir nueva imagen si ya existe una
+    const hasImage = editingId.value !== null ?
+        (selectedImageFile.value !== null || imagePreview.value !== null) :
+        selectedImageFile.value !== null
+
+    return hasTitle && hasDescription && hasImage
 })
 
 // Métodos para manejo de imágenes
@@ -486,6 +500,7 @@ const handleSubmit = async () => {
 
         let imageUrl = ''
         let audioUrl = ''
+        let shouldResetCounters = false
 
         // Subir imagen si hay una nueva
         if (selectedImageFile.value) {
@@ -498,6 +513,7 @@ const handleSubmit = async () => {
                 }
             }).result
             imageUrl = imagePath
+            shouldResetCounters = !!editingId.value // Solo resetear si es edición
         }
 
         // Subir audio si hay uno nuevo
@@ -513,29 +529,58 @@ const handleSubmit = async () => {
             audioUrl = audioPath
         }
 
-        const storyData = {
-            title: formData.value.title,
-            description: formData.value.description,
-            productID: formData.value.productID || undefined,
-            externalLink: formData.value.externalLink || undefined,
-            duration: formData.value.duration,
-            order: formData.value.order,
-            active: formData.value.active,
-            imageUrl: imageUrl || undefined,
-            audioUrl: audioUrl || undefined,
-            views: 0,
-            likes: 0,
-            wants: 0
-        }
-
         if (editingId.value) {
-            // await updateStory(editingId.value, storyData)
-            showToast({
-                type: 'success',
-                message: 'Historia actualizada con éxito'
-            })
+            // Para ediciones, crear objeto sin views/likes/wants si no se resetean
+            const updateData: any = {
+                title: formData.value.title,
+                description: formData.value.description,
+                productID: formData.value.productID || undefined,
+                externalLink: formData.value.externalLink || undefined,
+                duration: formData.value.duration,
+                order: formData.value.order,
+                active: formData.value.active,
+                imageUrl: imageUrl || undefined,
+                audioUrl: audioUrl || undefined,
+            }
+
+            // Solo incluir contadores si se van a resetear
+            if (shouldResetCounters) {
+                updateData.views = 0
+                updateData.likes = 0
+                updateData.wants = 0
+            }
+
+            await updateStory(editingId.value, updateData)
+
+            if (shouldResetCounters) {
+                showToast({
+                    type: 'info',
+                    message: 'Historia actualizada. Los contadores se han reiniciado por el cambio de imagen.'
+                })
+            } else {
+                showToast({
+                    type: 'success',
+                    message: 'Historia actualizada con éxito'
+                })
+            }
         } else {
-            // await createStory(storyData)
+            // Para creaciones, siempre usar valores por defecto
+            const storyData = {
+                title: formData.value.title,
+                description: formData.value.description,
+                productID: formData.value.productID || undefined,
+                externalLink: formData.value.externalLink || undefined,
+                duration: formData.value.duration,
+                order: formData.value.order,
+                active: formData.value.active,
+                imageUrl: imageUrl || '',
+                audioUrl: audioUrl || '',
+                views: 0,
+                likes: 0,
+                wants: 0
+            }
+
+            await createStory(storyData)
             showToast({
                 type: 'success',
                 message: 'Historia creada con éxito'
@@ -543,7 +588,6 @@ const handleSubmit = async () => {
         }
 
         handleCloseModal()
-        await loadStories()
     } catch (error) {
         console.error('Error al guardar historia:', error)
         showToast({
@@ -593,12 +637,11 @@ const handleEdit = async (story: Story) => {
 const handleDelete = async (storyId: string) => {
     if (confirm('¿Estás seguro de que quieres eliminar esta historia?')) {
         try {
-            // await deleteStory(storyId)
+            await deleteStory(storyId)
             showToast({
                 type: 'success',
                 message: 'Historia eliminada con éxito'
             })
-            await loadStories()
         } catch (error) {
             console.error('Error:', error)
             showToast({
@@ -611,14 +654,13 @@ const handleDelete = async (storyId: string) => {
 
 const toggleStoryStatus = async (story: Story) => {
     try {
-        const updatedData = { ...story, active: !story.active }
-        // await updateStory(story.id, updatedData)
+        const updatedData = { active: !story.active }
+        await updateStory(story.id, updatedData)
 
         showToast({
             type: 'success',
             message: `Historia ${updatedData.active ? 'activada' : 'desactivada'}`
         })
-        await loadStories()
     } catch (error) {
         console.error('Error toggling story status:', error)
         showToast({
@@ -630,35 +672,50 @@ const toggleStoryStatus = async (story: Story) => {
 
 // Métodos de ordenamiento
 const moveStoryUp = async (story: Story) => {
-    const currentIndex = stories.value.findIndex(s => s.id === story.id)
+    const sortedStories = [...stories.value].sort((a, b) => (a.order || 0) - (b.order || 0))
+    const currentIndex = sortedStories.findIndex(s => s.id === story.id)
+
     if (currentIndex <= 0) return
 
-    const newOrder = (stories.value[currentIndex - 1]?.order || 0) - 1
-    // await updateStory(story.id, { ...story, order: newOrder })
-    await loadStories()
+    const currentStory = sortedStories[currentIndex]
+    const previousStory = sortedStories[currentIndex - 1]
+
+    // Intercambiar órdenes
+    const tempOrder = currentStory.order || 0
+    await updateStory(currentStory.id, { order: previousStory.order || 0 })
+    await updateStory(previousStory.id, { order: tempOrder })
 }
 
 const moveStoryDown = async (story: Story) => {
-    const currentIndex = stories.value.findIndex(s => s.id === story.id)
-    if (currentIndex >= stories.value.length - 1) return
+    const sortedStories = [...stories.value].sort((a, b) => (a.order || 0) - (b.order || 0))
+    const currentIndex = sortedStories.findIndex(s => s.id === story.id)
 
-    const newOrder = (stories.value[currentIndex + 1]?.order || 0) + 1
-    // await updateStory(story.id, { ...story, order: newOrder })
-    await loadStories()
+    if (currentIndex >= sortedStories.length - 1) return
+
+    const currentStory = sortedStories[currentIndex]
+    const nextStory = sortedStories[currentIndex + 1]
+
+    // Intercambiar órdenes
+    const tempOrder = currentStory.order || 0
+    await updateStory(currentStory.id, { order: nextStory.order || 0 })
+    await updateStory(nextStory.id, { order: tempOrder })
 }
 
 const isFirstStory = (story: Story): boolean => {
-    return stories.value.findIndex(s => s.id === story.id) === 0
+    const sortedStories = [...stories.value].sort((a, b) => (a.order || 0) - (b.order || 0))
+    return sortedStories.findIndex(s => s.id === story.id) === 0
 }
 
 const isLastStory = (story: Story): boolean => {
-    return stories.value.findIndex(s => s.id === story.id) === stories.value.length - 1
+    const sortedStories = [...stories.value].sort((a, b) => (a.order || 0) - (b.order || 0))
+    return sortedStories.findIndex(s => s.id === story.id) === sortedStories.length - 1
 }
 
 // Vista previa
-const previewStory = (story: Story) => {
-    previewStoryData.value = story
-    showPreviewModal.value = true
+const previewStory = async (story: Story) => {
+    await refreshStoryStats(story.id);
+    previewStoryData.value = stories.value.find(s => s.id === story.id) || story;
+    showPreviewModal.value = true;
 }
 
 // Métodos de utilidad
@@ -838,7 +895,7 @@ watch(stories, loadStoryImages, { immediate: true })
 .stories-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 1200px;
+    min-width: 1000px;
 }
 
 .stories-table th,
@@ -1102,6 +1159,7 @@ watch(stories, loadStoryImages, { immediate: true })
 .action-buttons {
     display: flex;
     gap: 0.5rem;
+    justify-content: center;
 }
 
 .icon-button {
@@ -1110,6 +1168,11 @@ watch(stories, loadStoryImages, { immediate: true })
     border-radius: 0.375rem;
     cursor: pointer;
     transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    min-height: 40px;
 }
 
 .icon-button.preview {
@@ -1274,13 +1337,13 @@ watch(stories, loadStoryImages, { immediate: true })
 }
 
 .upload-button.secondary {
-    background: #fef3c7;
-    border-color: #fbbf24;
-    color: #92400e;
+    background: #2563EB;
+    border-color: #2563EB;
+    color: #ffffff;
 }
 
 .upload-button.secondary:hover {
-    background: #fde68a;
+    background: #0043d4;
 }
 
 .media-preview {
@@ -1453,5 +1516,77 @@ watch(stories, loadStoryImages, { immediate: true })
         width: 100px;
         height: 130px;
     }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+
+    .stories-table th,
+    .stories-table td {
+        padding: 0.75rem;
+    }
+
+    .story-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .story-image-container {
+        width: 50px;
+        height: 65px;
+    }
+
+    .action-buttons {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .icon-button {
+        padding: 0.375rem;
+        min-width: 36px;
+        min-height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .order-control {
+        align-items: center;
+    }
+
+    .order-buttons {
+        flex-direction: row;
+        gap: 0.25rem;
+    }
+
+    .order-btn {
+        width: 28px;
+        height: 24px;
+    }
+
+    .table-container {
+        margin: 0 -1rem;
+        width: calc(100% + 2rem);
+        border-radius: 0;
+    }
+}
+
+.warning-message {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background-color: #fef3c7;
+    border: 1px solid #f59e0b;
+    border-radius: 0.375rem;
+    color: #92400e;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+}
+
+.warning-message svg {
+    color: #f59e0b;
+    flex-shrink: 0;
 }
 </style>

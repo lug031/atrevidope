@@ -111,12 +111,21 @@
                 </div>
 
                 <!-- Main Content -->
-                <div class="flex-1 relative bg-black flex items-center justify-center min-h-0">
+                <div class="flex-1 relative bg-black flex items-center justify-center min-h-0"
+                    @click="handleStoryClick">
                     <img :src="getStoryImage(activeStory)" :alt="activeStory.title"
                         class="max-w-full max-h-full object-contain" />
 
                     <audio v-if="activeStory.audioUrl" ref="audioElement" :src="getAudioUrl(activeStory)"
                         @ended="onAudioEnded" @loadedmetadata="setupAudio" preload="metadata"></audio>
+
+                    <div v-if="activeStory.audioUrl && !hasUserInteracted && isPlaying"
+                        class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+                        <div class="text-white text-center p-4">
+                            <Volume2Icon :size="48" class="mx-auto mb-2 animate-pulse" />
+                            <p class="text-sm">Toca para activar el audio</p>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Footer -->
@@ -184,6 +193,7 @@ const emit = defineEmits<{
     close: []
 }>()
 
+const hasUserInteracted = ref(false)
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
@@ -261,6 +271,15 @@ const openStoryViewer = async (story: Story) => {
             if (route.query.story !== story.id) {
                 await router.replace({ query: { ...route.query, story: story.id } })
             }
+
+            // Si viene de un link compartido, mostrar mensaje para activar audio
+            if (route.query.story && !hasUserInteracted.value) {
+                showToast({
+                    type: 'info',
+                    message: 'Toca para activar el audio'
+                })
+            }
+
             startStoryPlayback()
         }
     } catch (error) {
@@ -282,17 +301,23 @@ const closeStoryViewer = async () => {
 }
 
 // Métodos de reproducción
-const startStoryPlayback = () => {
+const startStoryPlayback = async () => {
     if (!activeStory.value) return
 
     const duration = (activeStory.value.duration || 10) * 1000
     progressPercentage.value = 0
     isPlaying.value = true
 
+    // Intentar reproducir audio solo si hay interacción del usuario
     if (activeStory.value.audioUrl && audioElement.value) {
-        audioElement.value.play().catch(() => {
-            // Error de autoplay, continuar sin audio
-        })
+        try {
+            // Solo reproducir si el usuario ha interactuado
+            if (hasUserInteracted.value) {
+                await audioElement.value.play()
+            }
+        } catch (error) {
+            console.log('Autoplay bloqueado, esperando interacción del usuario')
+        }
     }
 
     const interval = 50
@@ -322,11 +347,33 @@ const stopStoryPlayback = () => {
     }
 }
 
-const togglePlayback = () => {
+const togglePlayback = async () => {
+    hasUserInteracted.value = true
+
     if (isPlaying.value) {
         stopStoryPlayback()
     } else {
+        isPlaying.value = true
+        // Intentar reproducir audio si existe
+        if (activeStory.value?.audioUrl && audioElement.value) {
+            try {
+                await audioElement.value.play()
+            } catch (error) {
+                console.log('Error reproduciendo audio:', error)
+            }
+        }
         startStoryPlayback()
+    }
+}
+
+const handleStoryClick = () => {
+    hasUserInteracted.value = true
+
+    // Si el audio no se está reproduciendo y debería, intentar reproducirlo
+    if (activeStory.value?.audioUrl && audioElement.value && isPlaying.value) {
+        if (audioElement.value.paused) {
+            audioElement.value.play().catch(console.error)
+        }
     }
 }
 

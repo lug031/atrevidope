@@ -23,7 +23,8 @@
                             <ChevronDownIcon :class="{ 'rotate-180': isCategoriesSidebarOpen }"
                                 class="transition-transform duration-300" :size="16" />
                         </span>
-                        <MenuIcon class="md:hidden stroke-current stroke-[1.5px]" :size="24" />
+                        <MenuIcon v-if="!isAdmin" class="md:hidden stroke-current stroke-[1.5px]" :size="24" />
+                        <ChevronDownCircleIcon v-else class="md:hidden stroke-current stroke-[1.5px]" :size="24" />
                     </button>
                 </Transition>
 

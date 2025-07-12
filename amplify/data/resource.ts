@@ -113,9 +113,29 @@ const schema = a.schema({
       productID: a.string(), // Referencia al producto relacionado
       product: a.belongsTo("Product", "productID"),
       active: a.boolean(),
-      views: a.integer(),
-      likes: a.integer(),
-      wants: a.integer(),
+      views: a
+        .integer()
+        .authorization((allow) => [
+          allow.publicApiKey().to(["read", "update"]),
+          allow.authenticated().to(["read", "update"]),
+          allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
+        ]),
+
+      likes: a
+        .integer()
+        .authorization((allow) => [
+          allow.publicApiKey().to(["read", "update"]),
+          allow.authenticated().to(["read", "update"]),
+          allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
+        ]),
+
+      wants: a
+        .integer()
+        .authorization((allow) => [
+          allow.publicApiKey().to(["read", "update"]),
+          allow.authenticated().to(["read", "update"]),
+          allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
+        ]),
       duration: a.integer(), // Duración en segundos
       order: a.integer(), // Para ordenar las historias
       createdAt: a.datetime(),
@@ -125,7 +145,7 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
       allow.authenticated().to(["read", "update"]),
-      allow.publicApiKey().to(["read", "update"]),
+      allow.publicApiKey().to(["read"]),
     ]),
 
   StoryInteraction: a

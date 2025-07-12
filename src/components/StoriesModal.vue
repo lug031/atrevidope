@@ -274,10 +274,10 @@ const openStoryViewer = async (story: Story) => {
 
             // Si viene de un link compartido, mostrar mensaje para activar audio
             if (route.query.story && !hasUserInteracted.value) {
-                showToast({
+                /*showToast({
                     type: 'info',
                     message: 'Toca para activar el audio'
-                })
+                })*/
             }
 
             startStoryPlayback()

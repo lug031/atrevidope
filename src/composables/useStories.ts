@@ -56,8 +56,8 @@ export function useStories() {
 
   const shareStory = async (story: Story) => {
     const shareData = {
-      title: story.title,
-      text: story.description,
+      //title: story.title,
+      text: `MIRA ESTA HISTORIA EN ATREVIDOPE.COM`, //\n\n${story.description}`,
       url: generateStoryLink(story.id),
     };
 

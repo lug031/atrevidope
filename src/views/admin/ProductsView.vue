@@ -14,6 +14,52 @@
             </div>
         </div>
 
+        <!-- Estadísticas de Productos -->
+        <div v-if="!loading && !error" class="stats-grid">
+            <div class="stat-card">
+                <PackageIcon :size="24" class="stat-icon" />
+                <div class="stat-info">
+                    <span class="stat-label">Total Productos</span>
+                    <span class="stat-value">{{ productStats.total }}</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <CheckCircleIcon :size="24" class="stat-icon active" />
+                <div class="stat-info">
+                    <span class="stat-label">Productos Activos</span>
+                    <span class="stat-value">{{ productStats.active }}</span>
+                </div>
+            </div>
+            <!-- <div class="stat-card">
+                <AlertTriangleIcon :size="24" class="stat-icon low-stock" />
+                <div class="stat-info">
+                    <span class="stat-label">Stock Bajo (≤5)</span>
+                    <span class="stat-value">{{ productStats.lowStock }}</span>
+                </div>
+            </div> -->
+            <div class="stat-card">
+                <TagIcon :size="24" class="stat-icon promotion" />
+                <div class="stat-info">
+                    <span class="stat-label">En Promoción</span>
+                    <span class="stat-value">{{ productStats.inPromotion }}</span>
+                </div>
+            </div>
+            <div class="stat-card">
+                <TrendingUpIcon :size="24" class="stat-icon carousel" />
+                <div class="stat-info">
+                    <span class="stat-label">En Carousel</span>
+                    <span class="stat-value">{{ productStats.inCarousel }}</span>
+                </div>
+            </div>
+            <!-- <div class="stat-card">
+                <DollarSignIcon :size="24" class="stat-icon value" />
+                <div class="stat-info">
+                    <span class="stat-label">Valor Inventario</span>
+                    <span class="stat-value">S/{{ formatPrice(productStats.totalInventoryValue) }}</span>
+                </div>
+            </div> -->
+        </div>
+
         <!-- Estados de loading y error sin cambios -->
         <div v-if="loading" class="loading-state">
             <Loader2Icon :size="40" class="animate-spin" />
@@ -51,9 +97,14 @@
                         <tr v-for="product in filteredProducts" :key="product.id">
                             <td>
                                 <div class="product-info">
-                                    <img :src="getProductMainImage(product)"
-                                        class="product-image cursor-pointer hover:opacity-80 transition-opacity"
-                                        @click="handleImageClick(product)" />
+                                    <div class="product-image-container">
+                                        <img :src="getProductMainImage(product)"
+                                            class="product-image cursor-pointer hover:opacity-80 transition-opacity"
+                                            @click="handleImageClick(product)" />
+                                        <div v-if="getProductImageCount(product) > 1" class="image-count-badge">
+                                            <span>{{ getProductImageCount(product) }}</span>
+                                        </div>
+                                    </div>
                                     <div class="product-details">
                                         <span class="product-name">{{ product.name }}</span>
                                         <span class="product-description"
@@ -65,7 +116,7 @@
                             <td>S/{{ product.originalPrice?.toFixed(2) || '0.00' }}</td>
                             <td>
                                 <span :class="['discount-badge', product.discountPercentage > 0 ? 'active' : '']">
-                                    {{ getDisplayDiscount(product) > 0 ? formatDiscount(product) : '0' }}
+                                    {{ getDisplayDiscount(product) > 0 ? formatDiscount(product) : '-' }}
                                 </span>
                             </td>
                             <td>S/{{ getTablePrice(product).toFixed(2) }}</td>
@@ -461,7 +512,13 @@ import {
     MinusIcon,
     PercentIcon,
     DollarSignIcon,
-    StarIcon
+    StarIcon,
+    AlertTriangleIcon,
+    TagIcon,
+    TrendingUpIcon,
+    PackageIcon,
+    CheckCircleIcon,
+    CameraIcon
 } from 'lucide-vue-next'
 import { useProducts } from '@/composables/useProducts'
 import { useCategories } from '@/composables/useCategories'
@@ -497,6 +554,54 @@ const setAsMainImage = (index: number) => {
         type: 'success',
         message: 'Imagen principal actualizada'
     })
+}
+
+const getProductImageCount = (product: Product): number => {
+    const productImageUrls = imageUrls.value[product.id]
+    return productImageUrls ? productImageUrls.length : 0
+}
+
+const productStats = computed(() => {
+    const stats = {
+        total: products.value.length,
+        active: 0,
+        lowStock: 0,
+        inPromotion: 0,
+        inCarousel: 0,
+        totalInventoryValue: 0
+    }
+
+    products.value.forEach(product => {
+        // Productos activos
+        if (product.active) {
+            stats.active++
+        }
+
+        // Stock bajo (≤5 unidades)
+        if (product.stock <= 5) {
+            stats.lowStock++
+        }
+
+        // Productos en promoción activa
+        if (isPromotionActive(product)) {
+            stats.inPromotion++
+        }
+
+        // Productos en carousel
+        if (product.carousel) {
+            stats.inCarousel++
+        }
+
+        // Valor total del inventario (precio actual × stock)
+        const currentPrice = isPromotionExpired(product) ? product.originalPrice : product.price
+        stats.totalInventoryValue += currentPrice * product.stock
+    })
+
+    return stats
+})
+
+const formatPrice = (price: number): string => {
+    return price.toFixed(2)
 }
 
 const reorganizeImagesForMainImage = (newMainIndex: number) => {
@@ -792,22 +897,16 @@ const increaseStock = async (product: Product) => {
 const loadImageUrls = async () => {
     for (const product of products.value) {
         const urls: string[] = []
+        const processedPaths = new Set<string>() // Para evitar duplicados
 
-        if (product.imageUrl && product.imageUrl.trim() !== '') {
-            try {
-                const { url } = await getUrl({ path: product.imageUrl })
-                urls.push(url.toString())
-            } catch (error) {
-                console.error("Error cargando imagen principal:", error)
-            }
-        }
-
+        // Primero procesamos imageUrls array (imágenes adicionales)
         if (product.imageUrls && product.imageUrls.length > 0) {
             for (const imagePath of product.imageUrls) {
-                if (imagePath && imagePath.trim() !== '') {
+                if (imagePath && imagePath.trim() !== '' && !processedPaths.has(imagePath)) {
                     try {
                         const { url } = await getUrl({ path: imagePath })
                         urls.push(url.toString())
+                        processedPaths.add(imagePath)
                     } catch (error) {
                         console.error("Error cargando imagen adicional:", error)
                     }
@@ -815,11 +914,19 @@ const loadImageUrls = async () => {
             }
         }
 
-        if (urls.length > 0) {
-            imageUrls.value[product.id] = urls
-        } else {
-            imageUrls.value[product.id] = []
+        // Solo agregamos imageUrl si no está ya en imageUrls
+        if (product.imageUrl &&
+            product.imageUrl.trim() !== '' &&
+            !processedPaths.has(product.imageUrl)) {
+            try {
+                const { url } = await getUrl({ path: product.imageUrl })
+                urls.unshift(url.toString()) // Lo ponemos al inicio como imagen principal
+            } catch (error) {
+                console.error("Error cargando imagen principal:", error)
+            }
         }
+
+        imageUrls.value[product.id] = urls
     }
 }
 
@@ -1992,7 +2099,7 @@ watch(products, loadImageUrls, { immediate: true });
 .products-table {
     width: 100%;
     border-collapse: collapse;
-    min-width: 800px;
+    min-width: 1000px;
 }
 
 .products-table th,
@@ -2006,6 +2113,9 @@ watch(products, loadImageUrls, { immediate: true });
     background: #f8fafc;
     font-weight: 500;
     color: #64748b;
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 .product-info {
@@ -2020,6 +2130,7 @@ watch(products, loadImageUrls, { immediate: true });
     object-fit: cover;
     border-radius: 4px;
     transition: transform 0.2s;
+    display: block;
 }
 
 .product-image:hover {
@@ -2054,6 +2165,51 @@ watch(products, loadImageUrls, { immediate: true });
     font-style: italic;
 }
 
+.image-count-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: linear-gradient(45deg, #3b82f6, #1e40af);
+    color: white;
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: 0.625rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    min-width: 20px;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    border: 1px solid white;
+    z-index: 1;
+}
+
+.image-count-badge span {
+    line-height: 1;
+}
+
+.image-count-badge {
+    animation: badge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 0.9;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
 @media (max-width: 768px) {
     .search-filter {
         flex-direction: column;
@@ -2085,6 +2241,24 @@ watch(products, loadImageUrls, { immediate: true });
     .product-description {
         white-space: normal;
         max-width: 200px;
+    }
+
+    .product-image-container {
+        width: 44px;
+        height: 44px;
+    }
+
+    .product-image {
+        width: 36px;
+        height: 36px;
+    }
+
+    .image-count-badge {
+        top: -4px;
+        right: -4px;
+        padding: 1px 4px;
+        font-size: 0.5rem;
+        min-width: 16px;
     }
 }
 
@@ -2589,6 +2763,98 @@ watch(products, loadImageUrls, { immediate: true });
 .image-preview-item:hover .set-main-button+.remove-image-button,
 .image-preview-item .set-main-button+.remove-image-button {
     right: 3rem;
+}
+
+/* Stats Section */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.stat-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+}
+
+.stat-icon {
+    color: #6366f1;
+}
+
+.stat-icon.active {
+    color: #22c55e;
+}
+
+.stat-icon.low-stock {
+    color: #ef4444;
+}
+
+.stat-icon.promotion {
+    color: #f59e0b;
+}
+
+.stat-icon.carousel {
+    color: #8b5cf6;
+}
+
+.stat-icon.value {
+    color: #06b6d4;
+}
+
+.stat-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #64748b;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.product-image-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    /* Evita que se reduzca el tamaño */
+    background-color: #f8fafc;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+}
+
+/* Responsive para stats */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .stat-card {
+        padding: 1rem;
+    }
+
+    .stat-value {
+        font-size: 1.25rem;
+    }
 }
 
 @keyframes spin {

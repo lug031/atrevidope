@@ -365,6 +365,7 @@ const openStory = async (story: Story) => {
         } else {
             isLiked.value = false
             isWanted.value = false
+            viewStory(story.id, "anonymus")
         }
 
         // 2. Precargar stories adyacentes

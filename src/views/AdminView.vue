@@ -34,7 +34,7 @@ const routeTitles: Record<string, string> = {
 }
 
 const pageTitle = computed(() => {
-    return routeTitles[route.name as string] || 'Panel de Administración'
+    return routeTitles[route.name as string] || 'Gestion de Historias'
 })
 
 const breadcrumbs = computed(() => {

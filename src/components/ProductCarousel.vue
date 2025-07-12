@@ -1,42 +1,62 @@
 <template>
     <div class="carousel-container">
-        <!-- Slides -->
-        <div class="slides-container" :style="{ transform: `translateX(-${currentSlide * 100}%)` }">
-            <div v-for="(product, index) in allProductsCarousel" :key="product.id" class="slide"
-                :style="{ left: `${index * 100}%` }">
-                <div class="slide-content">
-                    <!-- Mostrar placeholder mientras carga -->
-                    <div v-if="!getCachedImage(product.id)" class="slide-placeholder">
-                        <div class="loading-spinner"></div>
-                    </div>
-                    <img v-else :src="getCachedImage(product.id)" :alt="product.name" class="slide-image" loading="lazy"
-                        @load="onImageLoad(product.id)" @error="onImageError(product.id)" />
-                    <div class="slide-overlay">
-                        <div class="slide-text">
-                            <h2>{{ product.name }}</h2>
-                            <button @click="router.push(`/product/${product.id}`)" class="discover-button">
-                                VER
-                            </button>
+        <!-- Skeleton Loading -->
+        <div v-if="isInitialLoading" class="carousel-skeleton">
+            <div class="skeleton-slide">
+                <div class="skeleton-image"></div>
+                <div class="skeleton-overlay">
+                    <div class="skeleton-title"></div>
+                    <div class="skeleton-button"></div>
+                </div>
+            </div>
+            <div class="skeleton-nav-buttons">
+                <div class="skeleton-nav-button skeleton-nav-left"></div>
+                <div class="skeleton-nav-button skeleton-nav-right"></div>
+            </div>
+            <div class="skeleton-dots">
+                <div v-for="i in 3" :key="i" class="skeleton-dot"></div>
+            </div>
+        </div>
+
+        <template v-else>
+            <!-- Slides -->
+            <div class="slides-container" :style="{ transform: `translateX(-${currentSlide * 100}%)` }">
+                <div v-for="(product, index) in allProductsCarousel" :key="product.id" class="slide"
+                    :style="{ left: `${index * 100}%` }">
+                    <div class="slide-content">
+                        <!-- Mostrar placeholder mientras carga -->
+                        <div v-if="!getCachedImage(product.id)" class="slide-placeholder">
+                            <div class="loading-spinner"></div>
+                        </div>
+                        <img v-else :src="getCachedImage(product.id)" :alt="product.name" class="slide-image"
+                            loading="lazy" @load="onImageLoad(product.id)" @error="onImageError(product.id)" />
+                        <div class="slide-overlay">
+                            <div class="slide-text">
+                                <h2>{{ product.name }}</h2>
+                                <button @click="router.push(`/product/${product.id}`)" class="discover-button">
+                                    VER
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Navigation Arrows -->
-        <button @click="prevSlide" class="nav-button prev">
-            <ChevronLeftIcon />
-        </button>
-        <button @click="nextSlide" class="nav-button next">
-            <ChevronRightIcon />
-        </button>
-
-        <!-- Dots Navigation -->
-        <div class="carousel-dots">
-            <button v-for="(_, index) in allProductsCarousel" :key="index" @click="goToSlide(index)"
-                :class="['dot', { active: index === currentSlide }]" :aria-label="`Go to slide ${index + 1}`">
+            <!-- Navigation Arrows -->
+            <button @click="prevSlide" class="nav-button prev">
+                <ChevronLeftIcon />
             </button>
-        </div>
+            <button @click="nextSlide" class="nav-button next">
+                <ChevronRightIcon />
+            </button>
+
+            <!-- Dots Navigation -->
+            <div class="carousel-dots">
+                <button v-for="(_, index) in allProductsCarousel" :key="index" @click="goToSlide(index)"
+                    :class="['dot', { active: index === currentSlide }]" :aria-label="`Go to slide ${index + 1}`">
+                </button>
+            </div>
+        </template>
     </div>
 </template>
 
@@ -47,6 +67,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-vue-next';
 import { useProducts } from '@/composables/useProducts';
 import { useImageCache } from '@/composables/useImageCache';
 
+const isInitialLoading = ref(true)
 const router = useRouter();
 const currentSlide = ref(0);
 const autoplayInterval = ref<number | null>(null);
@@ -63,6 +84,7 @@ const loadImageUrls = async () => {
     const currentProduct = allProductsCarousel.value[currentSlide.value];
     if (currentProduct?.imageUrl) {
         await getImageUrl(currentProduct.id, currentProduct.imageUrl);
+        isInitialLoading.value = false; // Agregar esta línea
     }
 
     // Luego cargar las siguientes 2 imágenes en segundo plano
@@ -155,6 +177,8 @@ const stopAutoplay = () => {
 };
 
 onMounted(async () => {
+    isInitialLoading.value = true; // Agregar al inicio
+
     // Cargar productos primero
     await loadAllProductsCarousel();
 
@@ -374,6 +398,138 @@ watch(() => currentSlide.value, () => {
 .dot.active {
     background-color: #fff;
     transform: scale(1.2);
+}
+
+.carousel-skeleton {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: #f0f0f0;
+    overflow: hidden;
+}
+
+.skeleton-slide {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.skeleton-image {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 2s infinite;
+}
+
+.skeleton-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.skeleton-title {
+    width: 300px;
+    height: 40px;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 2s infinite;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.skeleton-button {
+    width: 120px;
+    height: 45px;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 2s infinite;
+    border-radius: 4px;
+    margin: 0 auto;
+}
+
+.skeleton-nav-buttons {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 20px;
+}
+
+.skeleton-nav-button {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 2s infinite;
+}
+
+.skeleton-dots {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+}
+
+.skeleton-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 2s infinite;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* Responsive skeleton */
+@media (max-width: 768px) {
+    .skeleton-title {
+        width: 250px;
+        height: 35px;
+    }
+
+    .skeleton-button {
+        width: 100px;
+        height: 40px;
+    }
+
+    .skeleton-nav-button {
+        width: 40px;
+        height: 40px;
+    }
+}
+
+@media (max-width: 480px) {
+    .skeleton-title {
+        width: 200px;
+        height: 30px;
+    }
+
+    .skeleton-button {
+        width: 90px;
+        height: 35px;
+    }
+
+    .skeleton-nav-button {
+        width: 35px;
+        height: 35px;
+    }
 }
 
 /* Estilos responsivos */

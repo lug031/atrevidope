@@ -13,8 +13,28 @@ export function useStories() {
     stories.value.filter((story) => story.active)
   );
 
+  // MÉTODOS PARA ADMIN
   const loadStories = async () => {
-    await storyStore.fetchActiveStories();
+    await storyStore.fetchStories(); // Para admin - todas las historias
+  };
+
+  const createStory = async (
+    storyData: Omit<Story, "id" | "createdAt" | "updatedAt">
+  ) => {
+    return await storyStore.createStory(storyData);
+  };
+
+  const updateStory = async (id: string, storyData: Partial<Story>) => {
+    return await storyStore.updateStory(id, storyData);
+  };
+
+  const deleteStory = async (id: string) => {
+    await storyStore.deleteStory(id);
+  };
+
+  // MÉTODOS PARA PÚBLICO
+  const loadActiveStories = async () => {
+    await storyStore.fetchActiveStories(); // Para público - solo activas
   };
 
   const getStoryById = async (storyId: string) => {
@@ -27,10 +47,6 @@ export function useStories() {
 
   const likeStory = async (storyId: string, userEmail: string) => {
     await storyStore.toggleStoryLike(storyId, userEmail);
-  };
-
-  const wantStory = async (storyId: string, userEmail?: string) => {
-    await storyStore.addStoryWant(storyId, userEmail);
   };
 
   const generateStoryLink = (storyId: string): string => {
@@ -58,6 +74,30 @@ export function useStories() {
     }
   };
 
+  const checkIfUserLiked = async (storyId: string, userEmail: string) => {
+    return await storyStore.checkIfUserLiked(storyId, userEmail);
+  };
+
+  const getUsersWhoLiked = async (storyId: string) => {
+    return await storyStore.getUsersWhoLiked(storyId);
+  };
+
+  const wantStory = async (storyId: string, userEmail: string) => {
+    await storyStore.toggleStoryWant(storyId, userEmail); // Cambiar aquí
+  };
+
+  const checkIfUserWanted = async (storyId: string, userEmail: string) => {
+    return await storyStore.checkIfUserWanted(storyId, userEmail);
+  };
+
+  const getUsersWhoWanted = async (storyId: string) => {
+    return await storyStore.getUsersWhoWanted(storyId);
+  };
+
+  const refreshStoryStats = async (storyId: string) => {
+    await storyStore.refreshStoryStats(storyId);
+  };
+
   return {
     stories,
     currentStory,
@@ -65,12 +105,23 @@ export function useStories() {
     error,
     totalStories,
     activeStories,
+    // Admin methods
     loadStories,
+    createStory, // NUEVO
+    updateStory, // NUEVO
+    deleteStory, // NUEVO
+    // Public methods
+    loadActiveStories,
     getStoryById,
     viewStory,
     likeStory,
     wantStory,
     generateStoryLink,
     shareStory,
+    checkIfUserLiked,
+    getUsersWhoLiked,
+    checkIfUserWanted,
+    getUsersWhoWanted,
+    refreshStoryStats,
   };
 }

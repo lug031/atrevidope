@@ -125,7 +125,7 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
       allow.authenticated().to(["read"]),
-      allow.publicApiKey().to(["read"]),
+      allow.publicApiKey().to(["read","update"]),
     ]),
 
   StoryInteraction: a

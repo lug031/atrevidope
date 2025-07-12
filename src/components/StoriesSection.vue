@@ -1,8 +1,8 @@
 <template>
     <div class="stories-section">
         <div class="stories-header">
-            <h2 class="stories-title">Historias</h2>
-            <div class="stories-nav">
+            <!-- <h2 class="stories-title">Historias</h2> -->
+            <div v-if="!loading" class="stories-nav">
                 <button @click="scrollLeft" class="nav-button" :disabled="!canScrollLeft">
                     <ChevronLeftIcon :size="20" />
                 </button>
@@ -12,7 +12,16 @@
             </div>
         </div>
 
-        <div class="stories-container" ref="storiesContainer" @scroll="updateScrollButtons">
+        <!-- Loading Skeleton -->
+        <div v-if="loading" class="stories-skeleton">
+            <div v-for="i in 5" :key="i" class="skeleton-item">
+                <div class="skeleton-ring"></div>
+                <div class="skeleton-title"></div>
+            </div>
+        </div>
+
+        <!-- Stories Container -->
+        <div v-else class="stories-container" ref="storiesContainer" @scroll="updateScrollButtons">
             <div class="stories-list">
                 <div v-for="story in stories" :key="story.id" class="story-item" @click="openStory(story)">
                     <div class="story-ring">
@@ -27,82 +36,182 @@
         </div>
 
         <!-- Modal de Historia -->
-        <div v-if="activeStory" class="story-modal" @click="closeStory">
-            <div class="story-modal-content" @click.stop>
-                <!-- Progress bar -->
-                <div class="story-progress">
-                    <div class="progress-bar">
-                        <div class="progress-fill" :style="{ width: `${progressPercentage}%` }"></div>
+        <div v-if="activeStory" class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[1000]">
+            <!-- Navegación externa con mejor posicionamiento y eventos -->
+            <button v-if="currentIndex > 0" @click.stop="previousStory"
+                class="absolute left-4 top-1/2 transform -translate-y-1/2 w-14 h-14 flex items-center justify-center bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-30 transition-all backdrop-blur-sm z-[1050]"
+                style="margin-left: calc(50vw - 280px);">
+                <ChevronLeftIcon :size="28" />
+            </button>
+            <button v-if="currentIndex < stories.length - 1" @click.stop="nextStory"
+                class="absolute right-4 top-1/2 transform -translate-y-1/2 w-14 h-14 flex items-center justify-center bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-30 transition-all backdrop-blur-sm z-[1050]"
+                style="margin-right: calc(50vw - 280px);">
+                <ChevronRightIcon :size="28" />
+            </button>
+
+            <!-- Close overlay -->
+            <div class="absolute inset-0 z-[1000]" @click="closeStory"></div>
+
+            <!-- Story Container -->
+            <div class="relative w-full max-w-sm h-screen max-h-[650px] bg-gray-900 rounded-xl overflow-hidden flex flex-col z-[1020]"
+                @click.stop>
+
+                <!-- Skeleton de carga entre historias -->
+                <div v-if="isStoryLoading" class="absolute inset-0 bg-gray-900 z-40 flex flex-col">
+                    <!-- Progress bar skeleton -->
+                    <div class="absolute top-3 left-3 right-3 z-20">
+                        <div class="w-full h-1 bg-gray-700 rounded-full animate-pulse"></div>
+                    </div>
+
+                    <!-- Header skeleton -->
+                    <div class="relative z-20 flex justify-between items-center p-6">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-gray-700 animate-pulse"></div>
+                            <div class="h-4 w-24 bg-gray-700 rounded animate-pulse"></div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-gray-700 animate-pulse"></div>
+                            <div class="w-8 h-8 rounded-full bg-gray-700 animate-pulse"></div>
+                            <div class="w-8 h-8 rounded-full bg-gray-700 animate-pulse"></div>
+                        </div>
+                    </div>
+
+                    <!-- Content skeleton -->
+                    <div class="flex-1 relative bg-black flex items-center justify-center min-h-0">
+                        <div class="w-64 h-80 bg-gray-700 rounded-lg animate-pulse"></div>
+                    </div>
+
+                    <!-- Footer skeleton -->
+                    <div class="relative z-20 bg-gradient-to-t from-black via-black/90 to-transparent p-4 space-y-4">
+                        <div class="space-y-2">
+                            <div class="h-4 w-full bg-gray-700 rounded animate-pulse"></div>
+                            <div class="h-4 w-3/4 bg-gray-700 rounded animate-pulse"></div>
+                        </div>
+                        <div class="flex items-center justify-center gap-6">
+                            <div class="flex flex-col items-center gap-1">
+                                <div class="w-6 h-6 bg-gray-700 rounded animate-pulse"></div>
+                                <div class="h-3 w-12 bg-gray-700 rounded animate-pulse"></div>
+                            </div>
+                            <div class="flex flex-col items-center gap-1">
+                                <div class="w-6 h-6 bg-gray-700 rounded animate-pulse"></div>
+                                <div class="h-3 w-12 bg-gray-700 rounded animate-pulse"></div>
+                            </div>
+                            <div class="flex flex-col items-center gap-1">
+                                <div class="w-6 h-6 bg-gray-700 rounded animate-pulse"></div>
+                                <div class="h-3 w-12 bg-gray-700 rounded animate-pulse"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Header -->
-                <div class="story-header">
-                    <div class="story-info">
-                        <img :src="getStoryImage(activeStory)" :alt="activeStory.title" class="story-avatar" />
-                        <span class="story-author">{{ activeStory.title }}</span>
+                <!-- Contenido real (mostrar solo cuando no está cargando) -->
+                <div v-show="!isStoryLoading" class="h-full flex flex-col">
+                    <!-- Progress bar -->
+                    <div class="absolute top-3 left-3 right-3 z-[1030]">
+                        <div class="w-full h-1 bg-white bg-opacity-30 rounded-full overflow-hidden">
+                            <div class="h-full bg-white transition-all ease-linear"
+                                :style="{ width: `${progressPercentage}%`, transitionDuration: isPlaying ? '100ms' : '0ms' }">
+                            </div>
+                        </div>
                     </div>
-                    <button @click="closeStory" class="close-button">
-                        <XIcon :size="24" />
-                    </button>
+
+                    <!-- Header -->
+                    <div class="relative z-[1030] flex justify-between items-center p-6">
+                        <div class="flex items-center gap-3">
+                            <img :src="getStoryImage(activeStory)" :alt="activeStory.title"
+                                class="w-8 h-8 rounded-full object-cover" />
+                            <span class="text-white font-medium text-sm">{{ activeStory.title }}</span>
+                        </div>
+
+                        <!-- Controls agrupados arriba a la derecha -->
+                        <div class="flex items-center gap-2">
+                            <button v-if="activeStory.audioUrl" @click="toggleAudio"
+                                class="w-8 h-8 flex items-center justify-center bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-30 transition-all">
+                                <VolumeXIcon v-if="isMuted" :size="16" />
+                                <Volume2Icon v-else :size="16" />
+                            </button>
+
+                            <button @click="togglePlayback"
+                                class="w-8 h-8 flex items-center justify-center bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-30 transition-all">
+                                <PauseIcon v-if="isPlaying" :size="16" />
+                                <PlayIcon v-else :size="16" />
+                            </button>
+
+                            <button @click="closeStory"
+                                class="w-8 h-8 flex items-center justify-center bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-30 transition-all">
+                                <XIcon :size="16" />
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Contenido principal -->
+                    <div class="flex-1 relative bg-black flex items-center justify-center min-h-0">
+                        <img :src="getStoryImage(activeStory)" :alt="activeStory.title"
+                            class="max-w-full max-h-full object-contain" />
+
+                        <!-- Audio element -->
+                        <audio v-if="activeStory.audioUrl" ref="audioElement" :src="getAudioUrl(activeStory)"
+                            @ended="onAudioEnded" @loadedmetadata="setupAudio" preload="metadata"></audio>
+                    </div>
+
+                    <!-- Footer con descripción y botones de acción -->
+                    <div
+                        class="relative z-[1030] bg-gradient-to-t from-black via-black/90 to-transparent p-4 space-y-4">
+                        <!-- Descripción -->
+                        <div class="text-white space-y-2">
+                            <p class="text-sm leading-relaxed">{{ activeStory.description }}</p>
+                            <a v-if="activeStory.externalLink" :href="activeStory.externalLink" target="_blank"
+                                class="inline-flex items-center gap-1 text-blue-400 text-sm font-medium hover:underline">
+                                Ver más
+                                <ExternalLinkIcon :size="14" />
+                            </a>
+                        </div>
+
+                        <!-- Action buttons horizontales -->
+                        <div class="flex items-center justify-center gap-6">
+                            <div class="tooltip-container">
+                                <button @click="handleLike"
+                                    class="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-white hover:bg-opacity-10 transition-all"
+                                    :class="{ 'text-red-500': isLiked, 'text-white': !isLiked }">
+                                    <HeartIcon :size="24" :class="isLiked ? 'fill-current' : ''" />
+                                    <span class="text-xs">Me gusta</span>
+                                </button>
+                            </div>
+
+                            <!-- <div class="tooltip-container">
+                                <button @click="handleWant"
+                                    class="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-white hover:bg-opacity-10 transition-all"
+                                    :class="{ 'text-yellow-500': isWanted, 'text-white': !isWanted }">
+                                    <BookmarkIcon :size="24" :class="isWanted ? 'fill-current' : ''" />
+                                    <span class="text-xs">Guardar</span>
+                                </button>
+                            </div>-->
+
+                            <div class="tooltip-container">
+                                <button @click="handleShare"
+                                    class="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-white hover:bg-opacity-10 transition-all text-white">
+                                    <ShareIcon :size="24" />
+                                    <span class="text-xs">Compartir</span>
+                                </button>
+                            </div>
+
+                            <div v-if="activeStory.product" class="tooltip-container">
+                                <button @click="goToProduct"
+                                    class="flex flex-col items-center gap-1 p-2 rounded-lg hover:bg-white hover:bg-opacity-10 transition-all text-white">
+                                    <TagIcon :size="24" />
+                                    <span class="text-xs">Comprar</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Contador de likes centrado 
+                    <div v-if="activeStory.likes && activeStory.likes > 0" class="flex justify-center">
+                        <div class="text-white text-sm font-medium bg-white bg-opacity-10 rounded-full px-3 py-1">
+                            {{ activeStory.likes }} {{ activeStory.likes === 1 ? 'like' : 'likes' }}
+                        </div>
+                    </div>-->
+                    </div>
                 </div>
-
-                <!-- Contenido principal -->
-                <div class="story-content">
-                    <img :src="getStoryImage(activeStory)" :alt="activeStory.title" class="main-image" />
-
-                    <!-- Audio controls -->
-                    <div v-if="activeStory.audioUrl" class="audio-controls">
-                        <button @click="toggleAudio" class="audio-button">
-                            <VolumeXIcon v-if="isMuted" :size="20" />
-                            <Volume2Icon v-else :size="20" />
-                        </button>
-                        <audio ref="audioElement" :src="getAudioUrl(activeStory)" @ended="nextStory"
-                            @loadedmetadata="setupAudio" preload="metadata"></audio>
-                    </div>
-                </div>
-
-                <!-- Footer con descripción y acciones -->
-                <div class="story-footer">
-                    <div class="story-description">
-                        <p>{{ activeStory.description }}</p>
-                        <a v-if="activeStory.externalLink" :href="activeStory.externalLink" target="_blank"
-                            class="external-link">
-                            Ver más
-                            <ExternalLinkIcon :size="16" />
-                        </a>
-                    </div>
-
-                    <div class="story-actions">
-                        <button @click="handleLike" class="action-button like" :class="{ active: isLiked }">
-                            <HeartIcon :size="20" :class="{ filled: isLiked }" />
-                            <span>{{ activeStory.likes || 0 }}</span>
-                        </button>
-
-                        <button @click="handleWant" class="action-button want">
-                            <ShoppingBagIcon :size="20" />
-                            <span>Lo quiero</span>
-                        </button>
-
-                        <button @click="handleShare" class="action-button share">
-                            <ShareIcon :size="20" />
-                            <span>Compartir</span>
-                        </button>
-
-                        <button v-if="activeStory.product" @click="goToProduct" class="action-button product">
-                            <TagIcon :size="20" />
-                            <span>Ver producto</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Navegación -->
-                <button @click="previousStory" class="nav-story prev" v-if="currentIndex > 0">
-                    <ChevronLeftIcon :size="24" />
-                </button>
-                <button @click="nextStory" class="nav-story next" v-if="currentIndex < stories.length - 1">
-                    <ChevronRightIcon :size="24" />
-                </button>
             </div>
         </div>
     </div>
@@ -119,9 +228,10 @@ import {
     ChevronLeftIcon,
     ChevronRightIcon,
     PlayIcon,
+    PauseIcon,
     XIcon,
     HeartIcon,
-    ShoppingBagIcon,
+    BookmarkIcon,
     ShareIcon,
     TagIcon,
     ExternalLinkIcon,
@@ -129,6 +239,15 @@ import {
     Volume2Icon
 } from 'lucide-vue-next'
 import type { Story } from '@/types/story.types'
+import { useStoryImageCache } from '@/composables/useStoryImageCache'
+
+const {
+    storyImageCache,
+    getStoryImageUrl,
+    preloadStoryImages,
+    preloadAdjacentStories,
+    getCachedStoryImage,
+} = useStoryImageCache()
 
 const router = useRouter()
 const route = useRoute()
@@ -138,11 +257,12 @@ const { showToast } = useToast()
 const {
     stories,
     loading,
-    loadStories,
+    loadActiveStories,
     viewStory,
     likeStory,
     wantStory,
-    shareStory
+    checkIfUserLiked,
+    checkIfUserWanted
 } = useStories()
 
 // Referencias
@@ -153,23 +273,29 @@ const audioElement = ref<HTMLAudioElement>()
 const activeStory = ref<Story | null>(null)
 const currentIndex = ref(0)
 const progressPercentage = ref(0)
+const isPlaying = ref(false)
 const isMuted = ref(false)
 const isLiked = ref(false)
+const isWanted = ref(false)
 const canScrollLeft = ref(false)
 const canScrollRight = ref(true)
 const storyImages = ref<Record<string, string>>({})
 const storyAudios = ref<Record<string, string>>({})
 
-// Timer para progreso automático
+const isStoryLoading = ref(false)
 let progressTimer: NodeJS.Timeout | null = null
-let storyTimer: NodeJS.Timeout | null = null
+let isNavigating = ref(false)
 
 const truncateTitle = (title: string) => {
     return title.length > 12 ? title.substring(0, 12) + '...' : title
 }
 
 const getStoryImage = (story: Story): string => {
-    return storyImages.value[story.id] || '/api/placeholder/100/100'
+    return getCachedStoryImage(story.id)
+}
+
+const preloadAdjacentStoriesOnOpen = async (currentIndex: number) => {
+    await preloadAdjacentStories(stories.value, currentIndex)
 }
 
 const getAudioUrl = (story: Story): string => {
@@ -177,18 +303,10 @@ const getAudioUrl = (story: Story): string => {
 }
 
 const loadStoryAssets = async () => {
-    for (const story of stories.value) {
-        // Cargar imagen
-        if (story.imageUrl) {
-            try {
-                const { url } = await getUrl({ path: story.imageUrl })
-                storyImages.value[story.id] = url.toString()
-            } catch (error) {
-                console.error('Error loading story image:', error)
-            }
-        }
+    await preloadStoryImages(stories.value)
 
-        // Cargar audio
+    // Cargar audios por separado (mantener lógica existente)
+    for (const story of stories.value) {
         if (story.audioUrl) {
             try {
                 const { url } = await getUrl({ path: story.audioUrl })
@@ -221,35 +339,90 @@ const updateScrollButtons = () => {
 }
 
 const openStory = async (story: Story) => {
+    if (isNavigating.value) return
+
+    isNavigating.value = true
+    isStoryLoading.value = true
     activeStory.value = story
     currentIndex.value = stories.value.findIndex(s => s.id === story.id)
 
-    // Registrar vista
-    const userEmail = authStore.userEmail
-    await viewStory(story.id, userEmail)
+    try {
+        // Paralelizar las operaciones
+        const loadPromises = []
 
-    // Actualizar URL
-    await router.replace({ query: { ...route.query, story: story.id } })
+        // 1. Verificar estados de like/want
+        const userEmail = authStore.userEmail
+        if (userEmail) {
+            loadPromises.push(
+                checkIfUserLiked(story.id, userEmail).then(result => {
+                    isLiked.value = result
+                }),
+                checkIfUserWanted(story.id, userEmail).then(result => {
+                    isWanted.value = result
+                }),
+                viewStory(story.id, userEmail)
+            )
+        } else {
+            isLiked.value = false
+            isWanted.value = false
+        }
 
-    // Iniciar reproducción
-    startStoryPlayback()
+        // 2. Precargar stories adyacentes
+        loadPromises.push(preloadAdjacentStoriesOnOpen(currentIndex.value))
+
+        // 3. Asegurar que la imagen actual esté cargada
+        if (story.imageUrl) {
+            loadPromises.push(getStoryImageUrl(story.id, story.imageUrl))
+        }
+
+        // Ejecutar todo en paralelo
+        await Promise.all(loadPromises)
+
+        // Delay mínimo solo si la carga fue muy rápida
+        const minLoadTime = 200
+        await new Promise(resolve => setTimeout(resolve, minLoadTime))
+
+        // Continuar con la lógica existente...
+        if (activeStory.value && activeStory.value.id === story.id) {
+            if (route.query.story !== story.id) {
+                await router.replace({ query: { ...route.query, story: story.id } })
+            }
+
+            if (activeStory.value) {
+                startStoryPlayback()
+            }
+        }
+    } catch (error) {
+        console.error('Error opening story:', error)
+    } finally {
+        isStoryLoading.value = false
+        isNavigating.value = false
+    }
 }
 
 const closeStory = async () => {
     stopStoryPlayback()
-    activeStory.value = null
 
-    // Limpiar URL
-    const query = { ...route.query }
-    delete query.story
-    await router.replace({ query })
+    // Guardar referencia antes de limpiar
+    const wasOpen = activeStory.value !== null
+
+    activeStory.value = null
+    isNavigating.value = false
+
+    // Solo limpiar URL si realmente había una historia abierta
+    if (wasOpen) {
+        const query = { ...route.query }
+        delete query.story
+        await router.replace({ query })
+    }
 }
 
 const startStoryPlayback = () => {
     if (!activeStory.value) return
 
-    const duration = activeStory.value.duration || 10 // Default 10 segundos
+    const duration = (activeStory.value.duration || 10) * 1000 // Convertir a millisegundos
     progressPercentage.value = 0
+    isPlaying.value = true
 
     // Si hay audio, reproducirlo
     if (activeStory.value.audioUrl && audioElement.value) {
@@ -258,19 +431,23 @@ const startStoryPlayback = () => {
         })
     }
 
-    // Iniciar progreso
+    // Iniciar progreso con intervalos más precisos
     const interval = 50 // Update every 50ms
-    const increment = (100 / duration) / (1000 / interval)
+    const increment = (100 / duration) * interval
 
     progressTimer = setInterval(() => {
-        progressPercentage.value += increment
-        if (progressPercentage.value >= 100) {
-            nextStory()
+        if (isPlaying.value) {
+            progressPercentage.value += increment
+            if (progressPercentage.value >= 100) {
+                progressPercentage.value = 100
+                onStoryEnd()
+            }
         }
     }, interval)
 }
 
 const stopStoryPlayback = () => {
+    isPlaying.value = false
     if (progressTimer) {
         clearInterval(progressTimer)
         progressTimer = null
@@ -282,22 +459,56 @@ const stopStoryPlayback = () => {
     }
 }
 
-const nextStory = () => {
-    if (currentIndex.value < stories.value.length - 1) {
+const togglePlayback = () => {
+    if (isPlaying.value) {
         stopStoryPlayback()
-        const nextStoryData = stories.value[currentIndex.value + 1]
-        openStory(nextStoryData)
     } else {
-        closeStory()
+        startStoryPlayback()
     }
 }
 
-const previousStory = () => {
-    if (currentIndex.value > 0) {
-        stopStoryPlayback()
-        const prevStoryData = stories.value[currentIndex.value - 1]
-        openStory(prevStoryData)
+const onStoryEnd = async () => {
+    stopStoryPlayback()
+
+    // Si hay más historias, ir a la siguiente automáticamente después de un pequeño delay
+    if (currentIndex.value < stories.value.length - 1) {
+        setTimeout(async () => {
+            await nextStory()
+        }, 500) // Delay de 500ms para una transición más suave
+    } else {
+        // Si es la última historia, solo mantener pausada
+        progressPercentage.value = 100
     }
+}
+
+const onAudioEnded = () => {
+    // Cuando termina el audio, también activar la transición automática
+    onStoryEnd()
+}
+
+const nextStory = async () => {
+    if (isNavigating.value || currentIndex.value >= stories.value.length - 1) return
+
+    stopStoryPlayback()
+    const nextStoryData = stories.value[currentIndex.value + 1]
+
+    // Precargar la siguiente historia si existe
+    if (currentIndex.value + 2 < stories.value.length) {
+        const futureStory = stories.value[currentIndex.value + 2]
+        if (futureStory.imageUrl) {
+            getStoryImageUrl(futureStory.id, futureStory.imageUrl).catch(console.error)
+        }
+    }
+
+    await openStory(nextStoryData)
+}
+
+const previousStory = async () => {
+    if (isNavigating.value || currentIndex.value <= 0) return
+
+    stopStoryPlayback()
+    const prevStoryData = stories.value[currentIndex.value - 1]
+    await openStory(prevStoryData)
 }
 
 const toggleAudio = () => {
@@ -327,35 +538,89 @@ const handleLike = async () => {
         return
     }
 
-    await likeStory(activeStory.value.id, authStore.userEmail)
-    isLiked.value = !isLiked.value
+    const previousLikedState = isLiked.value
+
+    try {
+        await likeStory(activeStory.value.id, authStore.userEmail)
+        isLiked.value = !isLiked.value
+
+        // Actualizar el contador local inmediatamente
+        if (isLiked.value) {
+            activeStory.value.likes = (activeStory.value.likes || 0) + 1
+        } else {
+            activeStory.value.likes = Math.max(0, (activeStory.value.likes || 0) - 1)
+        }
+    } catch (error) {
+        // Revertir estado en caso de error
+        isLiked.value = previousLikedState
+        showToast({
+            type: 'error',
+            message: 'Error al dar like'
+        })
+    }
 }
 
 const handleWant = async () => {
     if (!activeStory.value) return
 
     const userEmail = authStore.userEmail
-    await wantStory(activeStory.value.id, userEmail)
+    if (!userEmail) {
+        showToast({
+            type: 'warning',
+            message: 'Debes iniciar sesión'
+        })
+        return
+    }
 
-    showToast({
-        type: 'success',
-        message: '¡Agregado a tu lista de deseos!'
-    })
+    const previousWantedState = isWanted.value
+
+    try {
+        await wantStory(activeStory.value.id, userEmail)
+        isWanted.value = !isWanted.value
+
+        // Actualizar el contador local inmediatamente
+        if (isWanted.value) {
+            activeStory.value.wants = (activeStory.value.wants || 0) + 1
+            showToast({
+                type: 'success',
+                message: '¡Historia guardada!'
+            })
+        } else {
+            activeStory.value.wants = Math.max(0, (activeStory.value.wants || 0) - 1)
+            showToast({
+                type: 'success',
+                message: 'Historia removida de guardados'
+            })
+        }
+    } catch (error) {
+        // Revertir estado en caso de error
+        isWanted.value = previousWantedState
+        showToast({
+            type: 'error',
+            message: 'Error al guardar historia'
+        })
+    }
 }
 
 const handleShare = async () => {
     if (!activeStory.value) return
 
     try {
-        await shareStory(activeStory.value)
+        // Crear el link de la historia
+        const currentUrl = window.location.origin + window.location.pathname
+        const storyLink = `${currentUrl}?story=${activeStory.value.id}`
+
+        // Copiar al portapapeles
+        await navigator.clipboard.writeText(storyLink)
+
         showToast({
             type: 'success',
-            message: 'Historia compartida'
+            message: 'Link copiado al portapapeles'
         })
     } catch (error) {
         showToast({
             type: 'error',
-            message: 'Error al compartir'
+            message: 'Error al copiar el link'
         })
     }
 }
@@ -368,18 +633,25 @@ const goToProduct = () => {
 
 // Manejar historia desde URL
 const handleStoryFromUrl = async () => {
+    if (isNavigating.value) return
+
     const storyId = route.query.story as string
     if (storyId && stories.value.length > 0) {
         const story = stories.value.find(s => s.id === storyId)
-        if (story) {
+        if (story && (!activeStory.value || activeStory.value.id !== storyId)) {
             await openStory(story)
         }
+    } else if (!storyId && activeStory.value) {
+        // Si no hay storyId en la URL pero hay una historia activa, cerrarla
+        activeStory.value = null
+        stopStoryPlayback()
     }
 }
 
 // Lifecycle
 onMounted(async () => {
-    await loadStories()
+    await loadActiveStories()
+    // Precargar todas las imágenes de stories al inicio
     await loadStoryAssets()
     await handleStoryFromUrl()
 
@@ -401,7 +673,11 @@ watch(() => stories.value, async () => {
     })
 })
 
-watch(() => route.query.story, handleStoryFromUrl)
+watch(() => route.query.story, () => {
+    if (!isNavigating.value) {
+        handleStoryFromUrl()
+    }
+}, { immediate: false })
 </script>
 
 <style scoped>
@@ -450,10 +726,58 @@ watch(() => route.query.story, handleStoryFromUrl)
     cursor: not-allowed;
 }
 
+/* Loading Skeleton */
+.stories-skeleton {
+    display: flex;
+    gap: 1rem;
+    padding: 0.5rem 0;
+}
+
+.skeleton-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 80px;
+}
+
+.skeleton-ring {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 2s infinite;
+    margin-bottom: 0.5rem;
+}
+
+.skeleton-title {
+    width: 60px;
+    height: 12px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 2s infinite;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
 .stories-container {
     overflow-x: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    display: flex;
+    justify-content: center;
+    /* Centrar el contenido */
+    padding: 0 1rem;
+    /* Espaciado lateral */
 }
 
 .stories-container::-webkit-scrollbar {
@@ -462,8 +786,13 @@ watch(() => route.query.story, handleStoryFromUrl)
 
 .stories-list {
     display: flex;
-    gap: 1rem;
+    gap: 1.5rem;
+    /* Aumentar gap en desktop */
     padding: 0.5rem 0;
+    justify-content: center;
+    /* Centrar elementos */
+    min-width: fit-content;
+    /* Evitar que se comprima */
 }
 
 .story-item {
@@ -471,17 +800,21 @@ watch(() => route.query.story, handleStoryFromUrl)
     flex-direction: column;
     align-items: center;
     cursor: pointer;
-    min-width: 80px;
+    min-width: 100px;
+    /* Aumentar ancho mínimo */
+    flex-shrink: 0;
+    /* Evitar que se reduzcan */
 }
 
 .story-ring {
     position: relative;
-    width: 70px;
-    height: 70px;
+    width: 90px;
+    /* Aumentar tamaño para desktop */
+    height: 90px;
     border-radius: 50%;
     background: linear-gradient(45deg, #f59e0b, #ef4444, #8b5cf6);
     padding: 3px;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
 }
 
 .story-image {
@@ -513,352 +846,95 @@ watch(() => route.query.story, handleStoryFromUrl)
 }
 
 .story-title {
-    font-size: 0.75rem;
+    font-size: 0.875rem;
+    /* Aumentar tamaño de fuente */
     text-align: center;
     color: #4b5563;
+    max-width: 100px;
+    line-height: 1.2;
 }
 
-/* Modal Styles */
-.story-modal {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.9);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-}
-
-.story-modal-content {
+/* Tooltip Styles */
+.tooltip-container {
     position: relative;
-    width: 100%;
-    max-width: 400px;
-    height: 100vh;
-    max-height: 600px;
-    background: #1f2937;
-    border-radius: 12px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
 }
 
-.story-progress {
+.tooltip {
     position: absolute;
-    top: 8px;
-    left: 8px;
-    right: 8px;
-    z-index: 10;
-}
-
-.progress-bar {
-    width: 100%;
-    height: 3px;
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 2px;
-    overflow: hidden;
-}
-
-.progress-fill {
-    height: 100%;
-    background: white;
-    transition: width 0.1s linear;
-}
-
-.story-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem;
-    position: relative;
-    z-index: 10;
-}
-
-.story-info {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.story-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    object-fit: cover;
-}
-
-.story-author {
+    background: rgba(0, 0, 0, 0.8);
     color: white;
-    font-weight: 500;
-    font-size: 0.875rem;
-}
-
-.close-button {
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.close-button:hover {
-    background: rgba(255, 255, 255, 0.3);
-}
-
-.story-content {
-    flex: 1;
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #000;
-}
-
-.main-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.audio-controls {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-}
-
-.audio-button {
-    background: rgba(0, 0, 0, 0.5);
-    border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.audio-button:hover {
-    background: rgba(0, 0, 0, 0.7);
-}
-
-.story-footer {
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
-    padding: 1rem;
-    color: white;
-}
-
-.story-description p {
-    margin: 0 0 0.5rem 0;
-    font-size: 0.875rem;
-    line-height: 1.4;
-}
-
-.external-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    color: #60a5fa;
-    text-decoration: none;
-    font-size: 0.875rem;
-    font-weight: 500;
-}
-
-.external-link:hover {
-    text-decoration: underline;
-}
-
-.story-actions {
-    display: flex;
-    gap: 1rem;
-    margin-top: 1rem;
-    flex-wrap: wrap;
-}
-
-.action-button {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 20px;
-    padding: 0.5rem 1rem;
-    color: white;
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.action-button:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: translateY(-1px);
-}
-
-.action-button.like.active {
-    background: rgba(239, 68, 68, 0.2);
-    border-color: rgba(239, 68, 68, 0.5);
-}
-
-.action-button.like.active .filled {
-    fill: #ef4444;
-    color: #ef4444;
-}
-
-.action-button.want {
-    background: rgba(34, 197, 94, 0.1);
-    border-color: rgba(34, 197, 94, 0.3);
-}
-
-.action-button.want:hover {
-    background: rgba(34, 197, 94, 0.2);
-}
-
-.action-button.share {
-    background: rgba(59, 130, 246, 0.1);
-    border-color: rgba(59, 130, 246, 0.3);
-}
-
-.action-button.share:hover {
-    background: rgba(59, 130, 246, 0.2);
-}
-
-.action-button.product {
-    background: rgba(245, 158, 11, 0.1);
-    border-color: rgba(245, 158, 11, 0.3);
-}
-
-.action-button.product:hover {
-    background: rgba(245, 158, 11, 0.2);
-}
-
-.nav-story {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
-    border-radius: 50%;
-    width: 50px;
-    height: 50px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    cursor: pointer;
-    transition: all 0.2s;
-    backdrop-filter: blur(10px);
-}
-
-.nav-story:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: translateY(-50%) scale(1.1);
-}
-
-.nav-story.prev {
-    left: 1rem;
-}
-
-.nav-story.next {
-    right: 1rem;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .stories-section {
-        padding: 0 0.5rem;
-    }
-
-    .story-modal-content {
-        width: 100vw;
-        height: 100vh;
-        max-width: none;
-        max-height: none;
-        border-radius: 0;
-    }
-
-    .story-actions {
-        gap: 0.5rem;
-    }
-
-    .action-button {
-        padding: 0.4rem 0.8rem;
-        font-size: 0.8rem;
-    }
-
-    .nav-story {
-        width: 40px;
-        height: 40px;
-    }
-
-    .nav-story.prev {
-        left: 0.5rem;
-    }
-
-    .nav-story.next {
-        right: 0.5rem;
-    }
-}
-
-/* Animaciones */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: scale(0.95);
-    }
-
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
-.story-modal-content {
-    animation: fadeIn 0.3s ease-out;
-}
-
-/* Loading state */
-.stories-list.loading {
-    opacity: 0.6;
-}
-
-.story-item.loading {
-    opacity: 0.5;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+    z-index: 1100;
     pointer-events: none;
 }
 
-/* Accesibilidad */
-.nav-button:focus,
-.action-button:focus,
-.close-button:focus,
-.audio-button:focus,
-.nav-story:focus {
-    outline: 2px solid #60a5fa;
-    outline-offset: 2px;
+/* Tooltips arriba por defecto */
+.tooltip-container:hover .tooltip {
+    opacity: 1;
+    visibility: visible;
 }
 
-/* Dark mode compatibility */
-.dark .stories-title {
-    color: #f9fafb;
+/* Tooltips que van arriba */
+.tooltip-container:hover .tooltip-bottom {
+    bottom: calc(100% + 0.5rem);
+    left: 50%;
+    transform: translateX(-50%);
 }
 
-.dark .story-title {
-    color: #d1d5db;
+/* Responsive tooltips */
+@media (max-width: 768px) {
+    .tooltip {
+        display: none;
+    }
 }
 
-.dark .nav-button {
-    background: #374151;
-    border-color: #4b5563;
-    color: #d1d5db;
+/* Desktop y tablet - stories más grandes */
+@media (min-width: 769px) {
+    .stories-list {
+        gap: 2rem;
+        /* Más espacio entre stories en desktop */
+    }
+
+    .story-item {
+        min-width: 110px;
+    }
+
+    .story-ring {
+        width: 150px;
+        height: 150px;
+        margin-bottom: 1rem;
+    }
+
+    .story-title {
+        font-size: 0.875rem;
+        max-width: 110px;
+    }
+
+    .play-icon {
+        size: 28px;
+        /* Icono más grande en desktop */
+    }
 }
 
-.dark .nav-button:hover:not(:disabled) {
-    background: #4b5563;
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 </style>

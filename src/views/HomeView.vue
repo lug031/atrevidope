@@ -15,7 +15,7 @@ import BrandCarousel from '@/components/BrandCarousel.vue';
 import FeatureCards from '@/components/FeatureCards.vue';
 import ProductCarousel from '@/components/ProductCarousel.vue';
 import PromotionalBanner from '@/components/PromotionalBanner.vue';
-import StoriesSection from '@/components/StoriesSection.vue'; // NUEVO
+import StoriesSection from '@/components/StoriesSection.vue';
 
 const router = useRouter();
 </script>

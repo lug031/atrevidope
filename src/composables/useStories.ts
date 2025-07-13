@@ -136,6 +136,10 @@ export function useStories() {
     return await storyStore.resetStoryExpiration(storyId);
   };
 
+  const getStoryByIdIncludingExpired = async (storyId: string) => {
+    return await storyStore.getStoryById(storyId);
+  };
+
   return {
     stories,
     currentStory,
@@ -168,5 +172,6 @@ export function useStories() {
     checkExpiredStories, // NUEVO
     forceExpireStory, // TEMPORAL - VERIFICAR QUE ESTÉ AQUÍ
     resetStoryExpiration, // TEMPORAL - VERIFICAR QUE ESTÉ AQUÍ
+    getStoryByIdIncludingExpired,
   };
 }

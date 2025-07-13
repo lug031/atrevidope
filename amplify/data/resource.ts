@@ -118,6 +118,7 @@ const schema = a.schema({
       wants: a.integer(),
       duration: a.integer(), // Duración en segundos
       order: a.integer(), // Para ordenar las historias
+      expiresAt: a.datetime(), // NUEVO: Fecha de vencimiento (24h desde creación)
       createdAt: a.datetime(),
       updatedAt: a.datetime(),
       interactions: a.hasMany("StoryInteraction", "storyID"),

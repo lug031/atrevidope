@@ -18,6 +18,7 @@ export interface Story {
   wants: number;
   duration: number;
   order: number;
+  expiresAt: string;
   createdAt: string;
   updatedAt: string;
 }

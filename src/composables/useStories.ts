@@ -13,13 +13,33 @@ export function useStories() {
     stories.value.filter((story) => story.active)
   );
 
-  // MÉTODOS PARA ADMIN
+  // NUEVO: Historias activas y no vencidas
+  const activeNonExpiredStories = computed(() =>
+    stories.value.filter((story) => {
+      if (!story.active) return false;
+      const { expired } = storyStore.getTimeRemaining(story.expiresAt);
+      return !expired;
+    })
+  );
+
+  // NUEVO: Historias vencidas
+  const expiredStories = computed(() =>
+    stories.value.filter((story) => {
+      const { expired } = storyStore.getTimeRemaining(story.expiresAt);
+      return expired;
+    })
+  );
+
   const loadStories = async () => {
-    await storyStore.fetchStories(); // Para admin - todas las historias
+    await storyStore.fetchStories();
   };
 
+  // Modificar createStory para no incluir order
   const createStory = async (
-    storyData: Omit<Story, "id" | "createdAt" | "updatedAt">
+    storyData: Omit<
+      Story,
+      "id" | "createdAt" | "updatedAt" | "expiresAt" | "order"
+    >
   ) => {
     return await storyStore.createStory(storyData);
   };
@@ -32,9 +52,8 @@ export function useStories() {
     await storyStore.deleteStory(id);
   };
 
-  // MÉTODOS PARA PÚBLICO
   const loadActiveStories = async () => {
-    await storyStore.fetchActiveStories(); // Para público - solo activas
+    await storyStore.fetchActiveStories();
   };
 
   const getStoryById = async (storyId: string) => {
@@ -56,8 +75,7 @@ export function useStories() {
 
   const shareStory = async (story: Story) => {
     const shareData = {
-      //title: story.title,
-      text: `MIRA ESTA HISTORIA EN ATREVIDOPE.COM`, //\n\n${story.description}`,
+      text: `MIRA ESTA HISTORIA EN ATREVIDOPE.COM`,
       url: generateStoryLink(story.id),
     };
 
@@ -65,12 +83,10 @@ export function useStories() {
       try {
         await navigator.share(shareData);
       } catch (error) {
-        // Fallback a copiar al clipboard
         const shareText = `MIRA ESTA HISTORIA EN ATREVIDOPE.COM\n\n${shareData.url}`;
         await navigator.clipboard.writeText(shareText);
       }
     } else {
-      // Fallback para navegadores que no soportan Web Share API
       const shareText = `MIRA ESTA HISTORIA EN ATREVIDOPE.COM\n\n${shareData.url}`;
       await navigator.clipboard.writeText(shareText);
     }
@@ -100,6 +116,15 @@ export function useStories() {
     await storyStore.refreshStoryStats(storyId);
   };
 
+  // NUEVOS: Métodos para manejo de tiempo
+  const getTimeRemaining = (expiresAt: string) => {
+    return storyStore.getTimeRemaining(expiresAt);
+  };
+
+  const checkExpiredStories = async () => {
+    await storyStore.checkExpiredStories();
+  };
+
   return {
     stories,
     currentStory,
@@ -107,6 +132,8 @@ export function useStories() {
     error,
     totalStories,
     activeStories,
+    activeNonExpiredStories, // NUEVO
+    expiredStories, // NUEVO
     // Admin methods
     loadStories,
     createStory,
@@ -125,5 +152,8 @@ export function useStories() {
     checkIfUserWanted,
     getUsersWhoWanted,
     refreshStoryStats,
+    // Time management
+    getTimeRemaining, // NUEVO
+    checkExpiredStories, // NUEVO
   };
 }

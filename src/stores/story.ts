@@ -20,14 +20,11 @@ export const useStoryStore = defineStore("story", () => {
 
   // Agregar esta función al inicio del store, después de los clients
   const normalizeStoryOrders = (stories: any[]) => {
-    // Primero ordenar por orden actual y fecha de creación
+    // Ordenar por fecha de creación (más reciente primero)
     const sortedStories = stories.sort((a, b) => {
-      if (a.order !== b.order) {
-        return (a.order || 0) - (b.order || 0);
-      }
       return (
-        new Date(a.createdAt || "").getTime() -
-        new Date(b.createdAt || "").getTime()
+        new Date(b.createdAt || "").getTime() -
+        new Date(a.createdAt || "").getTime()
       );
     });
 
@@ -36,6 +33,33 @@ export const useStoryStore = defineStore("story", () => {
       ...story,
       order: index,
     }));
+  };
+
+  const checkExpiredStories = async () => {
+    const now = new Date();
+    const expiredStories = stories.value.filter((story) => {
+      if (!story.expiresAt) return false;
+      return new Date(story.expiresAt) <= now && story.active;
+    });
+
+    // Desactivar historias vencidas
+    for (const story of expiredStories) {
+      try {
+        await authClient.models.Story.update({
+          id: story.id,
+          active: false,
+          updatedAt: new Date().toISOString(),
+        });
+
+        // Actualizar en el store local
+        const index = stories.value.findIndex((s) => s.id === story.id);
+        if (index !== -1) {
+          stories.value[index].active = false;
+        }
+      } catch (error) {
+        console.error("Error deactivating expired story:", error);
+      }
+    }
   };
 
   // FETCH - Obtener todas las historias (admin)
@@ -79,10 +103,12 @@ export const useStoryStore = defineStore("story", () => {
         })
       );
 
-      // Normalizar órdenes desde 0
+      // Normalizar órdenes por fecha de creación
       const normalizedStories = normalizeStoryOrders(storiesWithProducts);
-
       stories.value = normalizedStories as Story[];
+
+      // Verificar y desactivar historias vencidas
+      await checkExpiredStories();
     } catch (err) {
       error.value = "Error al cargar historias";
       console.error(err);
@@ -96,13 +122,18 @@ export const useStoryStore = defineStore("story", () => {
     loading.value = true;
     error.value = null;
     try {
+      const now = new Date().toISOString();
+
       const { data: items } = await publicClient.models.Story.list({
         filter: {
-          active: { eq: true },
+          and: [
+            { active: { eq: true } },
+            { expiresAt: { gt: now } }, // Solo historias que no han vencido
+          ],
         },
       });
 
-      // Obtener información del producto relacionado si existe
+      // Resto del código igual...
       const storiesWithProducts = await Promise.all(
         items.map(async (story) => {
           if (story.productID) {
@@ -130,9 +161,7 @@ export const useStoryStore = defineStore("story", () => {
         })
       );
 
-      // Normalizar órdenes desde 0 para stories activas
       const normalizedStories = normalizeStoryOrders(storiesWithProducts);
-
       stories.value = normalizedStories as Story[];
     } catch (err) {
       error.value = "Error al cargar historias";
@@ -144,10 +173,28 @@ export const useStoryStore = defineStore("story", () => {
 
   // CREATE - Crear nueva historia
   const createStory = async (
-    storyData: Omit<Story, "id" | "createdAt" | "updatedAt">
+    storyData: Omit<
+      Story,
+      "id" | "createdAt" | "updatedAt" | "expiresAt" | "order"
+    >
   ) => {
     loading.value = true;
     try {
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 horas después
+
+      // Incrementar el orden de todas las historias existentes
+      if (stories.value.length > 0) {
+        const updatePromises = stories.value.map((story) =>
+          authClient.models.Story.update({
+            id: story.id,
+            order: (story.order || 0) + 1,
+            updatedAt: new Date().toISOString(),
+          })
+        );
+        await Promise.all(updatePromises);
+      }
+
       const { data: newStory } = await authClient.models.Story.create({
         title: storyData.title,
         description: storyData.description,
@@ -160,9 +207,10 @@ export const useStoryStore = defineStore("story", () => {
         likes: storyData.likes || 0,
         wants: storyData.wants || 0,
         duration: storyData.duration,
-        order: storyData.order,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        order: 0, // Nueva historia siempre orden 0
+        expiresAt: expiresAt.toISOString(),
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
       });
 
       if (!newStory || !newStory.id) {
@@ -171,7 +219,6 @@ export const useStoryStore = defineStore("story", () => {
         );
       }
 
-      // Recargar las historias
       await fetchStories();
       return newStory;
     } catch (err) {
@@ -186,13 +233,22 @@ export const useStoryStore = defineStore("story", () => {
   // UPDATE - Actualizar historia
   const updateStory = async (
     id: string,
-    storyData: Partial<Omit<Story, "id" | "createdAt">>
+    storyData: Partial<Omit<Story, "id" | "createdAt" | "expiresAt" | "order">>
   ) => {
     loading.value = true;
     try {
+      // Crear una copia sin los campos que no se deben actualizar
+      const updateData = { ...storyData };
+
+      // Remover campos que no se deben actualizar (si existen en el tipo completo)
+      delete (updateData as any).views;
+      delete (updateData as any).likes;
+      delete (updateData as any).wants;
+      delete (updateData as any).order;
+
       const { data: updatedStory } = await authClient.models.Story.update({
         id,
-        ...storyData,
+        ...updateData,
         updatedAt: new Date().toISOString(),
       });
 
@@ -281,6 +337,23 @@ export const useStoryStore = defineStore("story", () => {
       console.error("Error getting story by ID:", err);
       return null;
     }
+  };
+
+  const getTimeRemaining = (
+    expiresAt: string
+  ): { hours: number; minutes: number; expired: boolean } => {
+    const now = new Date();
+    const expiration = new Date(expiresAt);
+    const diff = expiration.getTime() - now.getTime();
+
+    if (diff <= 0) {
+      return { hours: 0, minutes: 0, expired: true };
+    }
+
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+    return { hours, minutes, expired: false };
   };
 
   const refreshStoryStats = async (storyId: string) => {
@@ -434,7 +507,7 @@ export const useStoryStore = defineStore("story", () => {
           and: [{ storyID: { eq: storyId } }, { type: { eq: "like" } }],
         },
       });
-      console.log(likes);
+      //console.log(likes);
       return likes
         ? likes
             .map((like) => like.userEmail)
@@ -573,5 +646,7 @@ export const useStoryStore = defineStore("story", () => {
     getUsersWhoWanted,
     syncStoryOrders,
     refreshStoryStats,
+    checkExpiredStories,
+    getTimeRemaining,
   };
 });

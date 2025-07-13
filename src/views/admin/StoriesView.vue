@@ -74,7 +74,8 @@
                             <th>Likes</th>
                             <!-- <th>Wants</th> -->
                             <th>Estado</th>
-                            <th>Orden</th>
+                            <th>Tiempo Restante</th> <!-- NUEVO -->
+                            <!-- <th>Orden</th>-->
                             <th>Fecha</th>
                             <th>Acciones</th>
                         </tr>
@@ -128,7 +129,7 @@
                                     {{ story.active ? 'Activa' : 'Inactiva' }}
                                 </span>
                             </td>
-                            <td>
+                            <!-- <td>
                                 <div class="order-control">
                                     <span class="order-number">{{ story.order || 0 }}</span>
                                     <div class="order-buttons">
@@ -141,6 +142,15 @@
                                             <ChevronDownIcon :size="14" />
                                         </button>
                                     </div>
+                                </div>
+                            </td>-->
+                            <td>
+                                <div class="time-remaining">
+                                    <span v-if="!getTimeRemaining(story.expiresAt).expired"
+                                        :class="['time-text', getTimeRemaining(story.expiresAt).hours <= 2 ? 'urgent' : '']">
+                                        {{ formatTimeRemaining(story.expiresAt) }}
+                                    </span>
+                                    <span v-else class="expired-text">Vencida</span>
                                 </div>
                             </td>
                             <td>
@@ -236,11 +246,11 @@
                             {{ selectedImageFile ? 'Cambiar imagen' : 'Seleccionar imagen' }}
                         </label>
 
-                        <!-- Advertencia sobre cambio de imagen -->
+                        <!-- Advertencia sobre cambio de imagen 
                         <div v-if="editingId && selectedImageFile" class="warning-message">
                             <AlertTriangleIcon :size="16" />
                             <span>⚠️ Al cambiar la imagen se reiniciarán los contadores de vistas y likes</span>
-                        </div>
+                        </div>-->
 
                         <div v-if="imagePreview" class="media-preview">
                             <img :src="imagePreview" alt="Vista previa" class="preview-image" />
@@ -336,6 +346,8 @@ import Modal from '@/components/Modal.vue'
 import { uploadData, getUrl, remove } from 'aws-amplify/storage'
 import { useToast } from '@/composables/useToast'
 import StoryPreviewModal from '@/components/StoryPreviewModal.vue'
+import { useStoryStore } from '@/stores/story'
+const storyStore = useStoryStore()
 
 // Composables
 const { stories, loading, error, loadStories, createStory, updateStory, deleteStory, refreshStoryStats } = useStories()
@@ -364,7 +376,7 @@ const initialFormData = {
     productID: '',
     externalLink: '',
     duration: 10,
-    order: 0,
+    //order: 0,
     active: true
 }
 
@@ -491,6 +503,20 @@ const clearAudio = () => {
     if (input) input.value = ''
 }
 
+const getTimeRemaining = (expiresAt: string) => {
+    return storyStore.getTimeRemaining(expiresAt)
+}
+
+const formatTimeRemaining = (expiresAt: string): string => {
+    const { hours, minutes, expired } = getTimeRemaining(expiresAt)
+    if (expired) return 'Vencida'
+
+    if (hours > 0) {
+        return `${hours}h ${minutes}m`
+    }
+    return `${minutes}m`
+}
+
 // Métodos CRUD
 const handleSubmit = async () => {
     if (!isFormValid.value) return
@@ -500,7 +526,7 @@ const handleSubmit = async () => {
 
         let imageUrl = ''
         let audioUrl = ''
-        let shouldResetCounters = false
+        //let shouldResetCounters = false
 
         // Subir imagen si hay una nueva
         if (selectedImageFile.value) {
@@ -513,7 +539,7 @@ const handleSubmit = async () => {
                 }
             }).result
             imageUrl = imagePath
-            shouldResetCounters = !!editingId.value // Solo resetear si es edición
+            //shouldResetCounters = !!editingId.value // Solo resetear si es edición
         }
 
         // Subir audio si hay uno nuevo
@@ -537,22 +563,26 @@ const handleSubmit = async () => {
                 productID: formData.value.productID || undefined,
                 externalLink: formData.value.externalLink || undefined,
                 duration: formData.value.duration,
-                order: formData.value.order,
+                //order: formData.value.order,
                 active: formData.value.active,
                 imageUrl: imageUrl || undefined,
                 audioUrl: audioUrl || undefined,
             }
 
             // Solo incluir contadores si se van a resetear
-            if (shouldResetCounters) {
+            /*if (shouldResetCounters) {
                 updateData.views = 0
                 updateData.likes = 0
                 updateData.wants = 0
-            }
+            }*/
 
             await updateStory(editingId.value, updateData)
+            showToast({
+                type: 'success',
+                message: 'Historia actualizada con éxito'
+            })
 
-            if (shouldResetCounters) {
+            /*if (shouldResetCounters) {
                 showToast({
                     type: 'info',
                     message: 'Historia actualizada. Los contadores se han reiniciado por el cambio de imagen.'
@@ -562,7 +592,7 @@ const handleSubmit = async () => {
                     type: 'success',
                     message: 'Historia actualizada con éxito'
                 })
-            }
+            }*/
         } else {
             // Para creaciones, siempre usar valores por defecto
             const storyData = {
@@ -571,7 +601,7 @@ const handleSubmit = async () => {
                 productID: formData.value.productID || undefined,
                 externalLink: formData.value.externalLink || undefined,
                 duration: formData.value.duration,
-                order: formData.value.order,
+                //order: formData.value.order,
                 active: formData.value.active,
                 imageUrl: imageUrl || '',
                 audioUrl: audioUrl || '',
@@ -606,7 +636,7 @@ const handleEdit = async (story: Story) => {
         productID: story.productID || '',
         externalLink: story.externalLink || '',
         duration: story.duration,
-        order: story.order,
+        //order: story.order,
         active: story.active
     }
 
@@ -1570,6 +1600,35 @@ watch(stories, loadStoryImages, { immediate: true })
         width: calc(100% + 2rem);
         border-radius: 0;
     }
+}
+
+.time-remaining {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.time-text {
+    font-weight: 600;
+    color: #0f172a;
+    font-size: 0.875rem;
+}
+
+.time-text.urgent {
+    color: #dc2626;
+    background: #fee2e2;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+}
+
+.expired-text {
+    font-size: 0.75rem;
+    color: #991b1b;
+    background: #fee2e2;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    font-weight: 500;
 }
 
 .warning-message {

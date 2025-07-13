@@ -104,91 +104,108 @@
                 </div>
 
                 <!-- Story Details Panel -->
-                <div class="flex flex-col gap-4 md:gap-6 overflow-y-auto">
-                    <!-- Información General -->
-                    <div class="space-y-3">
-                        <h4 class="text-base font-semibold text-gray-900 border-b border-gray-200 pb-2">Información
-                            General</h4>
-                        <div class="grid grid-cols-2 gap-3">
-                            <div class="space-y-1">
-                                <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">ID</span>
-                                <span class="block text-sm font-medium text-gray-900">{{ story.id.slice(-8)
-                                }}</span>
-                            </div>
-                            <div class="space-y-1">
-                                <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Duración</span>
-                                <span class="block text-sm font-medium text-gray-900">{{ story.duration }}s</span>
-                            </div>
-                            <div class="space-y-1">
-                                <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Orden</span>
-                                <span class="block text-sm font-medium text-gray-900">{{ story.order }}</span>
-                            </div>
-                            <div class="space-y-1">
-                                <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Estado</span>
-                                <span
-                                    :class="['inline-flex items-center px-2 py-1 rounded-full text-xs font-medium', story.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800']">
-                                    {{ story.active ? 'Activa' : 'Inactiva' }}
-                                </span>
-                            </div>
+                <div class="space-y-3">
+                    <h4 class="text-base font-semibold text-gray-900 border-b border-gray-200 pb-2">Información General
+                    </h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="space-y-1">
+                            <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">ID</span>
+                            <span class="block text-sm font-medium text-gray-900">{{ story.id.slice(-8) }}</span>
+                        </div>
+                        <div class="space-y-1">
+                            <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Duración</span>
+                            <span class="block text-sm font-medium text-gray-900">{{ story.duration }}s</span>
+                        </div>
+                        <div class="space-y-1">
+                            <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Tiempo
+                                Restante</span>
+                            <span v-if="!getTimeRemaining(story.expiresAt).expired"
+                                :class="['block text-sm font-medium', getTimeRemaining(story.expiresAt).hours <= 2 ? 'text-red-600' : 'text-gray-900']">
+                                {{ formatTimeRemaining(story.expiresAt) }}
+                            </span>
+                            <span v-else class="block text-sm font-medium text-red-600">Vencida</span>
+                        </div>
+                        <!-- <div class="space-y-1">
+                            <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Orden</span>
+                            <span class="block text-sm font-medium text-gray-900">{{ story.order }}</span>
+                        </div>-->
+                        <div class="space-y-1">
+                            <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Estado</span>
+                            <span :class="['inline-flex items-center px-2 py-1 rounded-full text-xs font-medium',
+                                story.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800']">
+                                {{ story.active ? 'Activa' : 'Inactiva' }}
+                            </span>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Producto Relacionado -->
-                    <div v-if="story.product" class="space-y-3">
-                        <h4 class="text-base font-semibold text-gray-900 border-b border-gray-200 pb-2">Producto
-                            Relacionado</h4>
-                        <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <img :src="productImageUrl || '/api/placeholder/60/60'" :alt="story.product.name"
-                                class="w-16 h-16 object-cover rounded-lg border border-gray-200 flex-shrink-0" />
-                            <div class="space-y-1 min-w-0 flex-1">
-                                <span class="block text-sm font-medium text-gray-900 truncate">{{ story.product.name
-                                }}</span>
-                                <span class="block text-sm font-semibold text-green-600">S/{{
-                                    story.product.price?.toFixed(2) }}</span>
-                            </div>
+                <div class="space-y-3">
+                    <h4 class="text-base font-semibold text-gray-900 border-b border-gray-200 pb-2">Información de
+                        Vencimiento</h4>
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                            <span class="text-sm text-gray-700">Creada: {{ formatDateTime(story.createdAt) }}</span>
+                        </div>
+                        <div class="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                            <span class="text-sm text-gray-700">Vence: {{ formatDateTime(story.expiresAt) }}</span>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Estadísticas -->
-                    <div class="space-y-3">
-                        <h4 class="text-base font-semibold text-gray-900 border-b border-gray-200 pb-2">Estadísticas
-                        </h4>
-                        <div class="grid grid-cols-3 gap-3">
-                            <div
-                                class="flex flex-col items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                                <EyeIcon :size="16" class="text-blue-600" />
-                                <span class="text-xs font-medium text-gray-600 uppercase tracking-wide">Vistas</span>
-                                <span class="text-lg font-semibold text-gray-900">{{ story.views || 0 }}</span>
-                            </div>
-                            <div
-                                class="flex flex-col items-center gap-2 p-3 bg-red-50 rounded-lg border border-red-200">
-                                <HeartIcon :size="16" class="text-red-600" />
-                                <span class="text-xs font-medium text-gray-600 uppercase tracking-wide">Likes</span>
-                                <span class="text-lg font-semibold text-gray-900">{{ story.likes || 0 }}</span>
-                            </div>
-                            <!-- <div
+                <!-- Producto Relacionado -->
+                <div v-if="story.product" class="space-y-3">
+                    <h4 class="text-base font-semibold text-gray-900 border-b border-gray-200 pb-2">Producto
+                        Relacionado</h4>
+                    <div class="flex items-center gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <img :src="productImageUrl || '/api/placeholder/60/60'" :alt="story.product.name"
+                            class="w-16 h-16 object-cover rounded-lg border border-gray-200 flex-shrink-0" />
+                        <div class="space-y-1 min-w-0 flex-1">
+                            <span class="block text-sm font-medium text-gray-900 truncate">{{ story.product.name
+                            }}</span>
+                            <span class="block text-sm font-semibold text-green-600">S/{{
+                                story.product.price?.toFixed(2) }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Estadísticas -->
+                <div class="space-y-3">
+                    <h4 class="text-base font-semibold text-gray-900 border-b border-gray-200 pb-2">Estadísticas
+                    </h4>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="flex flex-col items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                            <EyeIcon :size="16" class="text-blue-600" />
+                            <span class="text-xs font-medium text-gray-600 uppercase tracking-wide">Vistas</span>
+                            <span class="text-lg font-semibold text-gray-900">{{ story.views || 0 }}</span>
+                        </div>
+                        <div class="flex flex-col items-center gap-2 p-3 bg-red-50 rounded-lg border border-red-200">
+                            <HeartIcon :size="16" class="text-red-600" />
+                            <span class="text-xs font-medium text-gray-600 uppercase tracking-wide">Likes</span>
+                            <span class="text-lg font-semibold text-gray-900">{{ story.likes || 0 }}</span>
+                        </div>
+                        <!-- <div
                                 class="flex flex-col items-center gap-2 p-3 bg-green-50 rounded-lg border border-green-200">
                                 <ShoppingBagIcon :size="16" class="text-green-600" />
                                 <span class="text-xs font-medium text-gray-600 uppercase tracking-wide">Wants</span>
                                 <span class="text-lg font-semibold text-gray-900">{{ story.wants || 0 }}</span>
                             </div>-->
+                    </div>
+                </div>
+
+                <div v-if="usersWhoLiked.length > 0 && (story.likes || 0) > 0" class="space-y-3">
+                    <h4 class="text-base font-semibold text-gray-900 border-b border-gray-200 pb-2">
+                        Usuarios que dieron Like
+                    </h4>
+                    <div class="space-y-2 max-h-32 overflow-y-auto">
+                        <div v-for="userEmail in usersWhoLiked" :key="userEmail"
+                            class="flex items-center gap-2 p-2 bg-red-50 rounded-lg">
+                            <HeartIcon :size="14" class="text-red-600" />
+                            <span class="text-sm text-gray-700">{{ userEmail }}</span>
                         </div>
                     </div>
+                </div>
 
-                    <div v-if="usersWhoLiked.length > 0 && (story.likes || 0) > 0" class="space-y-3">
-                        <h4 class="text-base font-semibold text-gray-900 border-b border-gray-200 pb-2">
-                            Usuarios que dieron Like
-                        </h4>
-                        <div class="space-y-2 max-h-32 overflow-y-auto">
-                            <div v-for="userEmail in usersWhoLiked" :key="userEmail"
-                                class="flex items-center gap-2 p-2 bg-red-50 rounded-lg">
-                                <HeartIcon :size="14" class="text-red-600" />
-                                <span class="text-sm text-gray-700">{{ userEmail }}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- <div v-if="usersWhoWanted.length > 0 && (story.wants || 0) > 0" class="space-y-3">
+                <!-- <div v-if="usersWhoWanted.length > 0 && (story.wants || 0) > 0" class="space-y-3">
                         <h4 class="text-base font-semibold text-gray-900 border-b border-gray-200 pb-2">
                             Usuarios que Guardaron
                         </h4>
@@ -201,7 +218,7 @@
                         </div>
                     </div>-->
 
-                    <!-- Archivos Multimedia 
+                <!-- Archivos Multimedia 
                     <div class="space-y-3">
                         <h4 class="text-base font-semibold text-gray-900 border-b border-gray-200 pb-2">Archivos
                             Multimedia</h4>
@@ -217,17 +234,16 @@
                         </div>
                     </div>-->
 
-                    <!-- Enlace Externo -->
-                    <div v-if="story.externalLink" class="space-y-3">
-                        <h4 class="text-base font-semibold text-gray-900 border-b border-gray-200 pb-2">Enlace
-                            Externo
-                        </h4>
-                        <a :href="story.externalLink" target="_blank"
-                            class="inline-flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200 text-blue-600 text-sm hover:bg-blue-100 hover:underline transition-all max-w-full">
-                            <span class="truncate">{{ truncateUrl(story.externalLink) }}</span>
-                            <ExternalLinkIcon :size="14" class="flex-shrink-0" />
-                        </a>
-                    </div>
+                <!-- Enlace Externo -->
+                <div v-if="story.externalLink" class="space-y-3">
+                    <h4 class="text-base font-semibold text-gray-900 border-b border-gray-200 pb-2">Enlace
+                        Externo
+                    </h4>
+                    <a :href="story.externalLink" target="_blank"
+                        class="inline-flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200 text-blue-600 text-sm hover:bg-blue-100 hover:underline transition-all max-w-full">
+                        <span class="truncate">{{ truncateUrl(story.externalLink) }}</span>
+                        <ExternalLinkIcon :size="14" class="flex-shrink-0" />
+                    </a>
                 </div>
             </div>
         </div>
@@ -251,8 +267,10 @@ import {
     ImageIcon
 } from 'lucide-vue-next'
 import type { Story } from '@/types/story.types'
+import { useStoryStore } from '@/stores/story'
 
 const { getUsersWhoLiked, getUsersWhoWanted } = useStories()
+const storyStore = useStoryStore()
 
 // Props
 interface Props {
@@ -284,6 +302,30 @@ const audioElement = ref<HTMLAudioElement>()
 let progressTimer: NodeJS.Timeout | null = null
 
 // Métodos
+const getTimeRemaining = (expiresAt: string) => {
+    return storyStore.getTimeRemaining(expiresAt)
+}
+
+const formatTimeRemaining = (expiresAt: string): string => {
+    const { hours, minutes, expired } = getTimeRemaining(expiresAt)
+    if (expired) return 'Vencida'
+
+    if (hours > 0) {
+        return `${hours}h ${minutes}m`
+    }
+    return `${minutes}m`
+}
+
+const formatDateTime = (dateStr: string): string => {
+    return new Date(dateStr).toLocaleString('es-PE', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    })
+}
+
 const loadStoryAssets = async () => {
     loadingAssets.value = true
 

@@ -316,7 +316,8 @@ const startStoryPlayback = async () => {
                 await audioElement.value.play()
             }
         } catch (error) {
-            console.log('Autoplay bloqueado, esperando interacción del usuario')
+            //console.log('Autoplay bloqueado, esperando interacción del usuario')
+            console.log('Autoplay blocked')
         }
     }
 
@@ -359,7 +360,7 @@ const togglePlayback = async () => {
             try {
                 await audioElement.value.play()
             } catch (error) {
-                console.log('Error reproduciendo audio:', error)
+                console.log('Error audio:', error)
             }
         }
         startStoryPlayback()

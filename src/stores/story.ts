@@ -625,6 +625,59 @@ export const useStoryStore = defineStore("story", () => {
     }
   };
 
+  const forceExpireStory = async (storyId: string) => {
+    try {
+      //console.log("🧪 Intentando forzar vencimiento para historia:", storyId);
+
+      const pastDate = new Date(Date.now() - 1000 * 60 * 60); // 1 hora atrás
+      //console.log("🧪 Fecha de vencimiento forzada:", pastDate.toISOString());
+
+      const { data: updatedStory } = await authClient.models.Story.update({
+        id: storyId,
+        expiresAt: pastDate.toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      //console.log("🧪 Historia actualizada:", updatedStory);
+
+      // Verificar historias vencidas inmediatamente
+      await checkExpiredStories();
+
+      // Recargar historias
+      await fetchStories();
+
+      //console.log("🧪 Vencimiento forzado exitosamente");
+    } catch (error) {
+      console.error("🧪 Error detallado en forceExpireStory:", error);
+      throw error; // Re-lanzar el error para que se muestre en el toast
+    }
+  };
+
+  // TEMPORAL: Función para restaurar tiempo normal (24h desde ahora)
+  const resetStoryExpiration = async (storyId: string) => {
+    try {
+      //console.log("🧪 Intentando restaurar historia:", storyId);
+
+      const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h desde ahora
+      //console.log("🧪 Nueva fecha de vencimiento:", futureDate.toISOString());
+
+      const { data: updatedStory } = await authClient.models.Story.update({
+        id: storyId,
+        expiresAt: futureDate.toISOString(),
+        active: true, // Asegurar que esté activa
+        updatedAt: new Date().toISOString(),
+      });
+
+      //console.log("🧪 Historia restaurada:", updatedStory);
+
+      await fetchStories();
+      //console.log("🧪 Restauración exitosa");
+    } catch (error) {
+      console.error("🧪 Error detallado en resetStoryExpiration:", error);
+      throw error;
+    }
+  };
+
   return {
     stories,
     currentStory,
@@ -648,5 +701,7 @@ export const useStoryStore = defineStore("story", () => {
     refreshStoryStats,
     checkExpiredStories,
     getTimeRemaining,
+    forceExpireStory, // TEMPORAL - VERIFICAR QUE ESTÉ AQUÍ
+    resetStoryExpiration, // TEMPORAL - VERIFICAR QUE ESTÉ AQUÍ
   };
 });

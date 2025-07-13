@@ -173,6 +173,15 @@
                                         <ToggleRightIcon v-if="story.active" :size="18" />
                                         <ToggleLeftIcon v-else :size="18" />
                                     </button> -->
+                                    <button v-if="!getTimeRemaining(story.expiresAt).expired"
+                                        @click="forceExpire(story.id)" class="icon-button test-expire"
+                                        title="🧪 Forzar vencimiento (TEST)" :disabled="!story.id">
+                                        ⏰
+                                    </button>
+                                    <button v-else @click="resetExpiration(story.id)" class="icon-button test-reset"
+                                        title="🧪 Restaurar 24h (TEST)" :disabled="!story.id">
+                                        🔄
+                                    </button>
                                     <button class="icon-button delete" @click="handleDelete(story.id)" title="Eliminar">
                                         <Trash2Icon :size="16" />
                                     </button>
@@ -350,7 +359,7 @@ import { useStoryStore } from '@/stores/story'
 const storyStore = useStoryStore()
 
 // Composables
-const { stories, loading, error, loadStories, createStory, updateStory, deleteStory, refreshStoryStats } = useStories()
+const { stories, loading, error, loadStories, createStory, updateStory, deleteStory, refreshStoryStats, forceExpireStory, resetStoryExpiration } = useStories()
 const { allProductsWeb: availableProducts, loadAllProductsWeb } = useProducts()
 const { showToast } = useToast()
 
@@ -412,6 +421,58 @@ const storyStats = computed(() => {
 
     return stats
 })
+
+const forceExpire = async (storyId: string) => {
+    if (confirm('🧪 TESTING: ¿Forzar vencimiento de esta historia?')) {
+        try {
+            //console.log('🧪 Vista: Iniciando forzar vencimiento para:', storyId);
+
+            // Verificar que la función existe
+            if (!forceExpireStory) {
+                throw new Error('Función forceExpireStory no está disponible');
+            }
+
+            await forceExpireStory(storyId);
+
+            showToast({
+                type: 'info',
+                message: '🧪 Historia forzada a vencer para testing'
+            });
+        } catch (error) {
+            console.error('🧪 Error completo en vista:', error);
+            showToast({
+                type: 'error',
+                message: `Error al forzar vencimiento: ${error instanceof Error ? error.message : 'Error desconocido'}`
+            });
+        }
+    }
+};
+
+const resetExpiration = async (storyId: string) => {
+    if (confirm('🧪 TESTING: ¿Restaurar historia a 24h?')) {
+        try {
+            //console.log('🧪 Vista: Iniciando restauración para:', storyId);
+
+            // Verificar que la función existe
+            if (!resetStoryExpiration) {
+                throw new Error('Función resetStoryExpiration no está disponible');
+            }
+
+            await resetStoryExpiration(storyId);
+
+            showToast({
+                type: 'success',
+                message: '🧪 Historia restaurada a 24h'
+            });
+        } catch (error) {
+            console.error('🧪 Error completo en vista:', error);
+            showToast({
+                type: 'error',
+                message: `Error al restaurar historia: ${error instanceof Error ? error.message : 'Error desconocido'}`
+            });
+        }
+    }
+};
 
 // Reemplaza el computed isFormValid
 const isFormValid = computed(() => {
@@ -1647,5 +1708,25 @@ watch(stories, loadStoryImages, { immediate: true })
 .warning-message svg {
     color: #f59e0b;
     flex-shrink: 0;
+}
+
+.icon-button.test-expire {
+    background: #fef3c7;
+    color: #d97706;
+    font-size: 14px;
+}
+
+.icon-button.test-expire:hover {
+    background: #fde68a;
+}
+
+.icon-button.test-reset {
+    background: #dcfce7;
+    color: #16a34a;
+    font-size: 14px;
+}
+
+.icon-button.test-reset:hover {
+    background: #bbf7d0;
 }
 </style>

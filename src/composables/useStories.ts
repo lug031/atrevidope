@@ -75,7 +75,8 @@ export function useStories() {
 
   const shareStory = async (story: Story) => {
     const shareData = {
-      text: `MIRA ESTA HISTORIA EN ATREVIDOPE.COM`,
+      title: story.title,
+      text: `SOLO EN ATREVIDO!`,
       url: generateStoryLink(story.id),
     };
 
@@ -83,11 +84,11 @@ export function useStories() {
       try {
         await navigator.share(shareData);
       } catch (error) {
-        const shareText = `MIRA ESTA HISTORIA EN ATREVIDOPE.COM\n\n${shareData.url}`;
+        const shareText = `${shareData.title}\n\nSOLO EN ATREVIDO!\n\n${shareData.url}`;
         await navigator.clipboard.writeText(shareText);
       }
     } else {
-      const shareText = `MIRA ESTA HISTORIA EN ATREVIDOPE.COM\n\n${shareData.url}`;
+      const shareText = `${shareData.title}\n\nSOLO EN ATREVIDO!\n\n${shareData.url}`;
       await navigator.clipboard.writeText(shareText);
     }
   };
@@ -125,6 +126,16 @@ export function useStories() {
     await storyStore.checkExpiredStories();
   };
 
+  const forceExpireStory = async (storyId: string) => {
+    //console.log("🧪 Composable: Intentando forzar vencimiento");
+    return await storyStore.forceExpireStory(storyId);
+  };
+
+  const resetStoryExpiration = async (storyId: string) => {
+    //console.log("🧪 Composable: Intentando restaurar historia");
+    return await storyStore.resetStoryExpiration(storyId);
+  };
+
   return {
     stories,
     currentStory,
@@ -155,5 +166,7 @@ export function useStories() {
     // Time management
     getTimeRemaining, // NUEVO
     checkExpiredStories, // NUEVO
+    forceExpireStory, // TEMPORAL - VERIFICAR QUE ESTÉ AQUÍ
+    resetStoryExpiration, // TEMPORAL - VERIFICAR QUE ESTÉ AQUÍ
   };
 }

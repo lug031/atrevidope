@@ -4,20 +4,22 @@
         <div class="stories-modal-content" @click.stop>
             <!-- Solo la lista de historias, sin header -->
             <div class="modal-body">
-                <StoriesList @story-selected="openStoryViewer" />
+                <!-- MODIFICADO: Agregar listener para el evento close -->
+                <StoriesList @story-selected="openStoryViewer" @close="closeModal" />
             </div>
         </div>
     </div>
 
     <!-- Story Viewer Modal (superpuesto) -->
     <div v-if="activeStory" class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[2000]">
-        <!-- Navegación externa -->
-        <button v-if="currentIndex > 0" @click.stop="previousStory"
+        <!-- Navegación externa - solo mostrar si NO está vencida -->
+        <button v-if="!isStoryExpired && stories.length > 0 && currentIndex > 0" @click.stop="previousStory"
             class="absolute left-4 top-1/2 transform -translate-y-1/2 w-14 h-14 flex items-center justify-center bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-30 transition-all backdrop-blur-sm z-[2050]"
             style="margin-left: calc(50vw - 280px);">
             <ChevronLeftIcon :size="28" />
         </button>
-        <button v-if="currentIndex < stories.length - 1" @click.stop="nextStory"
+        <button v-if="!isStoryExpired && stories.length > 0 && currentIndex < stories.length - 1 && currentIndex >= 0"
+            @click.stop="nextStory"
             class="absolute right-4 top-1/2 transform -translate-y-1/2 w-14 h-14 flex items-center justify-center bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-30 transition-all backdrop-blur-sm z-[2050]"
             style="margin-right: calc(50vw - 280px);">
             <ChevronRightIcon :size="28" />
@@ -29,7 +31,8 @@
         <!-- Story Container -->
         <div class="relative w-full max-w-sm h-screen max-h-[650px] bg-gray-900 rounded-xl overflow-hidden flex flex-col z-[2020]"
             @click.stop>
-            <!-- Story Viewer Content -->
+
+            <!-- LOADING SKELETON -->
             <div v-if="isStoryLoading" class="absolute inset-0 bg-gray-900 z-40 flex flex-col">
                 <!-- Loading skeleton content -->
                 <div class="absolute top-3 left-3 right-3 z-20">
@@ -49,7 +52,7 @@
                 <div class="flex-1 relative bg-black flex items-center justify-center min-h-0">
                     <div class="w-64 h-80 bg-gray-700 rounded-lg animate-pulse"></div>
                 </div>
-                <div class="relative z-20 bg-gradient-to-t from-black via-black/90 to-transparent p-4 space-y-4">
+                <div class="relative z-20 bg-gradient-to-t from-black via-black/80 to-transparent p-4 space-y-4">
                     <div class="space-y-2">
                         <div class="h-4 w-full bg-gray-700 rounded animate-pulse"></div>
                         <div class="h-4 w-3/4 bg-gray-700 rounded animate-pulse"></div>
@@ -71,8 +74,72 @@
                 </div>
             </div>
 
-            <!-- Story Content -->
-            <div v-show="!isStoryLoading" class="h-full flex flex-col">
+            <!-- HISTORIA VENCIDA - Estilo skeleton con mensaje -->
+            <div v-if="isStoryExpired" class="absolute inset-0 bg-gray-900 z-50 flex flex-col">
+                <!-- Header skeleton -->
+                <div class="absolute top-3 left-3 right-3 z-20">
+                    <div class="w-full h-1 bg-gray-700 rounded-full"></div>
+                </div>
+                <div class="relative z-20 flex justify-between items-center p-6">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-gray-700"></div>
+                        <div class="h-4 w-24 bg-gray-700 rounded"></div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button @click="closeStoryViewer"
+                            class="w-8 h-8 flex items-center justify-center bg-white bg-opacity-20 rounded-full text-white hover:bg-opacity-30 transition-all">
+                            <XIcon :size="16" />
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Main content with message -->
+                <div class="flex-1 relative bg-black flex flex-col items-center justify-center min-h-0 p-8">
+                    <!-- Icon -->
+                    <div class="w-20 h-20 rounded-full bg-gray-800 flex items-center justify-center mb-6">
+                        <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+
+                    <!-- Message -->
+                    <div class="text-center space-y-3">
+                        <h3 class="text-white text-lg font-semibold">Esta historia ya no está disponible</h3>
+                    </div>
+
+                    <!-- Action button -->
+                    <button @click="closeStoryViewer"
+                        class="mt-8 px-6 py-3 bg-white bg-opacity-10 text-white rounded-full font-medium hover:bg-opacity-20 transition-all">
+                        Ver historias disponibles
+                    </button>
+                </div>
+
+                <!-- Footer skeleton -->
+                <div class="relative z-20 bg-gradient-to-t from-black via-black/90 to-transparent p-4 space-y-4">
+                    <div class="space-y-2">
+                        <div class="h-4 w-full bg-gray-700 rounded"></div>
+                        <div class="h-4 w-3/4 bg-gray-700 rounded"></div>
+                    </div>
+                    <div class="flex items-center justify-center gap-6">
+                        <div class="flex flex-col items-center gap-1">
+                            <div class="w-6 h-6 bg-gray-700 rounded"></div>
+                            <div class="h-3 w-12 bg-gray-700 rounded"></div>
+                        </div>
+                        <div class="flex flex-col items-center gap-1">
+                            <div class="w-6 h-6 bg-gray-700 rounded"></div>
+                            <div class="h-3 w-12 bg-gray-700 rounded"></div>
+                        </div>
+                        <div class="flex flex-col items-center gap-1">
+                            <div class="w-6 h-6 bg-gray-700 rounded"></div>
+                            <div class="h-3 w-12 bg-gray-700 rounded"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HISTORIA NORMAL - Solo mostrar si NO está cargando Y NO está vencida -->
+            <div v-else-if="!isStoryLoading && !isStoryExpired" class="h-full flex flex-col">
                 <!-- Progress bar -->
                 <div class="absolute top-3 left-3 right-3 z-[2030]">
                     <div class="w-full h-1 bg-white bg-opacity-30 rounded-full overflow-hidden">
@@ -204,7 +271,8 @@ const {
     viewStory,
     likeStory,
     checkIfUserLiked,
-    shareStory
+    shareStory,
+    getTimeRemaining
 } = useStories()
 
 const {
@@ -225,6 +293,7 @@ const isMuted = ref(false)
 const isLiked = ref(false)
 const isStoryLoading = ref(false)
 const storyAudios = ref<Record<string, string>>({})
+const isStoryExpired = ref(false)
 
 let progressTimer: NodeJS.Timeout | null = null
 let isNavigating = ref(false)
@@ -239,10 +308,37 @@ const openStoryViewer = async (story: Story) => {
 
     isNavigating.value = true
     isStoryLoading.value = true
+    isStoryExpired.value = false
     activeStory.value = story
-    currentIndex.value = stories.value.findIndex(s => s.id === story.id)
+
+    // Solo buscar index si hay historias en la lista
+    if (stories.value.length > 0) {
+        currentIndex.value = stories.value.findIndex(s => s.id === story.id)
+    } else {
+        currentIndex.value = -1 // Indica que no está en la lista actual
+    }
 
     try {
+        // Simular tiempo de carga del skeleton
+        await new Promise(resolve => setTimeout(resolve, 800))
+
+        // Verificar si la historia está vencida DESPUÉS del skeleton
+        const { expired } = getTimeRemaining(story.expiresAt)
+
+        if (expired) {
+            // Si está vencida, mostrar mensaje
+            isStoryExpired.value = true
+            isStoryLoading.value = false
+            isNavigating.value = false
+
+            // Actualizar URL
+            if (route.query.story !== story.id) {
+                await router.replace({ query: { ...route.query, story: story.id } })
+            }
+            return
+        }
+
+        // Resto del código para historias válidas...
         const loadPromises = []
 
         const userEmail = authStore.userEmail
@@ -258,26 +354,20 @@ const openStoryViewer = async (story: Story) => {
             viewStory(story.id, "anonymous")
         }
 
-        loadPromises.push(preloadAdjacentStories(stories.value, currentIndex.value))
+        // Solo precargar historias adyacentes si hay historias en la lista
+        if (stories.value.length > 0 && currentIndex.value >= 0) {
+            loadPromises.push(preloadAdjacentStories(stories.value, currentIndex.value))
+        }
 
         if (story.imageUrl) {
             loadPromises.push(getStoryImageUrl(story.id, story.imageUrl))
         }
 
         await Promise.all(loadPromises)
-        await new Promise(resolve => setTimeout(resolve, 200))
 
         if (activeStory.value && activeStory.value.id === story.id) {
             if (route.query.story !== story.id) {
                 await router.replace({ query: { ...route.query, story: story.id } })
-            }
-
-            // Si viene de un link compartido, mostrar mensaje para activar audio
-            if (route.query.story && !hasUserInteracted.value) {
-                /*showToast({
-                    type: 'info',
-                    message: 'Toca para activar el audio'
-                })*/
             }
 
             startStoryPlayback()
@@ -390,7 +480,8 @@ const onStoryEnd = async () => {
 }
 
 const nextStory = async () => {
-    if (isNavigating.value || currentIndex.value >= stories.value.length - 1) return
+    // Solo navegar si hay historias en la lista y no estamos en la última
+    if (isNavigating.value || stories.value.length === 0 || currentIndex.value < 0 || currentIndex.value >= stories.value.length - 1) return
 
     stopStoryPlayback()
     const nextStoryData = stories.value[currentIndex.value + 1]
@@ -398,7 +489,8 @@ const nextStory = async () => {
 }
 
 const previousStory = async () => {
-    if (isNavigating.value || currentIndex.value <= 0) return
+    // Solo navegar si hay historias en la lista y no estamos en la primera
+    if (isNavigating.value || stories.value.length === 0 || currentIndex.value <= 0) return
 
     stopStoryPlayback()
     const prevStoryData = stories.value[currentIndex.value - 1]
@@ -516,11 +608,56 @@ const handleStoryFromUrl = async () => {
     if (isNavigating.value) return
 
     const storyId = route.query.story as string
-    if (storyId && stories.value.length > 0) {
-        const story = stories.value.find(s => s.id === storyId)
-        if (story && (!activeStory.value || activeStory.value.id !== storyId)) {
-            await openStoryViewer(story)
+    if (storyId) {
+        // Si hay historias cargadas, buscar normalmente
+        if (stories.value.length > 0) {
+            const story = stories.value.find(s => s.id === storyId)
+            if (story && (!activeStory.value || activeStory.value.id !== storyId)) {
+                await openStoryViewer(story)
+            } else if (!story) {
+                // Historia no encontrada en historias activas, buscar en todas
+                await checkExpiredStoryFromUrl(storyId)
+            }
+        } else {
+            // Si no hay historias cargadas, intentar buscar la historia específica
+            await checkExpiredStoryFromUrl(storyId)
         }
+    }
+}
+
+const checkExpiredStoryFromUrl = async (storyId: string) => {
+    try {
+        // Usar la función del composable para obtener historia por ID
+        const { getStoryById } = useStories()
+        const story = await getStoryById(storyId)
+
+        if (story) {
+            // Verificar si está vencida
+            const { expired } = getTimeRemaining(story.expiresAt)
+
+            if (expired) {
+                // Mostrar la historia vencida directamente
+                isNavigating.value = true
+                isStoryLoading.value = true
+                isStoryExpired.value = false
+                activeStory.value = story
+                currentIndex.value = -1 // No está en la lista actual
+
+                // Simular carga y luego mostrar mensaje de vencida
+                await new Promise(resolve => setTimeout(resolve, 800))
+
+                isStoryExpired.value = true
+                isStoryLoading.value = false
+                isNavigating.value = false
+            } else {
+                // Opcionalmente mostrarla de todos modos o redirigir
+                await openStoryViewer(story)
+            }
+        } else {
+            // Historia no existe, redirigir o mostrar error
+        }
+    } catch (error) {
+        console.error('Error checking expired story:', error)
     }
 }
 

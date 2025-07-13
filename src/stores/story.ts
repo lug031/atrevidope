@@ -301,7 +301,7 @@ export const useStoryStore = defineStore("story", () => {
   // GET BY ID - Obtener historia por ID
   const getStoryById = async (storyId: string): Promise<Story | null> => {
     try {
-      const { data: story } = await publicClient.models.Story.get({
+      const { data: story } = await authClient.models.Story.get({
         id: storyId,
       });
 
@@ -327,12 +327,13 @@ export const useStoryStore = defineStore("story", () => {
         }
       }
 
-      currentStory.value = {
+      const fullStory = {
         ...story,
         product: productInfo,
       } as Story;
 
-      return currentStory.value;
+      currentStory.value = fullStory;
+      return fullStory;
     } catch (err) {
       console.error("Error getting story by ID:", err);
       return null;

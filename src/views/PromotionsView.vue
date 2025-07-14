@@ -18,57 +18,47 @@
             </div>
 
             <div v-else class="products-grid">
-                <div v-for="product in activePromotionsWithDates" :key="product.id" class="product-card">
+                <div v-for="product in processedPromotions" :key="product.id" class="product-card">
                     <router-link :to="{
                         name: 'ProductDetail',
                         params: { id: product.id },
                         state: { fromPromotions: true }
                     }" class="product-content">
-                        <!-- Badge de promoción activa -->
+                        <!-- Badge de promoción activa optimizado -->
                         <div class="active-promotion-badge"
-                            :class="{ 'one-day-promotion': isSingleDayPromotion(product) }">
-                            <span class="promotion-text" v-if="isSingleDayPromotion(product)">¡SOLO POR HOY!</span>
-                            <span class="promotion-text" v-else>¡EN PROMOCIÓN!</span>
-                            <span class="promotion-discount">{{ formatDiscountBadge(product) }}</span>
-                            <span class="promotion-end" v-if="!isSingleDayPromotion(product)">
-                                Hasta {{ formatPromotionDate(product.promotionEndDate) }}
+                            :class="{ 'one-day-promotion': product.isSingleDayPromotion }">
+                            <span class="promotion-text">{{ product.promotionText }}</span>
+                            <span class="promotion-discount">{{ product.formattedDiscountBadge }}</span>
+                            <span class="promotion-end" v-if="product.promotionEndText">
+                                {{ product.promotionEndText }}
                             </span>
                         </div>
 
                         <div class="product-image">
-                            <img :src="imageUrls[product.id] || '/api/placeholder/40/40'" :alt="product.name"
-                                loading="lazy" />
+                            <img :src="product.optimizedImageUrl" :alt="product.name" loading="lazy"
+                                @error="handleImageError" class="product-img" />
                         </div>
 
                         <div class="product-info">
                             <h3 class="brand-name">{{ product.brand }}</h3>
                             <p class="product-name">{{ product.name }}</p>
-                            <div class="formatted-description"
-                                v-html="parseMarkdown(truncateText(product.description, 100))" />
+                            <div class="formatted-description" v-html="product.processedDescription" />
 
-                            <!-- Precios -->
+                            <!-- Precios optimizados -->
                             <div class="price-info has-active-promotion">
-                                <p class="product-price">
-                                    <span class="original-price">S/{{ product.originalPrice.toFixed(2) }}</span>
-                                    <span class="discounted-price">S/{{ calculateDiscountedPrice(product) }}</span>
-                                </p>
+                                <p class="product-price" v-html="product.priceDisplay"></p>
                             </div>
 
-                            <!-- Stock Status -->
-                            <div class="stock-status" :class="{
-                                'out-of-stock': product.stock === 0,
-                                'low-stock': product.stock > 0 && product.stock <= 5
-                            }">
-                                <span v-if="product.stock === 0">Agotado</span>
-                                <span v-else-if="product.stock <= 5">¡Últimas {{ product.stock }} unidades!</span>
-                                <span v-else>Stock disponible</span>
+                            <!-- Stock Status optimizado -->
+                            <div class="stock-status" :class="product.stockClasses">
+                                <span>{{ product.stockMessage }}</span>
                             </div>
                         </div>
                     </router-link>
                 </div>
             </div>
 
-            <div v-if="!loading && !error && activePromotionsWithDates.length === 0" class="empty-state">
+            <div v-if="!loading && !error && processedPromotions.length === 0" class="empty-state">
                 No hay productos en promoción disponibles.
             </div>
         </div>
@@ -76,18 +66,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
 import MainLayout from '@/layouts/MainLayout.vue';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import { usePromotions } from '../composables/usePromotions';
 import type { Product } from '@/types/product.types';
 import { useCartStore } from '@/stores/cart';
 import { useToast } from '../composables/useToast';
-import type { CartItem } from '@/types/cart.types';
-import { useProducts } from '@/composables/useProducts';
-import { uploadData, getUrl } from 'aws-amplify/storage';
+import { useImageCache } from '@/composables/useImageCache';
 
-const imageUrls = ref<Record<string, string>>({});
+// Composables
+const { getCachedImage, preloadImages } = useImageCache();
 const cartStore = useCartStore();
 const { showToast } = useToast();
 const {
@@ -96,63 +85,41 @@ const {
     calculateDiscountedPrice,
     formatPrice,
 } = usePromotions();
+
+// Reactive state
 const loading = ref(true);
 const error = ref<string | null>(null);
 
-const formatDateToSpanish = (dateStr: string): string => {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
+// Memoización para funciones pesadas
+const memoCache = new Map<string, any>();
 
-    return new Intl.DateTimeFormat('es-PE', {
-        day: 'numeric',
-        month: 'long'
-    }).format(date);
+const memoize = <T extends (...args: any[]) => any>(fn: T, keyPrefix: string): T => {
+    return ((...args: any[]) => {
+        const key = `${keyPrefix}_${JSON.stringify(args)}`;
+        if (memoCache.has(key)) {
+            return memoCache.get(key);
+        }
+        const result = fn(...args);
+        memoCache.set(key, result);
+        return result;
+    }) as T;
 };
 
-const formatDiscountBadge = (product: Product): string => {
-    if (!product.discountPercentage) return '';
-
-    // Si el tipo de promoción es 'fixed', mostrar con S/
-    if (product.promotionType === 'fixed') {
-        return `-S/${product.discountPercentage.toFixed(2)}`;
-    } else {
-        // Por defecto usar porcentaje
-        return `-${product.discountPercentage}%`;
-    }
-};
-
-const formatPromotionDate = (dateStr: string | undefined): string => {
-    if (!dateStr) return '';
-
-    const [year, month, day] = dateStr.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-
-    return new Intl.DateTimeFormat('es-PE', {
-        day: 'numeric',
-        month: 'long'
-    }).format(date);
-};
-
-const truncateText = (text: string, maxLength: number = 100): string => {
+// Funciones memoizadas
+const truncateText = memoize((text: string, maxLength: number = 100): string => {
     if (!text) return '';
-
-    // Si el texto es más corto que el máximo, retornarlo completo
     if (text.length <= maxLength) return text;
 
-    // Cortar el texto hasta el máximo
     let truncated = text.slice(0, maxLength);
-
-    // Asegurarse de no cortar a mitad de una palabra
     const lastSpace = truncated.lastIndexOf(' ');
     if (lastSpace > 0) {
         truncated = truncated.slice(0, lastSpace);
     }
 
-    // Asegurarse de no cortar a mitad de un formato markdown
+    // Validar markdown
     const boldCount = (truncated.match(/\*\*/g) || []).length;
     const italicCount = (truncated.match(/\*/g) || []).length;
 
-    // Si hay formatos markdown incompletos, ajustarlos
     if (boldCount % 2 !== 0) {
         truncated = truncated.replace(/\*\*[^*]*$/, '');
     }
@@ -161,75 +128,70 @@ const truncateText = (text: string, maxLength: number = 100): string => {
     }
 
     return truncated + '...';
-};
+}, 'truncateText');
 
-const parseMarkdown = (text: string): string => {
+const parseMarkdown = memoize((text: string): string => {
     if (!text) return '';
 
     return text
-        // Headers
         .replace(/^### (.*$)/gm, '<h3>$1</h3>')
         .replace(/^## (.*$)/gm, '<h2>$1</h2>')
         .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-        // Bold
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        // Italic
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
-        // Lists
         .replace(/^\s*[-+*]\s+(.*)/gm, '<li>$1</li>')
         .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
-        // Links
         .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-        // Line breaks
         .replace(/\n\n/g, '</p><p>')
         .replace(/\n/g, '<br>')
-        // Wrap in paragraphs if not already wrapped
         .replace(/^(.+?)(?:<br>|$)/gm, (_, text) => {
             if (!/^<[h|p|ul|ol|li]/.test(text)) {
                 return `<p>${text}</p>`;
             }
             return text;
         });
-};
+}, 'parseMarkdown');
 
+const getCurrentPeruDate = memoize((): string => {
+    const date = new Date();
+    const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
+    const year = peruDate.getFullYear();
+    const month = String(peruDate.getMonth() + 1).padStart(2, '0');
+    const day = String(peruDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}, 'getCurrentPeruDate');
+
+const formatPromotionDate = memoize((dateStr: string | undefined): string => {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    return new Intl.DateTimeFormat('es-PE', {
+        day: 'numeric',
+        month: 'long'
+    }).format(date);
+}, 'formatPromotionDate');
+
+const formatDiscountBadge = memoize((discountPercentage: number | undefined, promotionType: string | undefined): string => {
+    if (!discountPercentage) return '';
+
+    if (promotionType === 'fixed') {
+        return `-S/${discountPercentage.toFixed(2)}`;
+    } else {
+        return `-${discountPercentage}%`;
+    }
+}, 'formatDiscountBadge');
+
+// Funciones de promoción optimizadas
 const isPromotionActive = (product: Product): boolean => {
     if (!product.isPromoted || !product.promotionStartDate || !product.promotionEndDate) {
         return false;
     }
-
     const todayStr = getCurrentPeruDate();
-
     return product.promotionStartDate <= todayStr && todayStr <= product.promotionEndDate;
-};
-
-const getCurrentPeruDate = (): string => {
-    const date = new Date();
-    const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
-
-    const year = peruDate.getFullYear();
-    const month = String(peruDate.getMonth() + 1).padStart(2, '0');
-    const day = String(peruDate.getDate()).padStart(2, '0');
-
-    return `${year}-${month}-${day}`;
 };
 
 const isSingleDayPromotion = (product: Product): boolean => {
     return product.promotionStartDate === product.promotionEndDate;
-};
-
-const getPromotionDateText = (product: Product): string => {
-    if (!product.promotionStartDate || !product.promotionEndDate) return '';
-
-    const today = getCurrentPeruDate();
-
-    if (product.promotionStartDate === product.promotionEndDate) {
-        if (product.promotionStartDate === today) {
-            return '¡Solo por hoy!';
-        }
-        return `Solo el ${formatDateToSpanish(product.promotionStartDate)}`;
-    }
-
-    return `Válido del ${formatDateToSpanish(product.promotionStartDate)} al ${formatDateToSpanish(product.promotionEndDate)}`;
 };
 
 const isInCurrentMonth = (dateStr: string): boolean => {
@@ -238,6 +200,7 @@ const isInCurrentMonth = (dateStr: string): boolean => {
     return month === (now.getMonth() + 1) && year === now.getFullYear();
 };
 
+// Computed principal con promociones activas filtradas y pre-procesadas
 const activePromotionsWithDates = computed(() => {
     return activePromotions.value.filter(product => {
         if (!product.isPromoted || !product.promotionStartDate || !product.promotionEndDate) {
@@ -250,34 +213,94 @@ const activePromotionsWithDates = computed(() => {
     });
 });
 
-const loadImageUrls = async () => {
-    for (const product of activePromotionsWithDates.value) {
-        if (product.imageUrl) {
-            try {
-                const { url } = await getUrl({ path: product.imageUrl });
-                imageUrls.value[product.id] = url.toString();
-            } catch (error) {
-                console.error("Error cargando imagen:", error);
-            }
+// Computed principal con productos pre-procesados
+const processedPromotions = computed(() => {
+    if (!activePromotionsWithDates.value?.length) return [];
+
+    return activePromotionsWithDates.value.map(product => {
+        const isSingleDay = isSingleDayPromotion(product);
+
+        // Pre-procesar imagen
+        const optimizedImageUrl = getCachedImage(product.id);
+
+        // Pre-procesar descripción
+        const processedDescription = parseMarkdown(truncateText(product.description, 100));
+
+        // Pre-procesar badge de descuento
+        const formattedDiscountBadge = formatDiscountBadge(product.discountPercentage, product.promotionType);
+
+        // Pre-procesar texto de promoción
+        const promotionText = isSingleDay ? '¡SOLO POR HOY!' : '¡EN PROMOCIÓN!';
+
+        // Pre-procesar texto de fin de promoción
+        const promotionEndText = !isSingleDay ? `Hasta ${formatPromotionDate(product.promotionEndDate)}` : '';
+
+        // Pre-procesar precio
+        const discountedPrice = calculateDiscountedPrice(product).toFixed(2);
+        const priceDisplay = `<span class="original-price">S/${product.originalPrice?.toFixed(2) || '0.00'}</span>
+                             <span class="discounted-price">S/${discountedPrice}</span>`;
+
+        // Pre-procesar clases de stock
+        const stockClasses = {
+            'out-of-stock': product.stock === 0,
+            'low-stock': product.stock > 0 && product.stock <= 5
+        };
+
+        // Pre-procesar mensaje de stock
+        let stockMessage = '';
+        if (product.stock === 0) {
+            stockMessage = 'Agotado';
+        } else if (product.stock <= 5) {
+            stockMessage = `¡Últimas ${product.stock} unidades!`;
+        } else {
+            stockMessage = 'Stock disponible';
         }
-    }
-};
 
-const addToCart = (product: Product) => {
-    if (!product.stock) {
-        showToast({
-            type: 'error',
-            message: 'Producto agotado'
-        });
-        return;
-    }
-
-    showToast({
-        type: 'success',
-        message: 'Producto añadido'
+        return {
+            ...product,
+            // Estados optimizados
+            isSingleDayPromotion: isSingleDay,
+            // Propiedades pre-procesadas
+            optimizedImageUrl,
+            processedDescription,
+            formattedDiscountBadge,
+            promotionText,
+            promotionEndText,
+            priceDisplay,
+            stockClasses,
+            stockMessage
+        };
     });
+});
+
+// Función para manejar errores de imagen
+const handleImageError = (event: Event) => {
+    const img = event.target as HTMLImageElement;
+    img.src = '/api/placeholder/800/500';
 };
 
+// Función para cargar imágenes de forma eficiente
+const loadImageUrls = async () => {
+    if (!activePromotionsWithDates.value?.length) return;
+
+    // Precargar imágenes en background
+    const schedulePreload = () => {
+        preloadImages(
+            activePromotionsWithDates.value.map(product => ({
+                id: product.id,
+                imageUrl: product.imageUrl || ''
+            }))
+        );
+    };
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        (window as any).requestIdleCallback(schedulePreload);
+    } else {
+        setTimeout(schedulePreload, 100);
+    }
+};
+
+// Función principal de carga
 const loadPromotionsMounted = async () => {
     loading.value = true;
     error.value = null;
@@ -291,13 +314,21 @@ const loadPromotionsMounted = async () => {
     }
 };
 
+// Lifecycle hooks
 onMounted(() => {
     loadPromotionsMounted();
 });
 
-watch(() => activePromotionsWithDates.value, () => {
-    loadImageUrls();
-}, { immediate: true });
+watch(
+    () => activePromotionsWithDates.value,
+    loadImageUrls,
+    { immediate: true }
+);
+
+// Limpiar caché al desmontar
+onUnmounted(() => {
+    memoCache.clear();
+});
 </script>
 
 <style scoped>
@@ -306,27 +337,6 @@ watch(() => activePromotionsWithDates.value, () => {
     margin: 0 auto;
     padding: 20px;
     background-color: #fff;
-}
-
-.promotion-dates {
-    position: absolute;
-    top: 40px;
-    left: 10px;
-    background-color: #fff;
-    color: #000;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    z-index: 1;
-    border: 1px solid #000;
-}
-
-.promotion-dates.today-only {
-    background-color: #ff0000;
-    color: #fff;
-    border: none;
-    font-weight: bold;
 }
 
 .page-title {
@@ -342,6 +352,10 @@ watch(() => activePromotionsWithDates.value, () => {
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 30px;
     padding: 20px;
+    /* Optimizaciones para scroll */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    contain: layout style paint;
 }
 
 .product-card {
@@ -352,32 +366,23 @@ watch(() => activePromotionsWithDates.value, () => {
     transition: all 0.3s ease;
     position: relative;
     border-radius: 8px;
+    /* Optimizaciones para rendimiento */
+    contain: layout style paint;
+    will-change: transform;
+    backface-visibility: hidden;
+    transform: translateZ(0);
 }
 
 .product-card:hover {
-    transform: translateY(-5px);
+    transform: translateY(-5px) translateZ(0);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
 }
 
-/* New styles for the router-link wrapper */
 .product-content {
     display: block;
     text-decoration: none;
     color: inherit;
     cursor: pointer;
-}
-
-.discount-badge {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background-color: #000;
-    color: #fff;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    z-index: 1;
 }
 
 .product-image {
@@ -391,17 +396,21 @@ watch(() => activePromotionsWithDates.value, () => {
     margin-bottom: 15px;
     overflow: hidden;
     border-radius: 4px;
+    /* Optimización para imágenes */
+    contain: layout;
 }
 
-.product-image img {
+.product-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     object-position: center;
     transition: transform 0.3s ease;
+    /* Optimización para scroll */
+    will-change: transform;
 }
 
-.product-content:hover .product-image img {
+.product-content:hover .product-img {
     transform: scale(1.05);
 }
 
@@ -409,173 +418,6 @@ watch(() => activePromotionsWithDates.value, () => {
     flex: 1;
     display: flex;
     flex-direction: column;
-}
-
-.brand {
-    font-size: 0.9rem;
-    color: #666;
-    margin: 0;
-    font-weight: 500;
-}
-
-.name {
-    font-size: 0.9rem;
-    margin: 0.5rem 0;
-    color: #000;
-    line-height: 1.2;
-    height: 2.4em;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-}
-
-.price-container {
-    margin: 1rem 0;
-    text-align: center;
-}
-
-.price-wrapper {
-    display: inline-flex;
-    gap: 0.5rem;
-    align-items: center;
-}
-
-.current-price {
-    font-size: 1.1rem;
-    font-weight: bold;
-    color: #000;
-}
-
-.original-price {
-    color: #999;
-    text-decoration: line-through;
-    font-size: 0.9rem;
-}
-
-.add-to-cart {
-    width: 100%;
-    padding: 0.75rem;
-    background-color: #000;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 500;
-    font-size: 0.9rem;
-    transition: background-color 0.2s;
-    margin-top: 1rem;
-}
-
-.add-to-cart:hover {
-    background-color: #333;
-}
-
-.loading-state {
-    text-align: center;
-    padding: 3rem;
-}
-
-.error-state {
-    text-align: center;
-    color: #ff0000;
-    padding: 3rem;
-}
-
-.empty-state {
-    text-align: center;
-    padding: 3rem;
-    background-color: #f9fafb;
-    border-radius: 8px;
-    color: #6b7280;
-    font-size: 1.1rem;
-}
-
-.loader {
-    width: 48px;
-    height: 48px;
-    border: 4px solid #000;
-    border-bottom-color: transparent;
-    border-radius: 50%;
-    display: inline-block;
-    animation: rotation 1s linear infinite;
-}
-
-.stock-status {
-    text-align: center;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.8rem;
-    margin: 10px 0;
-    background-color: #e8f5e9;
-    color: #2e7d32;
-    font-weight: 500;
-}
-
-.stock-status.low-stock {
-    background-color: #fff3e0;
-    color: #ef6c00;
-}
-
-.stock-status.out-of-stock {
-    background-color: #ffebee;
-    color: #c62828;
-}
-
-.add-to-cart.disabled {
-    background-color: #ccc;
-    cursor: not-allowed;
-}
-
-.add-to-cart.disabled:hover {
-    background-color: #ccc;
-}
-
-.active-promotion-badge {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background-color: #000000;
-    color: #fff;
-    padding: 8px 12px;
-    border-radius: 4px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    z-index: 10;
-}
-
-.active-promotion-badge .promotion-text {
-    font-size: 0.75rem;
-    font-weight: 500;
-}
-
-.active-promotion-badge .promotion-discount {
-    font-size: 1rem;
-    font-weight: bold;
-}
-
-.active-promotion-badge .promotion-end {
-    font-size: 0.75rem;
-    color: #ffd700;
-}
-
-.active-promotion-badge.one-day-promotion {
-    background-color: #d61c1c;
-    box-shadow: 0 2px 8px rgba(214, 28, 28, 0.4);
-    animation: pulse 1.5s infinite;
-}
-
-.one-day-promotion .promotion-text {
-    font-weight: 800;
-    letter-spacing: 0.5px;
-}
-
-.brand-name {
-    font-size: 0.9rem;
-    color: #666;
-    margin: 0;
 }
 
 .brand-name {
@@ -631,6 +473,47 @@ watch(() => activePromotionsWithDates.value, () => {
     font-style: italic;
 }
 
+.active-promotion-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #000000;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    z-index: 10;
+}
+
+.active-promotion-badge .promotion-text {
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.active-promotion-badge .promotion-discount {
+    font-size: 1rem;
+    font-weight: bold;
+}
+
+.active-promotion-badge .promotion-end {
+    font-size: 0.75rem;
+    color: #ffd700;
+}
+
+.active-promotion-badge.one-day-promotion {
+    background-color: #d61c1c;
+    box-shadow: 0 2px 8px rgba(214, 28, 28, 0.4);
+    animation: pulse 1.5s infinite;
+}
+
+.one-day-promotion .promotion-text {
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+
 .price-info.has-active-promotion {
     display: flex;
     flex-direction: column;
@@ -650,6 +533,57 @@ watch(() => activePromotionsWithDates.value, () => {
     color: #000;
 }
 
+.stock-status {
+    text-align: center;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    margin: 10px 0;
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    font-weight: 500;
+}
+
+.stock-status.low-stock {
+    background-color: #fff3e0;
+    color: #ef6c00;
+}
+
+.stock-status.out-of-stock {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+.loading-state {
+    text-align: center;
+    padding: 3rem;
+}
+
+.error-state {
+    text-align: center;
+    color: #ff0000;
+    padding: 3rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem;
+    background-color: #f9fafb;
+    border-radius: 8px;
+    color: #6b7280;
+    font-size: 1.1rem;
+}
+
+.loader {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #000;
+    border-bottom-color: transparent;
+    border-radius: 50%;
+    display: inline-block;
+    animation: rotation 1s linear infinite;
+}
+
 @keyframes pulse {
     0% {
         transform: scale(1);
@@ -664,17 +598,13 @@ watch(() => activePromotionsWithDates.value, () => {
     }
 }
 
-@keyframes pulse {
-
-    0%,
-    100% {
-        transform: scale(1);
-        opacity: 0.5;
+@keyframes rotation {
+    0% {
+        transform: rotate(0deg);
     }
 
-    50% {
-        transform: scale(1.2);
-        opacity: 1;
+    100% {
+        transform: rotate(360deg);
     }
 }
 
@@ -706,16 +636,6 @@ watch(() => activePromotionsWithDates.value, () => {
         grid-template-columns: 1fr;
         gap: 15px;
         padding: 10px;
-    }
-}
-
-@keyframes rotation {
-    0% {
-        transform: rotate(0deg);
-    }
-
-    100% {
-        transform: rotate(360deg);
     }
 }
 </style>

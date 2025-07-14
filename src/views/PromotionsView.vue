@@ -237,8 +237,8 @@ const processedPromotions = computed(() => {
 
         // Pre-procesar precio
         const discountedPrice = calculateDiscountedPrice(product).toFixed(2);
-        const priceDisplay = `<span class="original-price">S/${product.originalPrice?.toFixed(2) || '0.00'}</span>
-                             <span class="discounted-price">S/${discountedPrice}</span>`;
+        const priceDisplay = `<span class="original-price" style="font-size: 0.9rem; color: #666; text-decoration: line-through; margin-right: 6px;">S/${product.originalPrice?.toFixed(2) || '0.00'}</span>
+                             <span class="discounted-price" style="font-size: 1.2rem; font-weight: bold; color: #000;">S/${discountedPrice}</span>`;
 
         // Pre-procesar clases de stock
         const stockClasses = {

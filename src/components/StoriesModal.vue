@@ -183,10 +183,14 @@
                     <img :src="getStoryImage(activeStory)" :alt="activeStory.title"
                         class="max-w-full max-h-full object-contain" />
 
+                    <!-- MEJORADO: Audio con mejor manejo de eventos -->
                     <audio v-if="activeStory.audioUrl" ref="audioElement" :src="getAudioUrl(activeStory)"
-                        @ended="onAudioEnded" @loadedmetadata="setupAudio" preload="metadata"></audio>
+                        @ended="onAudioEnded" @loadedmetadata="setupAudio" @canplay="setupAudio"
+                        @loadeddata="setupAudio" preload="metadata" :muted="false">
+                    </audio>
 
-                    <div v-if="activeStory.audioUrl && !hasUserInteracted && isPlaying"
+                    <!-- MEJORADO: Solo mostrar overlay si NUNCA hubo interacción Y hay audio -->
+                    <div v-if="activeStory.audioUrl && needsAudioInteraction() && isPlaying && audioElement?.paused"
                         class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
                         <div class="text-white text-center p-4">
                             <Volume2Icon :size="48" class="mx-auto mb-2 animate-pulse" />
@@ -255,16 +259,23 @@ import {
 } from 'lucide-vue-next'
 import type { Story } from '@/types/story.types'
 import StoriesList from './StoriesList.vue'
+import { useAudioInteraction } from '@/composables/useAudioInteraction'
 
 const emit = defineEmits<{
     close: []
 }>()
 
-const hasUserInteracted = ref(false)
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const { showToast } = useToast()
+
+const {
+    hasUserInteracted,
+    initializeAudioState,
+    setUserInteracted,
+    needsAudioInteraction
+} = useAudioInteraction()
 
 const {
     stories,
@@ -315,7 +326,7 @@ const openStoryViewer = async (story: Story) => {
     if (stories.value.length > 0) {
         currentIndex.value = stories.value.findIndex(s => s.id === story.id)
     } else {
-        currentIndex.value = -1 // Indica que no está en la lista actual
+        currentIndex.value = -1
     }
 
     try {
@@ -326,19 +337,16 @@ const openStoryViewer = async (story: Story) => {
         const { expired } = getTimeRemaining(story.expiresAt)
 
         if (expired) {
-            // Si está vencida, mostrar mensaje
             isStoryExpired.value = true
             isStoryLoading.value = false
             isNavigating.value = false
 
-            // Actualizar URL
             if (route.query.story !== story.id) {
                 await router.replace({ query: { ...route.query, story: story.id } })
             }
             return
         }
 
-        // Resto del código para historias válidas...
         const loadPromises = []
 
         const userEmail = authStore.userEmail
@@ -354,7 +362,6 @@ const openStoryViewer = async (story: Story) => {
             viewStory(story.id, "anonymous")
         }
 
-        // Solo precargar historias adyacentes si hay historias en la lista
         if (stories.value.length > 0 && currentIndex.value >= 0) {
             loadPromises.push(preloadAdjacentStories(stories.value, currentIndex.value))
         }
@@ -369,6 +376,9 @@ const openStoryViewer = async (story: Story) => {
             if (route.query.story !== story.id) {
                 await router.replace({ query: { ...route.query, story: story.id } })
             }
+
+            // IMPORTANTE: Pequeña pausa para que el DOM se actualice
+            await new Promise(resolve => setTimeout(resolve, 100))
 
             startStoryPlayback()
         }
@@ -398,16 +408,25 @@ const startStoryPlayback = async () => {
     progressPercentage.value = 0
     isPlaying.value = true
 
-    // Intentar reproducir audio solo si hay interacción del usuario
-    if (activeStory.value.audioUrl && audioElement.value) {
+    // Si hay audio y ya hubo interacción previa, intentar reproducir inmediatamente
+    if (activeStory.value.audioUrl && audioElement.value && hasUserInteracted.value) {
         try {
-            // Solo reproducir si el usuario ha interactuado
-            if (hasUserInteracted.value) {
+            // Asegurar que el audio esté listo
+            if (audioElement.value.readyState >= 2) {
                 await audioElement.value.play()
+            } else {
+                // Si no está listo, esperar a que se cargue
+                audioElement.value.addEventListener('canplay', async () => {
+                    try {
+                        await audioElement.value!.play()
+                    } catch (error) {
+                        console.log('Error reproduciendo audio después de cargar:', error)
+                    }
+                }, { once: true })
             }
         } catch (error) {
-            //console.log('Autoplay bloqueado, esperando interacción del usuario')
-            console.log('Autoplay blocked')
+            console.log('Error reproduciendo audio:', error)
+            // Si falla el autoplay, no mostrar overlay si ya hubo interacción
         }
     }
 
@@ -439,7 +458,8 @@ const stopStoryPlayback = () => {
 }
 
 const togglePlayback = async () => {
-    hasUserInteracted.value = true
+    // Marcar interacción usando el composable
+    setUserInteracted()
 
     if (isPlaying.value) {
         stopStoryPlayback()
@@ -457,13 +477,18 @@ const togglePlayback = async () => {
     }
 }
 
-const handleStoryClick = () => {
-    hasUserInteracted.value = true
+const handleStoryClick = async () => {
+    // Marcar interacción
+    setUserInteracted()
 
-    // Si el audio no se está reproduciendo y debería, intentar reproducirlo
-    if (activeStory.value?.audioUrl && audioElement.value && isPlaying.value) {
-        if (audioElement.value.paused) {
-            audioElement.value.play().catch(console.error)
+    // Si hay audio y está pausado, reproducir inmediatamente
+    if (activeStory.value?.audioUrl && audioElement.value) {
+        try {
+            if (audioElement.value.paused && isPlaying.value) {
+                await audioElement.value.play()
+            }
+        } catch (error) {
+            console.log('Error al reproducir audio en click:', error)
         }
     }
 }
@@ -510,9 +535,18 @@ const toggleAudio = () => {
     }
 }
 
-const setupAudio = () => {
+const setupAudio = async () => {
     if (audioElement.value) {
         audioElement.value.volume = isMuted.value ? 0 : 1
+
+        // Si ya hubo interacción y debe estar reproduciéndose, intentar play
+        if (hasUserInteracted.value && isPlaying.value) {
+            try {
+                await audioElement.value.play()
+            } catch (error) {
+                console.log('Error en setupAudio:', error)
+            }
+        }
     }
 }
 
@@ -663,6 +697,9 @@ const checkExpiredStoryFromUrl = async (storyId: string) => {
 
 // Lifecycle
 onMounted(async () => {
+    // Inicializar el estado de audio global
+    initializeAudioState()
+
     await loadStoryAudios()
     await handleStoryFromUrl()
 })

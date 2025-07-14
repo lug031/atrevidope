@@ -43,7 +43,7 @@ export function useImageCache(cacheDuration = 24 * 60 * 60 * 1000) {
     }
 
     // Si ya está cargando, retornar la promesa existente
-    if (await loadingPromises.value[productId]) {
+    if (productId in loadingPromises.value) {
       return loadingPromises.value[productId];
     }
 

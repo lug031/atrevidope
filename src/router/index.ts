@@ -15,6 +15,7 @@ import AdminCustomers from "@/views/admin/CustomersView.vue";
 import AdminOrders from "@/views/admin/OrdersView.vue";
 import AdminReports from "@/views/admin/ReportsView.vue";
 import AdminUsers from "@/views/admin/UsersView.vue";
+import AdminStories from "@/views/admin/StoriesView.vue";
 import PromotionsView from "@/views/PromotionsView.vue";
 import ProductDetailView from "../views/ProductDetailView.vue";
 import CategoryProductsView from "@/views/CategoryProductsView.vue";
@@ -174,6 +175,12 @@ const router = createRouter({
           path: "users",
           name: "admin-users",
           component: AdminUsers,
+          meta: { requiresAdmin: true },
+        },
+        {
+          path: "stories",
+          name: "admin-stories",
+          component: AdminStories,
           meta: { requiresAdmin: true },
         },
       ],

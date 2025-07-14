@@ -3,10 +3,14 @@ import { RouterView } from 'vue-router';
 import Toast from './components/common/Toast.vue';
 import MaintenanceBanner from '@/components/MaintenanceBanner.vue';
 import { useMaintenance } from '@/composables/useMaintenance';
+import { useStoryScheduler } from '@/composables/useStoryScheduler'; // NUEVO
 import { ref } from 'vue';
 
 const { isMaintenanceMode } = useMaintenance();
 const isBannerVisible = ref(true);
+
+// NUEVO: Inicializar scheduler automáticamente
+useStoryScheduler();
 
 const handleBannerVisibility = (isVisible: boolean) => {
   isBannerVisible.value = isVisible;

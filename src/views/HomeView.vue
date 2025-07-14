@@ -3,22 +3,42 @@
     <ProductCarousel />
     <PromotionalBanner />
     <BrandCarousel />
-    <!-- <FeatureCards /> -->
+
+    <!-- Botón flotante para historias -->
+    <StoriesFloatingButton @click="openStoriesModal" />
+
+    <!-- Overlay invisible para cerrar el modal (debe ir ANTES del modal) -->
+    <div v-if="isStoriesModalOpen" class="fixed inset-0 z-[1400]" @click="closeStoriesModal">
+    </div>
+
+    <!-- Modal de historias -->
+    <StoriesModal v-if="isStoriesModalOpen" @close="closeStoriesModal" />
   </MainLayout>
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router';
-import MainLayout from '@/layouts/MainLayout.vue';
-import BrandCarousel from '@/components/BrandCarousel.vue';
-import FeatureCards from '@/components/FeatureCards.vue';
-import ProductCarousel from '@/components/ProductCarousel.vue';
-import PromotionalBanner from '@/components/PromotionalBanner.vue';
+import { onMounted } from 'vue'
+import { useRoute } from 'vue-router'
+import { useStoriesModal } from '@/composables/useStoriesModal'
+import MainLayout from '@/layouts/MainLayout.vue'
+import BrandCarousel from '@/components/BrandCarousel.vue'
+import ProductCarousel from '@/components/ProductCarousel.vue'
+import PromotionalBanner from '@/components/PromotionalBanner.vue'
+import StoriesFloatingButton from '@/components/StoriesFloatingButton.vue'
+import StoriesModal from '@/components/StoriesModal.vue'
 
-const router = useRouter();
+const route = useRoute()
+const { isStoriesModalOpen, openStoriesModal, closeStoriesModal } = useStoriesModal()
+
+onMounted(() => {
+  if (route.query.story) {
+    openStoriesModal()
+  }
+})
 </script>
 
 <style scoped>
+/* Estilos existentes */
 .hero-banner {
   height: 500px;
   background: linear-gradient(to right, #ffe6e6, #fff);

@@ -48,6 +48,7 @@ const schema = a.schema({
       promotionEndDate: a.string(),
       promotionType: a.string(),
       cartItems: a.hasMany("CartItem", "productID"),
+      stories: a.hasMany("Story", "productID"),
     })
     .authorization((allow) => [
       allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
@@ -100,6 +101,46 @@ const schema = a.schema({
       allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
       allow.authenticated().to(["read"]),
       allow.publicApiKey().to(["read"]),
+    ]),
+
+  Story: a
+    .model({
+      title: a.string(),
+      description: a.string(),
+      imageUrl: a.string(),
+      audioUrl: a.string(),
+      externalLink: a.string(), // Para redirigir a TikTok, etc.
+      productID: a.string(), // Referencia al producto relacionado
+      product: a.belongsTo("Product", "productID"),
+      active: a.boolean(),
+      views: a.integer(),
+      likes: a.integer(),
+      wants: a.integer(),
+      duration: a.integer(), // Duración en segundos
+      order: a.integer(), // Para ordenar las historias
+      expiresAt: a.datetime(), // NUEVO: Fecha de vencimiento (24h desde creación)
+      createdAt: a.datetime(),
+      updatedAt: a.datetime(),
+      interactions: a.hasMany("StoryInteraction", "storyID"),
+    })
+    .authorization((allow) => [
+      allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
+      allow.authenticated().to(["read", "update"]),
+      allow.publicApiKey().to(["read", "update"]),
+    ]),
+
+  StoryInteraction: a
+    .model({
+      storyID: a.string(),
+      story: a.belongsTo("Story", "storyID"),
+      userEmail: a.string(), // Email del usuario que interactuó
+      type: a.enum(["view", "like", "want"]),
+      createdAt: a.datetime(),
+    })
+    .authorization((allow) => [
+      allow.groups(["admin"]).to(["read", "create", "update", "delete"]),
+      allow.authenticated().to(["read", "create"]),
+      allow.publicApiKey().to(["read", "create"]),
     ]),
 
   Order: a

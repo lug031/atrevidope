@@ -27,7 +27,8 @@ import {
     UsersIcon,
     ShoppingCartIcon,
     BarChartIcon,
-    ShieldIcon
+    ShieldIcon,
+    PlayCircleIcon
 } from 'lucide-vue-next'
 
 interface NavigationItem {
@@ -47,6 +48,11 @@ const navigationItems: NavigationItem[] = [
         path: '/admin/products',
         icon: PackageIcon,
         label: 'Productos'
+    },
+    {
+        path: '/admin/stories',
+        icon: PlayCircleIcon,
+        label: 'Historias'
     },
     {
         path: '/admin/orders',

@@ -8,7 +8,7 @@
             </svg>
         </div>
         <span class="stories-text">Historias</span>
-        <div v-if="hasNewStories" class="stories-badge"></div>
+        <!-- <div v-if="hasNewStories" class="stories-badge"></div>-->
     </button>
 </template>
 

@@ -165,7 +165,8 @@
                                         title="Vista previa">
                                         <PlayIcon :size="18" />
                                     </button> -->
-                                    <button class="icon-button edit" @click="handleEdit(story)" title="Editar">
+                                    <button v-if="!getTimeRemaining(story.expiresAt).expired" class="icon-button edit"
+                                        @click="handleEdit(story)" title="Editar">
                                         <EditIcon :size="16" />
                                     </button>
                                     <!-- <button class="icon-button toggle" @click="toggleStoryStatus(story)"
@@ -179,8 +180,8 @@
                                         ⏰
                                     </button>
                                     <button v-else @click="resetExpiration(story.id)" class="icon-button test-reset"
-                                        title="🧪 Restaurar 24h (TEST)" :disabled="!story.id">
-                                        🔄
+                                        title="Restaurar 24h" :disabled="!story.id">
+                                        <RefreshCwIcon :size="16" />
                                     </button>
                                     <button class="icon-button delete" @click="handleDelete(story.id)" title="Eliminar">
                                         <Trash2Icon :size="16" />
@@ -298,12 +299,12 @@
                 </div>
 
                 <!-- Estado activo -->
-                <div class="form-group">
+                <!-- <div class="form-group">
                     <label class="checkbox-label">
                         <input type="checkbox" v-model="formData.active" />
                         Historia activa
                     </label>
-                </div>
+                </div>-->
 
                 <!-- Botones del modal -->
                 <div class="modal-footer">
@@ -449,7 +450,7 @@ const forceExpire = async (storyId: string) => {
 };
 
 const resetExpiration = async (storyId: string) => {
-    if (confirm('🧪 TESTING: ¿Restaurar historia a 24h?')) {
+    if (confirm('¿Restaurar historia a 24h? (Esto reiniciará los views/likes)')) {
         try {
             //console.log('🧪 Vista: Iniciando restauración para:', storyId);
 
@@ -462,10 +463,10 @@ const resetExpiration = async (storyId: string) => {
 
             showToast({
                 type: 'success',
-                message: '🧪 Historia restaurada a 24h'
+                message: 'Historia restaurada a 24h'
             });
         } catch (error) {
-            console.error('🧪 Error completo en vista:', error);
+            console.error('Error completo en vista:', error);
             showToast({
                 type: 'error',
                 message: `Error al restaurar historia: ${error instanceof Error ? error.message : 'Error desconocido'}`

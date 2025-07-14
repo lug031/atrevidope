@@ -35,62 +35,41 @@
       </div>
 
       <div v-else class="products-grid">
-        <div v-for="product in sortedProducts" :key="product.id" class="product-card">
+        <div v-for="product in processedProducts" :key="product.id" class="product-card">
           <router-link :to="{ name: 'ProductDetail', params: { id: product.id } }" class="product-content">
-            <!-- Badge de promoción futura con validación -->
-            <div v-if="hasUpcomingPromotion(product) && product.promotionStartDate" class="promotion-badge">
+            <!-- Badge de promoción optimizado -->
+            <div v-if="product.hasUpcomingPromotion" class="promotion-badge">
               <span class="promotion-date">Próximamente en promoción</span>
               <span class="promotion-discount">-{{ product.discountPercentage || 0 }}%</span>
-              <span class="promotion-start">{{ formatPromotionDate(product.promotionStartDate) }}</span>
+              <span class="promotion-start">{{ product.formattedPromotionDate }}</span>
             </div>
 
             <div class="product-image">
-              <img :src="imageCache[product.id] || '/api/placeholder/40/40'" :alt="product.name" loading="lazy" />
+              <img :src="product.imageUrl" :alt="product.name" loading="lazy" @error="handleImageError"
+                class="product-img" />
             </div>
 
             <div class="product-info">
               <h3 class="brand-name">{{ product.brand }}</h3>
               <p class="product-name">{{ product.name }}</p>
-              <!--<p class="product-description">{{ product.description }}</p>-->
-              <div class="formatted-description" v-html="parseMarkdown(truncateText(product.description, 100))" />
 
-              <!-- Precios -->
-              <div class="price-info" :class="{
-                'has-promotion': hasUpcomingPromotion(product),
-                'expired-promotion': hasExpiredPromotion(product)
-              }">
-                <p class="product-price">
-                  <template v-if="hasUpcomingPromotion(product) || hasExpiredPromotion(product)">
-                    <span class="current-price">S/{{ product.originalPrice.toFixed(2) }}</span>
-                  </template>
-                  <template v-else-if="isActivePromotion(product)">
-                    <span class="promotion-price">S/{{ product.price.toFixed(2) }}</span>
-                    <span class="original-price">S/{{ product.originalPrice.toFixed(2) }}</span>
-                  </template>
-                  <template v-else>
-                    <span class="current-price">S/{{ product.price.toFixed(2) }}</span>
-                  </template>
-                </p>
+              <!-- Descripción pre-procesada -->
+              <div class="formatted-description" v-html="product.processedDescription" />
+
+              <!-- Precios optimizados -->
+              <div class="price-info" :class="product.priceClasses">
+                <p class="product-price" v-html="product.priceDisplay"></p>
               </div>
 
-              <!-- Stock Status -->
-              <div class="stock-status" :class="{
-                'out-of-stock': product.stock === 0,
-                'low-stock': product.stock > 0 && product.stock <= 5
-              }">
-                <span v-if="product.stock === 0">Agotado</span>
-                <span v-else-if="product.stock <= 5">¡Últimas {{ product.stock }} unidades!</span>
-                <span v-else>Stock disponible</span>
+              <!-- Stock Status optimizado -->
+              <div class="stock-status" :class="product.stockClasses">
+                <span>{{ product.stockMessage }}</span>
               </div>
             </div>
           </router-link>
-
-          <!-- <button @click.stop="addToCart(product)" class="add-to-cart" :class="{ 'disabled': product.stock === 0 }"
-            :disabled="product.stock === 0">
-            {{ product.stock === 0 ? 'AGOTADO' : 'AÑADIR AL CARRITO' }}
-          </button> -->
         </div>
       </div>
+
       <div v-if="!loading && !error && productsWeb.length === 0" class="empty-state">
         No hay productos disponibles.
       </div>
@@ -99,44 +78,54 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
 import MainLayout from '@/layouts/MainLayout.vue';
 import { useProducts } from '@/composables/useProducts';
 import { useCartStore } from '@/stores/cart';
 import { useToast } from '../composables/useToast';
 import type { Product } from '@/types/product.types';
-import type { CartItem } from '@/types/cart.types';
-import { uploadData, getUrl } from 'aws-amplify/storage';
 import { useImageCache } from '@/composables/useImageCache';
 
-const { imageCache, getImageUrl, preloadImages } = useImageCache();
-const imageUrls = ref<Record<string, string>>({});
+// Composables
+const { imageCache, getImageUrl, preloadImages, getCachedImage } = useImageCache();
 const { productsWeb, loadProductsWeb } = useProducts();
 const cartStore = useCartStore();
 const { showToast } = useToast();
+
+// Reactive state
 const sortBy = ref('position');
 const loading = ref(true);
 const error = ref<string | null>(null);
-const truncateText = (text: string, maxLength: number = 100): string => {
-  if (!text) return '';
 
-  // Si el texto es más corto que el máximo, retornarlo completo
+// Memoización de funciones pesadas
+const memoizedCache = new Map();
+
+const memoize = (fn: Function, key: string) => {
+  return (...args: any[]) => {
+    const cacheKey = `${key}_${JSON.stringify(args)}`;
+    if (memoizedCache.has(cacheKey)) {
+      return memoizedCache.get(cacheKey);
+    }
+    const result = fn(...args);
+    memoizedCache.set(cacheKey, result);
+    return result;
+  };
+};
+
+// Funciones optimizadas con memoización
+const truncateText = memoize((text: string, maxLength: number = 100): string => {
+  if (!text) return '';
   if (text.length <= maxLength) return text;
 
-  // Cortar el texto hasta el máximo
   let truncated = text.slice(0, maxLength);
-
-  // Asegurarse de no cortar a mitad de una palabra
   const lastSpace = truncated.lastIndexOf(' ');
   if (lastSpace > 0) {
     truncated = truncated.slice(0, lastSpace);
   }
 
-  // Asegurarse de no cortar a mitad de un formato markdown
   const boldCount = (truncated.match(/\*\*/g) || []).length;
   const italicCount = (truncated.match(/\*/g) || []).length;
 
-  // Si hay formatos markdown incompletos, ajustarlos
   if (boldCount % 2 !== 0) {
     truncated = truncated.replace(/\*\*[^*]*$/, '');
   }
@@ -145,60 +134,59 @@ const truncateText = (text: string, maxLength: number = 100): string => {
   }
 
   return truncated + '...';
-};
+}, 'truncateText');
 
-const parseMarkdown = (text: string): string => {
+const parseMarkdown = memoize((text: string): string => {
   if (!text) return '';
 
   return text
-    // Headers
     .replace(/^### (.*$)/gm, '<h3>$1</h3>')
     .replace(/^## (.*$)/gm, '<h2>$1</h2>')
     .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-    // Bold
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    // Italic
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    // Lists
     .replace(/^\s*[-+*]\s+(.*)/gm, '<li>$1</li>')
     .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
-    // Links
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-    // Line breaks
     .replace(/\n\n/g, '</p><p>')
     .replace(/\n/g, '<br>')
-    // Wrap in paragraphs if not already wrapped
     .replace(/^(.+?)(?:<br>|$)/gm, (_, text) => {
       if (!/^<[h|p|ul|ol|li]/.test(text)) {
         return `<p>${text}</p>`;
       }
       return text;
     });
-};
+}, 'parseMarkdown');
 
-const loadImageUrls = async () => {
-  if (!productsWeb.value) return;
+// Funciones de fecha optimizadas
+const getCurrentPeruDate = memoize((): string => {
+  const date = new Date();
+  const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
+  const year = peruDate.getFullYear();
+  const month = String(peruDate.getMonth() + 1).padStart(2, '0');
+  const day = String(peruDate.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}, 'getCurrentPeruDate');
 
-  // Precargar todas las imágenes
-  await preloadImages(
-    productsWeb.value.map(product => ({
-      id: product.id,
-      imageUrl: product.imageUrl || ''
-    }))
-  );
-};
+const formatPromotionDate = memoize((dateStr: string | undefined): string => {
+  if (!dateStr) return '';
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  return new Intl.DateTimeFormat('es-PE', {
+    day: 'numeric',
+    month: 'long'
+  }).format(date);
+}, 'formatPromotionDate');
 
+// Funciones de promoción optimizadas
 const hasUpcomingPromotion = (product: Product): boolean => {
   if (!product.isPromoted || !product.promotionStartDate || !product.promotionEndDate) {
     return false;
   }
-
   const currentDate = getCurrentPeruDate();
-
   if (currentDate >= product.promotionStartDate && currentDate <= product.promotionEndDate) {
     return false;
   }
-
   return product.promotionStartDate > currentDate;
 };
 
@@ -206,7 +194,6 @@ const hasExpiredPromotion = (product: Product): boolean => {
   if (!product.isPromoted || !product.promotionStartDate || !product.promotionEndDate) {
     return false;
   }
-
   const currentDate = getCurrentPeruDate();
   return currentDate > product.promotionEndDate;
 };
@@ -215,111 +202,134 @@ const isActivePromotion = (product: Product): boolean => {
   if (!product.isPromoted || !product.promotionStartDate || !product.promotionEndDate) {
     return false;
   }
-
   const currentDate = getCurrentPeruDate();
   return currentDate >= product.promotionStartDate && currentDate <= product.promotionEndDate;
 };
 
-const shouldShowProduct = (product: Product): boolean => {
-  if (!product.isPromoted) {
-    return true;
-  }
-
-  if (!product.promotionStartDate || !product.promotionEndDate) {
-    return true;
-  }
-
-  const currentDate = getCurrentPeruDate();
-
-  if (currentDate >= product.promotionStartDate && currentDate <= product.promotionEndDate) {
-    return false;
-  }
-
-  return true;
-};
-
-const getCurrentPeruDate = (): string => {
-  const date = new Date();
-  const peruDate = new Date(date.toLocaleString('en-US', { timeZone: 'America/Lima' }));
-
-  const year = peruDate.getFullYear();
-  const month = String(peruDate.getMonth() + 1).padStart(2, '0');
-  const day = String(peruDate.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
-};
-
-const formatPromotionDate = (dateStr: string | undefined): string => {
-  if (!dateStr) return '';
-
-  const [year, month, day] = dateStr.split('-').map(Number);
-  const date = new Date(year, month - 1, day);
-
-  return new Intl.DateTimeFormat('es-PE', {
-    day: 'numeric',
-    month: 'long'
-  }).format(date);
-};
-
-const getEffectivePrice = (product: Product): number => {
-  // Si hay promoción activa, usar precio con descuento
-  if (isActivePromotion(product)) {
-    return product.price || 0; // El precio ya tiene el descuento aplicado
-  }
-  // Si hay promoción futura o expirada, usar originalPrice
-  else if (hasUpcomingPromotion(product) || hasExpiredPromotion(product)) {
-    return product.originalPrice || 0;
-  }
-  // En cualquier otro caso, usar precio normal
-  return product.price || 0;
-};
-
-const sortedProducts = computed(() => {
+// Computed principal con productos pre-procesados
+const processedProducts = computed(() => {
   if (!productsWeb.value) return [];
 
-  const productsToShow = productsWeb.value.filter(product => shouldShowProduct(product));
+  const productsToShow = productsWeb.value.filter(product => {
+    if (!product.isPromoted) return true;
+    if (!product.promotionStartDate || !product.promotionEndDate) return true;
 
-  return productsToShow.sort((a, b) => {
+    const currentDate = getCurrentPeruDate();
+    if (currentDate >= product.promotionStartDate && currentDate <= product.promotionEndDate) {
+      return false;
+    }
+    return true;
+  });
+
+  // Pre-procesar todos los productos
+  const processed = productsToShow.map(product => {
+    const hasUpcoming = hasUpcomingPromotion(product);
+    const hasExpired = hasExpiredPromotion(product);
+    const isActive = isActivePromotion(product);
+
+    // Pre-procesar descripción
+    const processedDescription = parseMarkdown(truncateText(product.description, 100));
+
+    // Pre-procesar imagen
+    const imageUrl = getCachedImage(product.id);
+
+    // Pre-procesar precio
+    let priceDisplay = '';
+    if (hasUpcoming || hasExpired) {
+      priceDisplay = `<span class="current-price">S/${product.originalPrice?.toFixed(2) || '0.00'}</span>`;
+    } else if (isActive) {
+      priceDisplay = `<span class="promotion-price">S/${product.price?.toFixed(2) || '0.00'}</span>
+                      <span class="original-price">S/${product.originalPrice?.toFixed(2) || '0.00'}</span>`;
+    } else {
+      priceDisplay = `<span class="current-price">S/${product.price?.toFixed(2) || '0.00'}</span>`;
+    }
+
+    // Pre-procesar clases
+    const priceClasses = {
+      'has-promotion': hasUpcoming,
+      'expired-promotion': hasExpired
+    };
+
+    const stockClasses = {
+      'out-of-stock': product.stock === 0,
+      'low-stock': product.stock > 0 && product.stock <= 5
+    };
+
+    // Pre-procesar mensaje de stock
+    let stockMessage = '';
+    if (product.stock === 0) {
+      stockMessage = 'Agotado';
+    } else if (product.stock <= 5) {
+      stockMessage = `¡Últimas ${product.stock} unidades!`;
+    } else {
+      stockMessage = 'Stock disponible';
+    }
+
+    // Pre-procesar precio efectivo para ordenamiento
+    let effectivePrice = 0;
+    if (isActive) {
+      effectivePrice = product.price || 0;
+    } else if (hasUpcoming || hasExpired) {
+      effectivePrice = product.originalPrice || 0;
+    } else {
+      effectivePrice = product.price || 0;
+    }
+
+    return {
+      ...product,
+      hasUpcomingPromotion: hasUpcoming,
+      hasExpiredPromotion: hasExpired,
+      isActivePromotion: isActive,
+      processedDescription,
+      imageUrl,
+      priceDisplay,
+      priceClasses,
+      stockClasses,
+      stockMessage,
+      effectivePrice,
+      formattedPromotionDate: hasUpcoming ? formatPromotionDate(product.promotionStartDate) : ''
+    };
+  });
+
+  // Ordenar productos procesados
+  return processed.sort((a, b) => {
     switch (sortBy.value) {
       case 'price-asc':
-        return getEffectivePrice(a) - getEffectivePrice(b);
+        return a.effectivePrice - b.effectivePrice;
       case 'price-desc':
-        return getEffectivePrice(b) - getEffectivePrice(a);
+        return b.effectivePrice - a.effectivePrice;
       case 'name':
         return (a.name || '').localeCompare(b.name || '');
       default:
-        if (hasUpcomingPromotion(a) && !hasUpcomingPromotion(b)) return -1;
-        if (!hasUpcomingPromotion(a) && hasUpcomingPromotion(b)) return 1;
+        if (a.hasUpcomingPromotion && !b.hasUpcomingPromotion) return -1;
+        if (!a.hasUpcomingPromotion && b.hasUpcomingPromotion) return 1;
         return 0;
     }
   });
 });
 
-const addToCart = (product: Product) => {
-  if (!product.stock) {
-    showToast({
-      type: 'error',
-      message: 'Producto agotado'
-    });
-    return;
-  }
+// Función para manejar errores de imagen
+const handleImageError = (event: Event) => {
+  const img = event.target as HTMLImageElement;
+  img.src = '/api/placeholder/800/500';
+};
 
-  /*const cartItem: CartItem = {
-    id: product.id,
-    name: product.name,
-    price: product.price,
-    quantity: 1,
-    imageUrl: product.imageUrl
-  };
+// Función para cargar imágenes de forma eficiente
+const loadImageUrls = async () => {
+  if (!productsWeb.value) return;
 
-  cartStore.addItem(cartItem);*/
-
-  showToast({
-    type: 'success',
-    message: 'Producto añadido'
+  // Precargar imágenes en background
+  requestIdleCallback(() => {
+    preloadImages(
+      productsWeb.value.map(product => ({
+        id: product.id,
+        imageUrl: product.imageUrl || ''
+      }))
+    );
   });
 };
 
+// Función principal de carga
 const loadProductsWebMounted = async () => {
   loading.value = true;
   error.value = null;
@@ -333,13 +343,17 @@ const loadProductsWebMounted = async () => {
   }
 };
 
+// Lifecycle hooks
 onMounted(() => {
   loadProductsWebMounted();
 });
 
-watch(() => productsWeb.value, () => {
-  loadImageUrls();
-}, { immediate: true });
+watch(() => productsWeb.value, loadImageUrls, { immediate: true });
+
+// Limpiar caché al desmontar
+onUnmounted(() => {
+  memoizedCache.clear();
+});
 </script>
 
 <style scoped>
@@ -420,7 +434,6 @@ watch(() => productsWeb.value, () => {
   align-items: center;
   gap: 4px;
   z-index: 10;
-  /* Add z-index to make it appear on top */
 }
 
 .promotion-date {
@@ -442,29 +455,6 @@ watch(() => productsWeb.value, () => {
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-.future-price {
-  font-size: 0.85rem;
-  color: #ff4444;
-  font-weight: 500;
-}
-
-.promo-header {
-  background-color: #ffffff22;
-  color: white;
-  padding: 40px 0;
-  text-align: center;
-  margin-bottom: 30px;
-  text-decoration: none;
-  display: block;
-}
-
-.promo-header h1 {
-  font-size: 2.5rem;
-  margin: 0;
-  position: relative;
-  z-index: 2;
 }
 
 .hero-banner {
@@ -548,7 +538,6 @@ watch(() => productsWeb.value, () => {
   font-size: 1.1rem;
 }
 
-/* Rest of the styles remain the same */
 .filter-section {
   display: flex;
   justify-content: flex-end;
@@ -583,6 +572,9 @@ watch(() => productsWeb.value, () => {
   transition: all 0.3s ease;
   position: relative;
   border-radius: 8px;
+  /* Optimización para scroll */
+  contain: layout style paint;
+  will-change: transform;
 }
 
 .product-card:hover {
@@ -601,27 +593,28 @@ watch(() => productsWeb.value, () => {
   position: relative;
   width: 100%;
   height: 400px;
-  /* Altura fija para todas las imágenes */
   display: flex;
   align-items: center;
   justify-content: center;
   background-color: #f8f8f8;
   margin-bottom: 15px;
-
   overflow: hidden;
   border-radius: 4px;
+  /* Optimización para imágenes */
+  contain: layout;
 }
 
-.product-image img {
+.product-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* Mantiene la proporción y cubre el espacio */
   object-position: center;
   transition: transform 0.3s ease;
+  /* Optimización para scroll */
+  will-change: transform;
 }
 
-.product-content:hover .product-image img {
+.product-content:hover .product-img {
   transform: scale(1.05);
 }
 
@@ -636,16 +629,26 @@ watch(() => productsWeb.value, () => {
   margin: 5px 0;
 }
 
-.product-description {
-  font-size: 0.9rem;
-  color: #666;
-  margin: 5px 0;
-}
-
 .product-price {
   font-size: 1.2rem;
   font-weight: bold;
   margin: 10px 0;
+}
+
+.current-price {
+  color: #333;
+}
+
+.promotion-price {
+  color: #e53e3e;
+  font-weight: bold;
+}
+
+.original-price {
+  color: #999;
+  text-decoration: line-through;
+  font-size: 0.9em;
+  margin-left: 8px;
 }
 
 .stock-status {
@@ -666,30 +669,6 @@ watch(() => productsWeb.value, () => {
 .stock-status.out-of-stock {
   background-color: #ffebee;
   color: #c62828;
-}
-
-.add-to-cart {
-  background-color: #000;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  width: 100%;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  margin-top: 10px;
-}
-
-.add-to-cart:hover {
-  background-color: #333;
-}
-
-.add-to-cart.disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-}
-
-.add-to-cart.disabled:hover {
-  background-color: #ccc;
 }
 
 .loading-state {
@@ -721,5 +700,19 @@ watch(() => productsWeb.value, () => {
   100% {
     transform: rotate(360deg);
   }
+}
+
+/* Optimizaciones adicionales para scroll */
+.products-grid {
+  /* Activar aceleración por hardware */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+.product-card {
+  /* Optimizar para repaint */
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 </style>

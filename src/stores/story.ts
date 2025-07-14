@@ -654,7 +654,7 @@ export const useStoryStore = defineStore("story", () => {
     }
   };
 
-  // TEMPORAL: Función para restaurar tiempo normal (24h desde ahora)
+  // TEMPORAL: Función para restaurar tiempo normal (24h desde ahora) y reiniciar contadores
   const resetStoryExpiration = async (storyId: string) => {
     try {
       //console.log("🧪 Intentando restaurar historia:", storyId);
@@ -662,17 +662,43 @@ export const useStoryStore = defineStore("story", () => {
       const futureDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h desde ahora
       //console.log("🧪 Nueva fecha de vencimiento:", futureDate.toISOString());
 
+      // Primero eliminar todas las interacciones relacionadas con esta historia
+      const { data: interactions } =
+        await authClient.models.StoryInteraction.list({
+          filter: { storyID: { eq: storyId } },
+        });
+
+      if (interactions && interactions.length > 0) {
+        //console.log("🧪 Eliminando", interactions.length, "interacciones existentes");
+        await Promise.all(
+          interactions.map((interaction) =>
+            interaction.id
+              ? authClient.models.StoryInteraction.delete({
+                  id: interaction.id,
+                })
+              : Promise.resolve()
+          )
+        );
+      }
+
+      const now = new Date();
+
+      // Actualizar la historia con nueva fecha de vencimiento y contadores reiniciados
       const { data: updatedStory } = await authClient.models.Story.update({
         id: storyId,
         expiresAt: futureDate.toISOString(),
         active: true, // Asegurar que esté activa
-        updatedAt: new Date().toISOString(),
+        views: 0, // Reiniciar contadores
+        likes: 0, // Reiniciar contadores
+        wants: 0, // Reiniciar contadores
+        createdAt: now.toISOString(), // Actualizar fecha de creación como si fuera nueva
+        updatedAt: now.toISOString(), // Actualizar fecha de modificación
       });
 
-      //console.log("🧪 Historia restaurada:", updatedStory);
+      //console.log("🧪 Historia restaurada con contadores reiniciados:", updatedStory);
 
       await fetchStories();
-      //console.log("🧪 Restauración exitosa");
+      //console.log("🧪 Restauración exitosa con contadores reiniciados");
     } catch (error) {
       console.error("🧪 Error detallado en resetStoryExpiration:", error);
       throw error;

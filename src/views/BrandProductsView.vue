@@ -305,12 +305,12 @@ const processedProducts = computed(() => {
         let priceDisplay = '';
         if (hasActive) {
             const discountedPrice = calculateDiscountedPrice(product).toFixed(2);
-            priceDisplay = `<span class="original-price">S/${product.originalPrice?.toFixed(2) || '0.00'}</span>
-                           <span class="discounted-price">S/${discountedPrice}</span>`;
+            priceDisplay = `<span class="original-price" style="font-size: 0.9rem; color: #666; text-decoration: line-through; margin-right: 6px;">S/${product.originalPrice?.toFixed(2) || '0.00'}</span>
+                           <span class="discounted-price" style="font-size: 1.2rem; font-weight: bold; color: #000;">S/${discountedPrice}</span>`;
         } else if (hasUpcoming || hasExpired) {
-            priceDisplay = `<span class="current-price">S/${product.originalPrice?.toFixed(2) || '0.00'}</span>`;
+            priceDisplay = `<span class="current-price" style="font-size: 1.2rem; font-weight: bold; color: #1a1a1a;">S/${product.originalPrice?.toFixed(2) || '0.00'}</span>`;
         } else {
-            priceDisplay = `<span class="current-price">S/${product.price?.toFixed(2) || '0.00'}</span>`;
+            priceDisplay = `<span class="current-price" style="font-size: 1.2rem; font-weight: bold; color: #1a1a1a;">S/${product.price?.toFixed(2) || '0.00'}</span>`;
         }
 
         // Pre-procesar clases

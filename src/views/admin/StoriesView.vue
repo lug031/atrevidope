@@ -174,11 +174,11 @@
                                         <ToggleRightIcon v-if="story.active" :size="18" />
                                         <ToggleLeftIcon v-else :size="18" />
                                     </button> -->
-                                    <button v-if="!getTimeRemaining(story.expiresAt).expired"
+                                    <!-- <button v-if="!getTimeRemaining(story.expiresAt).expired"
                                         @click="forceExpire(story.id)" class="icon-button test-expire"
                                         title="🧪 Forzar vencimiento (TEST)" :disabled="!story.id">
                                         ⏰
-                                    </button>
+                                    </button>-->
                                     <button v-else @click="resetExpiration(story.id)" class="icon-button test-reset"
                                         title="Restaurar 24h" :disabled="!story.id">
                                         <RefreshCwIcon :size="16" />

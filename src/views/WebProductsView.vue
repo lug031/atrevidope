@@ -231,7 +231,7 @@ const processedProducts = computed(() => {
     const processedDescription = parseMarkdown(truncateText(product.description, 100));
 
     // Pre-procesar imagen
-    const imageUrl = getCachedImage(product.id);
+    const optimizedImageUrl = getCachedImage(product.id);
 
     // Pre-procesar precio
     let priceDisplay = '';
@@ -281,7 +281,7 @@ const processedProducts = computed(() => {
       hasExpiredPromotion: hasExpired,
       isActivePromotion: isActive,
       processedDescription,
-      imageUrl,
+      optimizedImageUrl,
       priceDisplay,
       priceClasses,
       stockClasses,

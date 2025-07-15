@@ -231,7 +231,7 @@ const processedProducts = computed(() => {
     const processedDescription = parseMarkdown(truncateText(product.description, 100));
 
     // Pre-procesar imagen
-    const optimizedImageUrl = getCachedImage(product.id);
+    const imageUrl = getCachedImage(product.id);
 
     // Pre-procesar precio
     let priceDisplay = '';
@@ -281,7 +281,7 @@ const processedProducts = computed(() => {
       hasExpiredPromotion: hasExpired,
       isActivePromotion: isActive,
       processedDescription,
-      optimizedImageUrl,
+      imageUrl,
       priceDisplay,
       priceClasses,
       stockClasses,
@@ -319,14 +319,20 @@ const loadImageUrls = async () => {
   if (!productsWeb.value) return;
 
   // Precargar imágenes en background
-  requestIdleCallback(() => {
+  const schedulePreload = () => {
     preloadImages(
       productsWeb.value.map(product => ({
         id: product.id,
         imageUrl: product.imageUrl || ''
       }))
     );
-  });
+  };
+
+  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    (window as any).requestIdleCallback(schedulePreload);
+  } else {
+    setTimeout(schedulePreload, 100);
+  }
 };
 
 // Función principal de carga

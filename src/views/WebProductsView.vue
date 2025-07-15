@@ -319,14 +319,20 @@ const loadImageUrls = async () => {
   if (!productsWeb.value) return;
 
   // Precargar imágenes en background
-  requestIdleCallback(() => {
+  const schedulePreload = () => {
     preloadImages(
       productsWeb.value.map(product => ({
         id: product.id,
         imageUrl: product.imageUrl || ''
       }))
     );
-  });
+  };
+
+  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    (window as any).requestIdleCallback(schedulePreload);
+  } else {
+    setTimeout(schedulePreload, 100);
+  }
 };
 
 // Función principal de carga

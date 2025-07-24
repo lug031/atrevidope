@@ -4,7 +4,7 @@
         <!-- Agregamos el nuevo componente WhatsAppChatButton -->
         <WhatsAppChatButton phoneNumber="51934505566" welcomeMessage="Hola 👋 ¿Cómo podemos ayudarte?"
             agentName="Atrevido" agentStatus="Soporte" agentAvatar="/atrevido_logo.png" :autoOpen="true"
-            :autoOpenDelay="500" :useLocalStorage="true" storageKey="atrevido_whatsapp_shown" :hideDuration="2/60" />
+            :autoOpenDelay="500" :useLocalStorage="true" storageKey="atrevido_whatsapp_shown" :hideDuration="2 / 60" />
 
         <footer class="footer">
             <div class="footer-content">
@@ -57,7 +57,10 @@
             </div>
 
             <div class="footer-bottom">
-                <p>&copy; {{ currentYear }} Atrevido. Todos los derechos reservados.</p>
+                <div class="copyright-section">
+                    <p>&copy; {{ currentYear }} Atrevido. Todos los derechos reservados. | <a
+                            href="https://acortar.link/EAO8QL" target="_blank" class="dev-subtle-link">dev</a></p>
+                </div>
             </div>
         </footer>
     </div>
@@ -189,9 +192,36 @@ const currentYear = ref(new Date().getFullYear())
     border-top: 1px solid #333;
 }
 
-.footer-bottom p {
+.copyright-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.copyright-section p {
     color: #999;
     font-size: 0.875rem;
+    margin: 0;
+}
+
+/* Link sutil para créditos de desarrollador */
+.dev-subtle-link {
+    color: #999;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    font-size: inherit;
+    position: relative;
+}
+
+.dev-subtle-link:hover {
+    color: #fff;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+}
+
+.dev-subtle-link:active {
+    color: #ccc;
 }
 
 @media (max-width: 768px) {
@@ -214,6 +244,10 @@ const currentYear = ref(new Date().getFullYear())
     .footer-logo {
         max-width: 120px;
     }
+
+    .copyright-section {
+        gap: 0.75rem;
+    }
 }
 
 @media (max-width: 480px) {
@@ -232,6 +266,14 @@ const currentYear = ref(new Date().getFullYear())
 
     .footer-logo {
         max-width: 100px;
+    }
+
+    .copyright-section {
+        gap: 1rem;
+    }
+
+    .developer-credit {
+        font-size: 0.75rem;
     }
 }
 </style>
